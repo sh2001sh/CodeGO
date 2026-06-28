@@ -330,7 +330,7 @@ jobs:
           WINDOWS_RELEASE_ARCH: ${{ matrix.arch || 'x86_64' }}
         run: |
           $ErrorActionPreference = 'Stop'
-          $buildArgs = @('tauri', 'build')
+          $buildArgs = @('exec', 'tauri', 'build')
           if ($env:TAURI_BUILD_CONFIG_PATH) {
             $buildArgs += @('--config', $env:TAURI_BUILD_CONFIG_PATH)
           }
@@ -339,7 +339,7 @@ jobs:
           } else {
             $buildArgs += @()
           }
-          pnpm $buildArgs
+          & pnpm @buildArgs
 
       - name: Build Tauri App (Linux)
         if: runner.os == 'Linux'

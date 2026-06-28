@@ -745,7 +745,10 @@ describe("CodeGoDashboard", () => {
       expect(screen.getByText("Authorized devices")).toBeInTheDocument(),
     );
 
-    expect(screen.getByText("1 active")).toBeInTheDocument();
+    await screen.findByText("MacBook Pro");
+    await waitFor(() =>
+      expect(screen.getByText(/1 active/i)).toBeInTheDocument(),
+    );
     expect(screen.getAllByText("Revoked").length).toBeGreaterThan(0);
 
     const revokedRow = screen

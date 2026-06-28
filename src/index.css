@@ -159,24 +159,28 @@ input[type="password"]::-ms-clear {
 
 @layer components {
   .codego-shell {
-    @apply rounded-[20px] border border-white/70 bg-white/80 backdrop-blur-sm;
+    @apply rounded-[20px] border border-white/70 backdrop-blur-sm;
+    background-color: rgb(255 255 255 / 0.8);
     box-shadow: 0 4px 8px rgb(24 32 43 / 0.08);
   }
 
   .dark .codego-shell {
-    @apply border-white/10 bg-[#151925]/88;
+    @apply border-white/10;
+    background-color: rgb(21 25 37 / 0.88);
     box-shadow: 0 4px 8px rgb(0 0 0 / 0.22);
   }
 
   .codego-panel {
-    @apply rounded-2xl border border-white/70 bg-white/72 backdrop-blur-sm;
+    @apply rounded-2xl border border-white/70 backdrop-blur-sm;
+    background-color: rgb(255 255 255 / 0.72);
     box-shadow:
       0 1px 0 rgb(255 255 255 / 0.65) inset,
       0 2px 6px rgb(24 32 43 / 0.05);
   }
 
   .dark .codego-panel {
-    @apply border-white/10 bg-white/[0.04];
+    @apply border-white/10;
+    background-color: rgb(255 255 255 / 0.04);
     box-shadow:
       0 1px 0 rgb(255 255 255 / 0.04) inset,
       0 2px 6px rgb(0 0 0 / 0.16);
@@ -194,11 +198,21 @@ input[type="password"]::-ms-clear {
   }
 
   .codego-sidebar-surface {
-    @apply border-r border-white/70 bg-white/58 dark:border-white/10 dark:bg-white/[0.03];
+    @apply border-r border-white/70 dark:border-white/10;
+    background-color: rgb(255 255 255 / 0.58);
+  }
+
+  .dark .codego-sidebar-surface {
+    background-color: rgb(255 255 255 / 0.03);
   }
 
   .codego-toolbar-surface {
-    @apply border-b border-white/70 bg-white/44 dark:border-white/10 dark:bg-white/[0.02];
+    @apply border-b border-white/70 dark:border-white/10;
+    background-color: rgb(255 255 255 / 0.44);
+  }
+
+  .dark .codego-toolbar-surface {
+    background-color: rgb(255 255 255 / 0.02);
   }
 
   .codego-nav-item {
@@ -233,11 +247,13 @@ input[type="password"]::-ms-clear {
   }
 
   .codego-metric-card {
-    @apply rounded-2xl border border-white/70 bg-white/76 p-4 dark:border-white/10 dark:bg-white/[0.04];
+    @apply rounded-2xl border border-white/70 p-4 dark:border-white/10;
+    background-color: rgb(255 255 255 / 0.76);
     box-shadow: 0 2px 6px rgb(24 32 43 / 0.05);
   }
 
   .dark .codego-metric-card {
+    background-color: rgb(255 255 255 / 0.04);
     box-shadow: 0 2px 6px rgb(0 0 0 / 0.16);
   }
 }

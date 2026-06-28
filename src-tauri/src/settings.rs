@@ -795,6 +795,7 @@ pub fn get_settings() -> AppSettings {
         .clone()
 }
 
+#[cfg(test)]
 pub fn get_codego_last_seen_quota_usd() -> Option<f64> {
     settings_store()
         .read()
