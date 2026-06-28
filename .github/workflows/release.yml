@@ -133,16 +133,59 @@ jobs:
         shell: bash
         run: node scripts/clean-codego-release-artifacts.mjs
 
-      - name: Prepare Tauri signing key
+      - name: Resolve signing configuration
+        id: signing-config
         shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
-          # 调试：检查 Secret 是否存在
-          if [ -z "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" ]; then
-            echo "❌ TAURI_SIGNING_PRIVATE_KEY Secret 为空或不存在" >&2
-            echo "请检查 GitHub 仓库 Settings > Secrets and variables > Actions" >&2
-            exit 1
+          set -euo pipefail
+
+          if [ -n "${TAURI_SIGNING_PRIVATE_KEY:-}" ]; then
+            echo "tauri_signing_enabled=true" >> "$GITHUB_OUTPUT"
+            echo "Tauri updater signing is enabled for this runner."
+          else
+            echo "tauri_signing_enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Tauri updater signing secret is missing; unsigned release artifacts will be published."
           fi
 
+          if [ "${RUNNER_OS}" != "macOS" ]; then
+            echo "apple_signing_enabled=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          missing=()
+          for key in \
+            APPLE_CERTIFICATE \
+            APPLE_CERTIFICATE_PASSWORD \
+            APPLE_ID \
+            APPLE_PASSWORD \
+            APPLE_TEAM_ID \
+            KEYCHAIN_PASSWORD; do
+            if [ -z "${!key:-}" ]; then
+              missing+=("$key")
+            fi
+          done
+
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "apple_signing_enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Apple signing/notarization secrets are missing: ${missing[*]}"
+          else
+            echo "apple_signing_enabled=true" >> "$GITHUB_OUTPUT"
+            echo "Apple signing and notarization are enabled for this runner."
+          fi
+
+      - name: Prepare Tauri signing key
+        id: tauri-signing-key
+        if: steps.signing-config.outputs.tauri_signing_enabled == 'true'
+        shell: bash
+        run: |
           RAW="${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}"
           # 目标：提供正确的私钥“文件路径”给 Tauri CLI，避免内容解码歧义
           KEY_PATH="$RUNNER_TEMP/tauri_signing.key"
@@ -189,8 +232,24 @@ jobs:
           fi
           echo "✅ Tauri signing key prepared"
 
+      - name: Prepare unsigned Tauri build override
+        if: steps.signing-config.outputs.tauri_signing_enabled != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          CONFIG_PATH="$RUNNER_TEMP/tauri.release.override.json"
+          cat > "$CONFIG_PATH" <<'EOF'
+          {
+            "bundle": {
+              "createUpdaterArtifacts": false
+            }
+          }
+          EOF
+          echo "TAURI_BUILD_CONFIG_PATH=$CONFIG_PATH" >> "$GITHUB_ENV"
+          echo "Updater signing is disabled; tauri build will skip updater artifact generation."
+
       - name: Import Apple signing certificate
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && steps.signing-config.outputs.apple_signing_enabled == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -245,7 +304,11 @@ jobs:
           max_attempts=3
           for attempt in $(seq 1 "$max_attempts"); do
             echo "=== macOS build/notarization attempt ${attempt}/${max_attempts} ==="
-            if pnpm tauri build --target universal-apple-darwin; then
+            build_cmd=(pnpm tauri build --target universal-apple-darwin)
+            if [ -n "${TAURI_BUILD_CONFIG_PATH:-}" ]; then
+              build_cmd+=(--config "$TAURI_BUILD_CONFIG_PATH")
+            fi
+            if "${build_cmd[@]}"; then
               echo "✅ macOS build/notarization succeeded"
               exit 0
             fi
@@ -267,15 +330,27 @@ jobs:
           WINDOWS_RELEASE_ARCH: ${{ matrix.arch || 'x86_64' }}
         run: |
           $ErrorActionPreference = 'Stop'
-          if ($env:WINDOWS_RELEASE_ARCH -eq 'arm64') {
-            pnpm tauri build --target aarch64-pc-windows-msvc --bundles msi
-          } else {
-            pnpm tauri build
+          $buildArgs = @('tauri', 'build')
+          if ($env:TAURI_BUILD_CONFIG_PATH) {
+            $buildArgs += @('--config', $env:TAURI_BUILD_CONFIG_PATH)
           }
+          if ($env:WINDOWS_RELEASE_ARCH -eq 'arm64') {
+            $buildArgs += @('--target', 'aarch64-pc-windows-msvc', '--bundles', 'msi')
+          } else {
+            $buildArgs += @()
+          }
+          pnpm $buildArgs
 
       - name: Build Tauri App (Linux)
         if: runner.os == 'Linux'
-        run: pnpm tauri build --bundles appimage,deb,rpm
+        shell: bash
+        run: |
+          set -euo pipefail
+          build_cmd=(pnpm tauri build --bundles appimage,deb,rpm)
+          if [ -n "${TAURI_BUILD_CONFIG_PATH:-}" ]; then
+            build_cmd+=(--config "$TAURI_BUILD_CONFIG_PATH")
+          fi
+          "${build_cmd[@]}"
 
       - name: Prepare macOS Assets
         if: runner.os == 'macOS'
@@ -307,9 +382,13 @@ jobs:
             exit 1
           fi
 
-          # Staple notarization ticket to .app (Tauri already notarized it)
-          xcrun stapler staple "$APP_PATH"
-          echo "✅ .app stapled"
+          if [ "${{ steps.signing-config.outputs.apple_signing_enabled }}" = "true" ]; then
+            # Staple notarization ticket to .app (Tauri already notarized it)
+            xcrun stapler staple "$APP_PATH"
+            echo "✅ .app stapled"
+          else
+            echo "Apple signing secrets are unavailable; skipping .app stapling."
+          fi
 
           # 1) Collect .tar.gz (updater artifact)
           NEW_TAR_GZ="CodeGo_${VERSION}_universal.app.tar.gz"
@@ -323,11 +402,6 @@ jobs:
           echo "macOS zip ready: $NEW_ZIP"
 
           # 3) Create styled DMG with create-dmg (Tauri's built-in DMG styling doesn't work on CI)
-          if [ -z "${APPLE_SIGNING_IDENTITY:-}" ]; then
-            echo "❌ APPLE_SIGNING_IDENTITY is missing before DMG creation" >&2
-            exit 1
-          fi
-
           HOMEBREW_NO_AUTO_UPDATE=1 brew install create-dmg
           NEW_DMG="CodeGo_${VERSION}_universal.dmg"
           DMG_STAGE_DIR="$RUNNER_TEMP/dmg-stage"
@@ -335,25 +409,31 @@ jobs:
           mkdir -p "$DMG_STAGE_DIR"
           ditto "$APP_PATH" "$DMG_STAGE_DIR/Code Go Desktop.app"
 
-          create-dmg \
-            --volname "Code Go Desktop" \
-            --background "src-tauri/icons/dmg-background.png" \
-            --window-size 660 400 \
-            --window-pos 200 120 \
-            --icon-size 80 \
-            --icon "Code Go Desktop.app" 180 220 \
-            --hide-extension "Code Go Desktop.app" \
-            --app-drop-link 480 220 \
-            --codesign "$APPLE_SIGNING_IDENTITY" \
-            --no-internet-enable \
-            "release-assets/$NEW_DMG" \
-            "$DMG_STAGE_DIR"
+          dmg_args=(
+            --volname "Code Go Desktop"
+            --background "src-tauri/icons/dmg-background.png"
+            --window-size 660 400
+            --window-pos 200 120
+            --icon-size 80
+            --icon "Code Go Desktop.app" 180 220
+            --hide-extension "Code Go Desktop.app"
+            --app-drop-link 480 220
+            --no-internet-enable
+          )
+          if [ -n "${APPLE_SIGNING_IDENTITY:-}" ]; then
+            dmg_args+=(--codesign "$APPLE_SIGNING_IDENTITY")
+          else
+            echo "APPLE_SIGNING_IDENTITY is unavailable; creating an unsigned DMG."
+          fi
+          dmg_args+=("release-assets/$NEW_DMG" "$DMG_STAGE_DIR")
+
+          create-dmg "${dmg_args[@]}"
 
           rm -rf "$DMG_STAGE_DIR"
           echo "✅ Styled DMG created: $NEW_DMG"
 
       - name: Notarize macOS DMG
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && steps.signing-config.outputs.apple_signing_enabled == 'true'
         shell: bash
         timeout-minutes: 30
         env:
@@ -416,17 +496,23 @@ jobs:
             echo "❌ No .app found for verification" >&2
             exit 1
           fi
-          echo "=== Verifying .app: $APP_PATH ==="
-          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
-          echo "✅ codesign verification passed"
-          spctl -a -t exec -vv "$APP_PATH"
-          echo "✅ spctl assessment passed"
-          xcrun stapler validate "$APP_PATH"
-          echo "✅ .app stapler validation passed"
 
           # Verify .dmg (from release-assets/, created by create-dmg + notarized)
           DMG_PATH=$(find release-assets -maxdepth 1 -name "*.dmg" -type f | head -1 || true)
-          if [ -n "$DMG_PATH" ]; then
+          if [ -z "$DMG_PATH" ]; then
+            echo "❌ No .dmg found for verification — release would ship without DMG" >&2
+            exit 1
+          fi
+
+          if [ "${{ steps.signing-config.outputs.apple_signing_enabled }}" = "true" ]; then
+            echo "=== Verifying .app: $APP_PATH ==="
+            codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+            echo "✅ codesign verification passed"
+            spctl -a -t exec -vv "$APP_PATH"
+            echo "✅ spctl assessment passed"
+            xcrun stapler validate "$APP_PATH"
+            echo "✅ .app stapler validation passed"
+
             echo "=== Verifying .dmg: $DMG_PATH ==="
             codesign --verify --verbose=2 "$DMG_PATH"
             echo "✅ .dmg codesign verification passed"
@@ -435,8 +521,7 @@ jobs:
             xcrun stapler validate "$DMG_PATH"
             echo "✅ .dmg stapler validation passed"
           else
-            echo "❌ No .dmg found for verification — release would ship without verified DMG" >&2
-            exit 1
+            echo "Apple signing secrets are unavailable; verified unsigned macOS artifacts exist."
           fi
 
       - name: Prepare Windows Assets
@@ -446,6 +531,7 @@ jobs:
           WINDOWS_RELEASE_ARCH: ${{ matrix.arch || 'x86_64' }}
         run: |
           $ErrorActionPreference = 'Stop'
+          $updaterSigningEnabled = '${{ steps.signing-config.outputs.tauri_signing_enabled }}' -eq 'true'
           New-Item -ItemType Directory -Force -Path release-assets | Out-Null
           $VERSION = $env:GITHUB_REF_NAME -replace '^v', ''
           $isArm64 = $env:WINDOWS_RELEASE_ARCH -eq 'arm64'
@@ -466,7 +552,7 @@ jobs:
             if (Test-Path $sigPath) {
               Copy-Item $sigPath (Join-Path release-assets ("$dest.sig"))
               Write-Host "Signature copied: $dest.sig"
-            } elseif ($isArm64) {
+            } elseif ($updaterSigningEnabled) {
               throw "Signature not found for $($msi.Name)"
             } else {
               Write-Warning "Signature not found for $($msi.Name)"
@@ -639,6 +725,41 @@ jobs:
             --manifest-out "release-assets/codego-desktop-release-manifest.json" \
             --latest-out "release-assets/latest.json"
 
+      - name: Resolve release verification requirements
+        id: release-metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'EOF'
+          const fs = require("node:fs");
+
+          const manifest = JSON.parse(
+            fs.readFileSync("release-assets/codego-desktop-release-manifest.json", "utf8"),
+          );
+          const latest = JSON.parse(
+            fs.readFileSync("release-assets/latest.json", "utf8"),
+          );
+
+          const requiredPlatforms = Object.keys(latest.platforms || {}).join(",");
+          const requiredAssetSuffixes = (Array.isArray(manifest.assets) ? manifest.assets : [])
+            .map((asset) => String(asset?.name || "").trim())
+            .filter(Boolean)
+            .join(",");
+
+          fs.appendFileSync(
+            process.env.GITHUB_OUTPUT,
+            `required_platforms=${requiredPlatforms}\n`,
+          );
+          fs.appendFileSync(
+            process.env.GITHUB_OUTPUT,
+            `required_asset_suffixes=${requiredAssetSuffixes}\n`,
+          );
+          fs.appendFileSync(
+            process.env.GITHUB_OUTPUT,
+            `updater_signatures_present=${requiredPlatforms ? "true" : "false"}\n`,
+          );
+          EOF
+
       - name: Build deploy bundle
         shell: bash
         run: |
@@ -659,7 +780,9 @@ jobs:
             --manifest "release-assets/codego-desktop-release-manifest.json" \
             --latest "release-assets/latest.json" \
             --bundle-out "release-assets/deploy-bundle" \
-            --expected-version "$VERSION"
+            --expected-version "$VERSION" \
+            --required-platforms "${{ steps.release-metadata.outputs.required_platforms }}" \
+            --required-asset-suffixes "${{ steps.release-metadata.outputs.required_asset_suffixes }}"
 
       - name: Generate release acceptance template
         shell: bash
@@ -815,6 +938,8 @@ jobs:
             --release-url "${public_base}/api/desktop/release/latest" \
             --latest-url "${public_base}/api/desktop/release/latest.json" \
             --expected-version "$expected_version" \
+            --required-platforms "${{ steps.release-metadata.outputs.required_platforms }}" \
+            --required-asset-suffixes "${{ steps.release-metadata.outputs.required_asset_suffixes }}" \
             --timeout-ms "180000" \
             --interval-ms "5000"
 
@@ -843,7 +968,7 @@ jobs:
             - Release channel metadata: `codego-desktop-release-manifest.json` and `latest.json`
 
             ---
-            macOS artifacts are signed, notarized, stapled, and verified during CI before release publication.
+            Updater signatures and macOS notarization metadata are included when the corresponding CI signing secrets are configured.
           files: release-assets/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

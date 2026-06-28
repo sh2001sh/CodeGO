@@ -674,7 +674,8 @@ describe("CodeGoDashboard", () => {
       expect(screen.getByText("Authorized devices")).toBeInTheDocument(),
     );
 
-    const deviceRow = screen.getByText("MacBook Pro").closest("div.rounded-lg");
+    const deviceLabel = await screen.findByText("MacBook Pro");
+    const deviceRow = deviceLabel.closest("div.rounded-lg");
     expect(deviceRow).not.toBeNull();
 
     fireEvent.click(
