@@ -7,6 +7,8 @@ import {
   type CodeGoUsageLogsQuery,
 } from "@/lib/api/codego";
 
+const CODEGO_AUTO_REFRESH_INTERVAL_MS = 3 * 60 * 1000;
+
 export const codegoKeys = {
   all: ["codego"] as const,
   auth: () => [...codegoKeys.all, "auth"] as const,
@@ -26,11 +28,17 @@ export const useCodeGoAuthQuery = () =>
     queryFn: () => codegoApi.getAuthState(),
   });
 
-export const useCodeGoSummaryQuery = (enabled: boolean) =>
+export const useCodeGoSummaryQuery = (
+  enabled: boolean,
+  autoRefreshEnabled: boolean,
+) =>
   useQuery({
     queryKey: codegoKeys.summary(),
     queryFn: () => codegoApi.getAccountSummary(),
     enabled,
+    refetchInterval:
+      enabled && autoRefreshEnabled ? CODEGO_AUTO_REFRESH_INTERVAL_MS : false,
+    refetchIntervalInBackground: false,
   });
 
 export const useCodeGoAuthorizedDevicesQuery = (enabled: boolean) =>
@@ -84,13 +92,18 @@ export const useCodeGoStartAuthSessionMutation = () => {
 export const useCodeGoPollAuthSessionMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: CodeGoPollAuthInput) => codegoApi.pollAuthSession(input),
+    mutationFn: (input: CodeGoPollAuthInput) =>
+      codegoApi.pollAuthSession(input),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: codegoKeys.auth() });
       await queryClient.invalidateQueries({ queryKey: codegoKeys.summary() });
       await queryClient.invalidateQueries({ queryKey: codegoKeys.devices() });
-      await queryClient.invalidateQueries({ queryKey: [...codegoKeys.all, "trends"] });
-      await queryClient.invalidateQueries({ queryKey: [...codegoKeys.all, "logs"] });
+      await queryClient.invalidateQueries({
+        queryKey: [...codegoKeys.all, "trends"],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: [...codegoKeys.all, "logs"],
+      });
     },
   });
 };
@@ -103,9 +116,15 @@ export const useCodeGoLogoutMutation = () => {
       await queryClient.invalidateQueries({ queryKey: codegoKeys.auth() });
       await queryClient.removeQueries({ queryKey: codegoKeys.summary() });
       await queryClient.removeQueries({ queryKey: codegoKeys.devices() });
-      await queryClient.removeQueries({ queryKey: [...codegoKeys.all, "trends"] });
-      await queryClient.removeQueries({ queryKey: [...codegoKeys.all, "tokens"] });
-      await queryClient.removeQueries({ queryKey: [...codegoKeys.all, "logs"] });
+      await queryClient.removeQueries({
+        queryKey: [...codegoKeys.all, "trends"],
+      });
+      await queryClient.removeQueries({
+        queryKey: [...codegoKeys.all, "tokens"],
+      });
+      await queryClient.removeQueries({
+        queryKey: [...codegoKeys.all, "logs"],
+      });
     },
   });
 };
@@ -128,7 +147,9 @@ export const useCodeGoCreateTokenMutation = () => {
     mutationFn: codegoApi.createToken,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: codegoKeys.summary() });
-      await queryClient.invalidateQueries({ queryKey: [...codegoKeys.all, "tokens"] });
+      await queryClient.invalidateQueries({
+        queryKey: [...codegoKeys.all, "tokens"],
+      });
     },
   });
 };
@@ -139,7 +160,9 @@ export const useCodeGoUpdateTokenMutation = () => {
     mutationFn: codegoApi.updateToken,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: codegoKeys.summary() });
-      await queryClient.invalidateQueries({ queryKey: [...codegoKeys.all, "tokens"] });
+      await queryClient.invalidateQueries({
+        queryKey: [...codegoKeys.all, "tokens"],
+      });
     },
   });
 };
@@ -150,7 +173,9 @@ export const useCodeGoDeleteTokenMutation = () => {
     mutationFn: codegoApi.deleteToken,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: codegoKeys.summary() });
-      await queryClient.invalidateQueries({ queryKey: [...codegoKeys.all, "tokens"] });
+      await queryClient.invalidateQueries({
+        queryKey: [...codegoKeys.all, "tokens"],
+      });
     },
   });
 };
@@ -161,7 +186,9 @@ export const useCodeGoSubmitDiagnosticReportMutation = () => {
     mutationFn: (input?: CodeGoSubmitDiagnosticReportInput) =>
       codegoApi.submitDiagnosticReport(input),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: codegoKeys.diagnosticPreview() });
+      await queryClient.invalidateQueries({
+        queryKey: codegoKeys.diagnosticPreview(),
+      });
     },
   });
 };

@@ -88,6 +88,18 @@ fn test_parse_valid_claude_deeplink() {
 }
 
 #[test]
+fn test_parse_valid_codego_deeplink() {
+    let url = "codego://v1/import?resource=provider&app=claude&name=Code%20Go%20Provider&homepage=https%3A%2F%2Fexample.com&endpoint=https%3A%2F%2Fapi.example.com&apiKey=sk-test-123";
+
+    let request = parse_deeplink_url(url).unwrap();
+
+    assert_eq!(request.version, "v1");
+    assert_eq!(request.resource, "provider");
+    assert_eq!(request.app, Some("claude".to_string()));
+    assert_eq!(request.name, Some("Code Go Provider".to_string()));
+}
+
+#[test]
 fn test_parse_deeplink_with_notes() {
     let url = "ccswitch://v1/import?resource=provider&app=codex&name=Codex&homepage=https%3A%2F%2Fcodex.com&endpoint=https%3A%2F%2Fapi.codex.com&apiKey=key123&notes=Test%20notes";
 

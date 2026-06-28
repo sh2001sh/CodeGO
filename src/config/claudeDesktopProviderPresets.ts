@@ -347,7 +347,7 @@ export const claudeDesktopProviderPresets: ClaudeDesktopProviderPreset[] = [
     iconColor: "#1E88E5",
   },
   {
-    name: "OpenCode Go",
+    name: "Opencodego",
     websiteUrl: "https://opencode.ai",
     category: "third_party",
     baseUrl: "https://opencode.ai/zen/go",

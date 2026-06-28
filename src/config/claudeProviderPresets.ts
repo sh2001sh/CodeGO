@@ -280,7 +280,7 @@ export const providerPresets: ProviderPreset[] = [
     iconColor: "#1E88E5",
   },
   {
-    name: "OpenCode Go",
+    name: "Opencodego",
     websiteUrl: "https://opencode.ai",
     settingsConfig: {
       env: {

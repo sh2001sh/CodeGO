@@ -14,6 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { normalizeCodeGoBrand } from "./codegoShared";
 
 type ToolType =
   | "codex"
@@ -45,10 +46,12 @@ async function refreshCodeGoQueries(queryClient: ReturnType<typeof useQueryClien
 }
 
 function buildSuccessMessage(result: CodeGoToolConfigApplyResult, tokenName: string) {
-  return `${result.providerName} applied from ${tokenName}`;
+  return normalizeCodeGoBrand(
+    `${result.providerName} applied from ${tokenName}`,
+  ).toLowerCase();
 }
 
-/** Apply a selected Code Go token to one local CLI tool. */
+/** Apply a selected codego token to one local CLI tool. */
 export function CodeGoTokenApplyMenu({ token }: CodeGoTokenApplyMenuProps) {
   const queryClient = useQueryClient();
   const [applyingTool, setApplyingTool] = useState<ToolType | null>(null);

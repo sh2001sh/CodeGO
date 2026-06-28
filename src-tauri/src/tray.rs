@@ -977,8 +977,8 @@ pub(crate) async fn refresh_all_usage_in_tray(app: &tauri::AppHandle) {
 #[cfg(test)]
 mod tests {
     use super::{
-        format_codego_tray_status, format_script_summary, format_subscription_summary,
-        TrayTexts, CODEGO_OFFICIAL_WEBSITE, TRAY_ID,
+        format_codego_tray_status, format_script_summary, format_subscription_summary, TrayTexts,
+        CODEGO_OFFICIAL_WEBSITE, TRAY_ID,
     };
     use crate::commands::CodeGoTraySnapshot;
     use crate::provider::{UsageData, UsageResult};

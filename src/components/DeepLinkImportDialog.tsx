@@ -359,7 +359,7 @@ export function DeepLinkImportDialog() {
   const getDescription = () => {
     if (!request) return t("deeplink.confirmImportDescription");
     if (isCodeGoToolApplyRequest(request)) {
-      return "Apply this Code Go token to the local tool configuration";
+      return "Apply this codego token to the local tool configuration";
     }
     switch (request.resource) {
       case "prompt":

@@ -481,14 +481,14 @@ describe("SettingsPage Component", () => {
     expect(settingsMock.updateAppConfigDir).toHaveBeenCalledWith("/app/new");
   });
 
-  it("should auto-save Code Go desktop reminder settings from auth tab", async () => {
+  it("should auto-save codego desktop reminder settings from auth tab", async () => {
     renderSettingsPage();
 
     fireEvent.click(screen.getByText("settings.tabAuth"));
 
     fireEvent.click(
       screen.getByRole("switch", {
-        name: "Code Go tray balance summary",
+        name: "codego tray balance summary",
       }),
     );
 
@@ -502,7 +502,7 @@ describe("SettingsPage Component", () => {
     });
 
     const thresholdInput = screen.getByLabelText(
-      "Code Go low balance threshold in USD",
+      "codego low balance threshold in USD",
     );
     fireEvent.change(thresholdInput, { target: { value: "7.5" } });
     fireEvent.blur(thresholdInput);

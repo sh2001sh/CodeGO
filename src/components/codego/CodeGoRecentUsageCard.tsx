@@ -12,7 +12,7 @@ export function CodeGoRecentUsageCard({
   onOpenLogs,
 }: CodeGoRecentUsageCardProps) {
   return (
-    <Card className="border-border/70 bg-card/90">
+    <Card className="codego-panel shadow-none">
       <CardHeader className="flex flex-row items-center justify-between gap-4">
         <div>
           <CardTitle className="text-base">Recent usage</CardTitle>
@@ -27,7 +27,7 @@ export function CodeGoRecentUsageCard({
             {summary.recent_logs.slice(0, 4).map((item) => (
               <div
                 key={`${item.id}-${item.created_at}`}
-                className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/20 px-4 py-3"
+                className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-background/60 px-4 py-3 dark:bg-background/30"
               >
                 <div className="space-y-1">
                   <div className="text-sm font-medium">

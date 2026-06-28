@@ -120,6 +120,7 @@ export function useSettingsForm(): UseSettingsFormResult {
         data.preserveCodexOfficialAuthOnSwitch ?? false,
       unifyCodexSessionHistory: data.unifyCodexSessionHistory ?? false,
       codegoTrayEnabled: data.codegoTrayEnabled ?? true,
+      codegoAutoRefreshEnabled: data.codegoAutoRefreshEnabled ?? true,
       codegoLowBalanceNotificationsEnabled:
         data.codegoLowBalanceNotificationsEnabled ?? true,
       codegoLowBalanceThresholdUsd: data.codegoLowBalanceThresholdUsd ?? 10,
@@ -151,6 +152,7 @@ export function useSettingsForm(): UseSettingsFormResult {
             preserveCodexOfficialAuthOnSwitch: false,
             unifyCodexSessionHistory: false,
             codegoTrayEnabled: true,
+            codegoAutoRefreshEnabled: true,
             codegoLowBalanceNotificationsEnabled: true,
             codegoLowBalanceThresholdUsd: 10,
             codegoTelemetryEnabled: false,
@@ -195,6 +197,7 @@ export function useSettingsForm(): UseSettingsFormResult {
           serverData.preserveCodexOfficialAuthOnSwitch ?? false,
         unifyCodexSessionHistory: serverData.unifyCodexSessionHistory ?? false,
         codegoTrayEnabled: serverData.codegoTrayEnabled ?? true,
+        codegoAutoRefreshEnabled: serverData.codegoAutoRefreshEnabled ?? true,
         codegoLowBalanceNotificationsEnabled:
           serverData.codegoLowBalanceNotificationsEnabled ?? true,
         codegoLowBalanceThresholdUsd:

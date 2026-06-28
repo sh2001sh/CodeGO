@@ -354,7 +354,7 @@ describe("useSettings hook", () => {
     expect(syncCurrentProvidersLiveMock).not.toHaveBeenCalled();
   });
 
-  it("auto-saves Code Go desktop reminder settings", async () => {
+  it("auto-saves codego desktop reminder settings", async () => {
     settingsFormMock = createSettingsFormMock({
       settings: {
         ...serverSettings,

@@ -66,85 +66,94 @@ export const handlers = [
   http.post(`${TAURI_ENDPOINT}/codego_get_auth_state`, () =>
     success(getCodeGoAuthState()),
   ),
-  http.post(`${TAURI_ENDPOINT}/codego_start_auth_session`, async ({ request }) => {
-    await withJson<{
-      request?: {
-        serverAddress?: string;
-        deviceName?: string;
+  http.post(
+    `${TAURI_ENDPOINT}/codego_start_auth_session`,
+    async ({ request }) => {
+      await withJson<{
+        request?: {
+          serverAddress?: string;
+          deviceName?: string;
+        };
+      }>(request);
+      const session = {
+        sessionId: "desktop-session-1",
+        userCode: "ABCD1234",
+        verificationUri:
+          "https://shu26.cfd/desktop/authorize?session_id=desktop-session-1&code=ABCD1234",
+        expiresIn: 600,
+        interval: 5,
+        status: "pending" as const,
       };
-    }>(request);
-    const session = {
-      sessionId: "desktop-session-1",
-      userCode: "ABCD1234",
-      verificationUri: "https://shu26.cfd/desktop/authorize?session_id=desktop-session-1&code=ABCD1234",
-      expiresIn: 600,
-      interval: 5,
-      status: "pending" as const,
-    };
-    setCodeGoAuthSession(session);
-    return success(session);
-  }),
-  http.post(`${TAURI_ENDPOINT}/codego_poll_auth_session`, async ({ request }) => {
-    const { request: payload = {} } = await withJson<{
-      request?: {
-        serverAddress?: string;
-        sessionId?: string;
-      };
-    }>(request);
-    const session = getCodeGoAuthSession();
-    if (!session || session.sessionId !== payload.sessionId) {
-      return HttpResponse.json("Desktop auth session not found", { status: 404 });
-    }
+      setCodeGoAuthSession(session);
+      return success(session);
+    },
+  ),
+  http.post(
+    `${TAURI_ENDPOINT}/codego_poll_auth_session`,
+    async ({ request }) => {
+      const { request: payload = {} } = await withJson<{
+        request?: {
+          serverAddress?: string;
+          sessionId?: string;
+        };
+      }>(request);
+      const session = getCodeGoAuthSession();
+      if (!session || session.sessionId !== payload.sessionId) {
+        return HttpResponse.json("Desktop auth session not found", {
+          status: 404,
+        });
+      }
 
-    if (session.status === "rejected" || session.status === "expired") {
-      return success({
-        status: session.status,
-        authenticated: false,
+      if (session.status === "rejected" || session.status === "expired") {
+        return success({
+          status: session.status,
+          authenticated: false,
+        });
+      }
+
+      const nextAuthState = {
+        authenticated: true,
+        serverAddress: payload.serverAddress || "https://shu26.cfd",
+        accessToken: "codego-access-token",
+        userId: 7,
+        deviceId: 11,
+        lastUsername: "demo-user",
+      };
+      setCodeGoAuthState(nextAuthState);
+      setCodeGoSummary({
+        account: {
+          username: "demo-user",
+          display_name: "demo-user",
+          id: 7,
+          group: "default",
+          quota: 100,
+          claude_quota: 50,
+          used_quota: 12.5,
+          request_count: 42,
+          quota_usd: 100,
+          claude_quota_usd: 50,
+          used_quota_usd: 12.5,
+          billing_preference: "wallet",
+          funding_source_order: ["wallet"],
+        },
+        actions: {
+          server_address: payload.serverAddress || "https://shu26.cfd",
+          topup_link: "https://shu26.cfd/topup",
+          tokens_path: "/tokens",
+          logs_path: "/logs",
+        },
       });
-    }
-
-    const nextAuthState = {
-      authenticated: true,
-      serverAddress: payload.serverAddress || "https://shu26.cfd",
-      accessToken: "codego-access-token",
-      userId: 7,
-      deviceId: 11,
-      lastUsername: "demo-user",
-    };
-    setCodeGoAuthState(nextAuthState);
-    setCodeGoSummary({
-      account: {
-        username: "demo-user",
-        display_name: "demo-user",
-        id: 7,
-        group: "default",
-        quota: 100,
-        claude_quota: 50,
-        used_quota: 12.5,
-        request_count: 42,
-        quota_usd: 100,
-        claude_quota_usd: 50,
-        used_quota_usd: 12.5,
-        billing_preference: "wallet",
-        funding_source_order: ["wallet"],
-      },
-      actions: {
-        server_address: payload.serverAddress || "https://shu26.cfd",
-        topup_link: "https://shu26.cfd/topup",
-        tokens_path: "/tokens",
-        logs_path: "/logs",
-      },
-    });
-    setCodeGoAuthSession({ ...session, status: "approved" });
-    return success({
-      status: "approved",
-      authenticated: true,
-      userId: 7,
-      deviceId: 11,
-      serverAddress: payload.serverAddress || "https://shu26.cfd",
-      lastUsername: "demo-user",
-    });
-  }),
+      setCodeGoAuthSession({ ...session, status: "approved" });
+      return success({
+        status: "approved",
+        authenticated: true,
+        userId: 7,
+        deviceId: 11,
+        serverAddress: payload.serverAddress || "https://shu26.cfd",
+        lastUsername: "demo-user",
+      });
+    },
+  ),
   http.post(`${TAURI_ENDPOINT}/codego_logout`, () => {
     setCodeGoAuthState({
       authenticated: false,
@@ -161,29 +170,52 @@ export const handlers = [
   http.post(`${TAURI_ENDPOINT}/codego_list_authorized_devices`, () =>
     success(getCodeGoAuthorizedDevices()),
   ),
-  http.post(`${TAURI_ENDPOINT}/codego_revoke_authorized_device`, async ({ request }) => {
-    const { id } = await withJson<{ id: number }>(request);
-    const revoked = revokeCodeGoAuthorizedDevice(id);
-    if (!revoked) {
-      return HttpResponse.json("Desktop device not found", { status: 404 });
-    }
-    return success(true);
-  }),
-  http.post(`${TAURI_ENDPOINT}/codego_get_usage_trends`, async ({ request }) => {
-    const { days = 7 } = await withJson<{ days?: number }>(request);
-    return success({
-      days,
-      trend: getCodeGoUsageTrends(days),
-    });
-  }),
+  http.post(
+    `${TAURI_ENDPOINT}/codego_revoke_authorized_device`,
+    async ({ request }) => {
+      const { id } = await withJson<{ id: number }>(request);
+      const revoked = revokeCodeGoAuthorizedDevice(id);
+      if (!revoked) {
+        return HttpResponse.json("Desktop device not found", { status: 404 });
+      }
+      return success(true);
+    },
+  ),
+  http.post(
+    `${TAURI_ENDPOINT}/codego_get_usage_trends`,
+    async ({ request }) => {
+      const { days = 7 } = await withJson<{ days?: number }>(request);
+      return success({
+        days,
+        trend: getCodeGoUsageTrends(days),
+      });
+    },
+  ),
+  http.post(`${TAURI_ENDPOINT}/codego_get_diagnostic_preview`, () =>
+    success({
+      hasReport: false,
+      reportType: "none",
+      source: "local",
+      summary: "",
+      preview: "",
+      generatedAt: null,
+      redactionsApplied: [],
+    }),
+  ),
+  http.post(`${TAURI_ENDPOINT}/codego_submit_diagnostic_report`, () =>
+    success({
+      id: 1,
+      status: "submitted",
+    }),
+  ),
   http.post(`${TAURI_ENDPOINT}/codego_get_tokens`, async ({ request }) => {
     const { query = {} } = await withJson<{
       query?: { p?: number; size?: number };
     }>(request);
     const items = getCodeGoTokens();
-    const page = query.p ?? 0;
+    const page = query.p && query.p > 0 ? query.p : 1;
     const size = query.size ?? 20;
-    const start = page * size;
+    const start = (page - 1) * size;
     return success({
       p: page,
       size,
@@ -298,7 +330,7 @@ export const handlers = [
       request?: { deviceName?: string };
     }>(request);
     const deviceName = payload.deviceName || "Desktop";
-    const tokenName = `Code Go ${deviceName} - Default`;
+    const tokenName = `codego ${deviceName} - Default`;
     const token = {
       id: 1,
       name: tokenName,
@@ -323,12 +355,21 @@ export const handlers = [
       token_name: tokenName,
     });
   }),
-  http.post(`${TAURI_ENDPOINT}/codego_get_config_template`, async ({ request }) => {
-    const { tool } = await withJson<{ tool: "codex" | "claude" | "gemini" | "opencode" | "openclaw" | "hermes" }>(
-      request,
-    );
-    return success(getCodeGoTemplate(tool));
-  }),
+  http.post(
+    `${TAURI_ENDPOINT}/codego_get_config_template`,
+    async ({ request }) => {
+      const { tool } = await withJson<{
+        tool:
+          | "codex"
+          | "claude"
+          | "gemini"
+          | "opencode"
+          | "openclaw"
+          | "hermes";
+      }>(request);
+      return success(getCodeGoTemplate(tool));
+    },
+  ),
   http.post(`${TAURI_ENDPOINT}/codego_get_config_templates`, () =>
     success({
       base_url: "https://shu26.cfd/v1",
@@ -357,7 +398,9 @@ export const handlers = [
         currentProviderName:
           listProviders(item.app)[getCurrentProviderId(item.app)]?.name ?? null,
         currentProviderIsCodego:
-          item.app === "opencode" || item.app === "openclaw" || item.app === "hermes"
+          item.app === "opencode" ||
+          item.app === "openclaw" ||
+          item.app === "hermes"
             ? getLiveProviderIds(item.app).includes(item.providerId)
             : getCurrentProviderId(item.app) === item.providerId,
         hasBackup: Boolean(item.backup),
@@ -367,9 +410,15 @@ export const handlers = [
   http.post(
     `${TAURI_ENDPOINT}/codego_get_tool_config_preview`,
     async ({ request }) => {
-      const { tool } = await withJson<{ tool: "codex" | "claude" | "gemini" | "opencode" | "openclaw" | "hermes" }>(
-        request,
-      );
+      const { tool } = await withJson<{
+        tool:
+          | "codex"
+          | "claude"
+          | "gemini"
+          | "opencode"
+          | "openclaw"
+          | "hermes";
+      }>(request);
       const config = getCodeGoToolConfig(tool);
       return success({
         tool: config.tool,
@@ -382,24 +431,39 @@ export const handlers = [
       });
     },
   ),
-  http.post(`${TAURI_ENDPOINT}/codego_apply_tool_config`, async ({ request }) => {
-    const { tool } = await withJson<{ tool: "codex" | "claude" | "gemini" | "opencode" | "openclaw" | "hermes" }>(
-      request,
-    );
-    const config = applyCodeGoToolConfig(tool);
-    return success({
-      tool: config.tool,
-      providerId: config.providerId,
-      providerName: config.providerName,
-      backupSaved: true,
-    });
-  }),
+  http.post(
+    `${TAURI_ENDPOINT}/codego_apply_tool_config`,
+    async ({ request }) => {
+      const { tool } = await withJson<{
+        tool:
+          | "codex"
+          | "claude"
+          | "gemini"
+          | "opencode"
+          | "openclaw"
+          | "hermes";
+      }>(request);
+      const config = applyCodeGoToolConfig(tool);
+      return success({
+        tool: config.tool,
+        providerId: config.providerId,
+        providerName: config.providerName,
+        backupSaved: true,
+      });
+    },
+  ),
   http.post(
     `${TAURI_ENDPOINT}/codego_apply_tool_config_from_token`,
     async ({ request }) => {
       const { tokenId, tool } = await withJson<{
         tokenId: number;
-        tool: "codex" | "claude" | "gemini" | "opencode" | "openclaw" | "hermes";
+        tool:
+          | "codex"
+          | "claude"
+          | "gemini"
+          | "opencode"
+          | "openclaw"
+          | "hermes";
       }>(request);
       const config = applyCodeGoToolConfigFromToken(tokenId, tool);
       return success({
@@ -413,9 +477,15 @@ export const handlers = [
   http.post(
     `${TAURI_ENDPOINT}/codego_restore_tool_config`,
     async ({ request }) => {
-      const { tool } = await withJson<{ tool: "codex" | "claude" | "gemini" | "opencode" | "openclaw" | "hermes" }>(
-        request,
-      );
+      const { tool } = await withJson<{
+        tool:
+          | "codex"
+          | "claude"
+          | "gemini"
+          | "opencode"
+          | "openclaw"
+          | "hermes";
+      }>(request);
       const result = restoreCodeGoToolConfig(tool);
       if (!result) {
         return HttpResponse.json("No backup available", { status: 400 });
@@ -423,48 +493,57 @@ export const handlers = [
       return success(result);
     },
   ),
-  http.post(`${TAURI_ENDPOINT}/codego_test_tool_config`, async ({ request }) => {
-    const { tool } = await withJson<{ tool: "codex" | "claude" | "gemini" | "opencode" | "openclaw" | "hermes" }>(
-      request,
-    );
-    const auth = getCodeGoAuthState();
-    const config = getCodeGoToolConfig(tool);
-    const template = getCodeGoTemplate(tool);
-    const endpointMatches = config.currentPreview.includes(template.endpoint);
-    const credentialPresent =
-      config.currentPreview.includes("cg_desktop_full_key") ||
-      config.currentPreview.includes("existing-key");
-    const summaryReachable = auth.authenticated;
-    const connectivityReachable =
-      auth.authenticated &&
-      config.configExists &&
-      credentialPresent &&
-      endpointMatches;
-    const message = !auth.authenticated
-      ? "Code Go account is not connected"
-      : !config.configExists
-        ? `${config.label} config file was not found`
-        : !credentialPresent
-          ? "Configured file is missing the required API credential"
-          : !endpointMatches
-            ? "Configured endpoint does not match the current Code Go template"
-            : !connectivityReachable
-              ? "Configured tool could not complete a low-cost model probe against the current endpoint"
-              : !summaryReachable
-                ? "Code Go account check failed while testing the tool config"
-                : `${config.label} is configured for the current Code Go endpoint`;
+  http.post(
+    `${TAURI_ENDPOINT}/codego_test_tool_config`,
+    async ({ request }) => {
+      const { tool } = await withJson<{
+        tool:
+          | "codex"
+          | "claude"
+          | "gemini"
+          | "opencode"
+          | "openclaw"
+          | "hermes";
+      }>(request);
+      const auth = getCodeGoAuthState();
+      const config = getCodeGoToolConfig(tool);
+      const template = getCodeGoTemplate(tool);
+      const endpointMatches = config.currentPreview.includes(template.endpoint);
+      const credentialPresent =
+        config.currentPreview.includes("cg_desktop_full_key") ||
+        config.currentPreview.includes("existing-key");
+      const summaryReachable = auth.authenticated;
+      const connectivityReachable =
+        auth.authenticated &&
+        config.configExists &&
+        credentialPresent &&
+        endpointMatches;
+      const message = !auth.authenticated
+        ? "codego account is not connected"
+        : !config.configExists
+          ? `${config.label} config file was not found`
+          : !credentialPresent
+            ? "Configured file is missing the required API credential"
+            : !endpointMatches
+              ? "Configured endpoint does not match the current codego template"
+              : !connectivityReachable
+                ? "Configured tool could not complete a low-cost model probe against the current endpoint"
+                : !summaryReachable
+                  ? "codego account check failed while testing the tool config"
+                  : `${config.label} is configured for the current codego endpoint`;
 
-    return success({
-      tool,
-      configExists: config.configExists,
-      endpointMatches,
-      credentialPresent,
-      authenticated: auth.authenticated,
-      summaryReachable,
-      connectivityReachable,
-      message,
-    });
-  }),
+      return success({
+        tool,
+        configExists: config.configExists,
+        endpointMatches,
+        credentialPresent,
+        authenticated: auth.authenticated,
+        summaryReachable,
+        connectivityReachable,
+        message,
+      });
+    },
+  ),
   http.post(`${TAURI_ENDPOINT}/get_providers`, async ({ request }) => {
     const { app } = await withJson<{ app: AppId }>(request);
     return success(getProviders(app));

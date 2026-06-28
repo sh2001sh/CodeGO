@@ -8,6 +8,8 @@ export interface CodeGoAuthState {
   deviceId?: number;
   lastUsername?: string;
   authenticated: boolean;
+  secureStorageStatus?: "protected" | "unavailable";
+  secureStorageMessage?: string;
 }
 
 export interface CodeGoAuthorizedDevice {
@@ -230,6 +232,10 @@ export interface CodeGoToolConfigStatus {
   currentProviderName?: string | null;
   currentProviderIsCodego: boolean;
   hasBackup: boolean;
+  conflictDetected: boolean;
+  conflictReason?: string | null;
+  restartHint: string;
+  verifyHint: string;
 }
 
 export interface CodeGoToolConfigPreview {
@@ -337,7 +343,10 @@ export const codegoApi = {
     return invoke("codego_submit_diagnostic_report", { request: input });
   },
 
-  async getTokens(query?: { p?: number; size?: number }): Promise<CodeGoTokenPage> {
+  async getTokens(query?: {
+    p?: number;
+    size?: number;
+  }): Promise<CodeGoTokenPage> {
     return invoke("codego_get_tokens", { query });
   },
 

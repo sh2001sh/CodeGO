@@ -19,8 +19,9 @@ export const settingsSchema = z.object({
   unifyCodexSessionHistory: z.boolean().optional(),
   language: z.enum(["en", "zh", "zh-TW", "ja"]).optional(),
 
-  // Code Go desktop settings
+  // codego desktop settings
   codegoTrayEnabled: z.boolean().optional(),
+  codegoAutoRefreshEnabled: z.boolean().optional(),
   codegoLowBalanceNotificationsEnabled: z.boolean().optional(),
   codegoLowBalanceThresholdUsd: z.number().min(0).optional(),
 

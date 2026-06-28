@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
 
-use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
+use super::codego_telemetry::{current_platform_label, maybe_send_codego_telemetry_event};
 use crate::app_config::AppType;
 use crate::codex_config::{get_codex_auth_path, get_codex_config_path};
 use crate::config::{delete_file, read_json_file, write_json_file, write_text_file};
@@ -11,25 +11,28 @@ use crate::hermes_config::{
 };
 use crate::openclaw_config::{
     get_agents_defaults as get_openclaw_agents_defaults, get_env_config as get_openclaw_env_config,
-    get_openclaw_config_path, read_openclaw_config, set_provider as set_openclaw_provider,
+    get_openclaw_config_path, read_openclaw_config,
     set_agents_defaults as set_openclaw_agents_defaults, set_env_config as set_openclaw_env_config,
-    set_tools_config as set_openclaw_tools_config, OpenClawAgentsDefaults, OpenClawEnvConfig,
-    OpenClawToolsConfig,
+    set_provider as set_openclaw_provider, set_tools_config as set_openclaw_tools_config,
+    OpenClawAgentsDefaults, OpenClawEnvConfig, OpenClawToolsConfig,
 };
-use crate::opencode_config::{get_opencode_config_path, read_opencode_config, write_opencode_config};
+use crate::opencode_config::{
+    get_opencode_config_path, read_opencode_config, write_opencode_config,
+};
 use crate::provider::Provider;
 use crate::secure_store::{clear_codego_auth, load_codego_auth, save_codego_auth};
 use crate::services::provider::provider_exists_in_live_config;
 use crate::services::ProviderService;
 use crate::settings::{get_settings, set_codego_last_seen_quota_usd, update_settings};
 use crate::store::AppState;
-use super::codego_telemetry::{current_platform_label, maybe_send_codego_telemetry_event};
+use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::fs;
+use std::path::Path;
 use std::sync::Mutex;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::Emitter;
@@ -39,12 +42,7 @@ const USER_AGENT: &str = "CodeGoDesktop/0.1";
 const CODEGO_APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 const CODEGO_DESKTOP_TOKEN_DEVICE_NAME: &str = "Desktop";
 const CODEGO_SUPPORTED_TOOLS: [&str; 6] = [
-    "codex",
-    "claude",
-    "gemini",
-    "opencode",
-    "openclaw",
-    "hermes",
+    "codex", "claude", "gemini", "opencode", "openclaw", "hermes",
 ];
 const CODEGO_SUMMARY_REFRESH_INTERVAL: Duration = Duration::from_secs(300);
 const MIN_CODEGO_SUMMARY_REFRESH_INTERVAL: Duration = Duration::from_secs(30);
@@ -79,6 +77,10 @@ pub struct CodeGoToolConfigStatus {
     pub current_provider_name: Option<String>,
     pub current_provider_is_codego: bool,
     pub has_backup: bool,
+    pub conflict_detected: bool,
+    pub conflict_reason: Option<String>,
+    pub restart_hint: String,
+    pub verify_hint: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -182,6 +184,13 @@ enum CodeGoLiveSnapshot {
     },
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum CodeGoSecureStorageStatus {
+    Protected,
+    Unavailable,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CodeGoAuthState {
@@ -191,6 +200,8 @@ pub struct CodeGoAuthState {
     pub device_id: Option<i64>,
     pub last_username: Option<String>,
     pub authenticated: bool,
+    pub secure_storage_status: CodeGoSecureStorageStatus,
+    pub secure_storage_message: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -343,30 +354,35 @@ pub(crate) fn build_url(server_address: &str, path: &str) -> String {
 
 pub(crate) fn load_auth_state() -> CodeGoAuthState {
     let settings = get_settings();
+    let mut secure_storage_operational = true;
     let access_token = match load_codego_auth() {
         Ok(token) => token,
         Err(error) => {
             log::warn!("读取 Code Go 安全存储失败: {error}");
+            secure_storage_operational = false;
             None
         }
     };
-    let fallback_token = settings.codego_access_token.clone();
-    let effective_access_token = if access_token.is_some() {
-        access_token
-    } else if let Some(legacy_token) = fallback_token {
+    let effective_access_token = if let Some(token) = access_token {
+        Some(token)
+    } else if let Some(legacy_token) = settings.codego_access_token.clone() {
         if let Err(error) = save_codego_auth(&legacy_token) {
             log::warn!("迁移旧版 Code Go token 到安全存储失败: {error}");
+            secure_storage_operational = false;
+            None
         } else {
             let mut migrated_settings = settings.clone();
             migrated_settings.codego_access_token = None;
             if let Err(error) = update_settings(migrated_settings) {
                 log::warn!("迁移后清理旧版 Code Go token 失败: {error}");
             }
+            Some(legacy_token)
         }
-        Some(legacy_token)
     } else {
         None
     };
+    let (secure_storage_status, secure_storage_message) =
+        resolve_codego_secure_storage_notice(secure_storage_operational);
 
     CodeGoAuthState {
         authenticated: effective_access_token.is_some() && settings.codego_user_id.is_some(),
@@ -375,7 +391,24 @@ pub(crate) fn load_auth_state() -> CodeGoAuthState {
         user_id: settings.codego_user_id,
         device_id: settings.codego_device_id,
         last_username: settings.codego_last_username,
+        secure_storage_status,
+        secure_storage_message,
     }
+}
+
+fn resolve_codego_secure_storage_notice(
+    secure_storage_operational: bool,
+) -> (CodeGoSecureStorageStatus, Option<String>) {
+    if !secure_storage_operational {
+        return (
+            CodeGoSecureStorageStatus::Unavailable,
+            Some(
+                "Secure credential storage is unavailable on this device. Code Go cannot safely persist a browser-approved desktop session until Keychain/Credential Manager/Secret Service is working again.".to_string(),
+            ),
+        );
+    }
+
+    (CodeGoSecureStorageStatus::Protected, None)
 }
 
 pub(crate) fn codego_tray_snapshot() -> Option<CodeGoTraySnapshot> {
@@ -452,6 +485,10 @@ fn should_refresh_codego_summary(force: bool) -> bool {
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         *guard = Some(Instant::now());
         return true;
+    }
+
+    if !get_settings().codego_auto_refresh_enabled {
+        return false;
     }
 
     let mut guard = LAST_CODEGO_SUMMARY_REFRESH
@@ -702,7 +739,10 @@ async fn fetch_account_summary(auth: &CodeGoAuthState) -> Result<Value, String> 
     .await
 }
 
-async fn revoke_authorized_device_remote(auth: &CodeGoAuthState, device_id: i64) -> Result<(), String> {
+async fn revoke_authorized_device_remote(
+    auth: &CodeGoAuthState,
+    device_id: i64,
+) -> Result<(), String> {
     let (client, server_address) = build_authed_client(auth)?;
     parse_empty_response(
         client
@@ -795,6 +835,108 @@ fn tool_label(tool: &str) -> &'static str {
         "hermes" => "Hermes",
         _ => "Unknown Tool",
     }
+}
+
+fn tool_restart_hint(tool: &str) -> &'static str {
+    match tool {
+        "claude" => {
+            "After applying, reopen the terminal or start a new Claude Code session before the next prompt."
+        }
+        "codex" => {
+            "After applying, reopen the terminal or restart the next Codex CLI session so it reloads auth.json and config.toml."
+        }
+        "gemini" => {
+            "After applying, reopen the terminal or restart Gemini CLI so it reloads the environment and settings files."
+        }
+        "opencode" => {
+            "After applying, restart the active OpenCode session so it reloads the provider configuration."
+        }
+        "openclaw" => {
+            "After applying, restart the active OpenClaw session so it reloads the provider configuration."
+        }
+        "hermes" => {
+            "After applying, restart Hermes so it reloads the YAML config and model defaults."
+        }
+        _ => "After applying, restart the target tool before the next request.",
+    }
+}
+
+fn tool_verify_hint(tool: &str) -> &'static str {
+    match tool {
+        "claude" => {
+            "Use the Test button here, then send a lightweight Claude Code prompt from a fresh terminal session."
+        }
+        "codex" => {
+            "Use the Test button here, then run a lightweight Codex request from a fresh terminal session."
+        }
+        "gemini" => {
+            "Use the Test button here, then run a lightweight Gemini CLI request from a fresh terminal session."
+        }
+        "opencode" => {
+            "Use the Test button here, then trigger a lightweight OpenCode request after restarting the app."
+        }
+        "openclaw" => {
+            "Use the Test button here, then trigger a lightweight OpenClaw request after restarting the app."
+        }
+        "hermes" => {
+            "Use the Test button here, then trigger a lightweight Hermes request after restarting the app."
+        }
+        _ => "Use the Test button here after applying the config.",
+    }
+}
+
+fn detect_tool_conflict_reason(
+    tool: &str,
+    config_exists: bool,
+    current_provider_id: Option<&str>,
+    current_provider_name: Option<&str>,
+    current_provider_is_codego: bool,
+    live_value: Option<&Value>,
+) -> Option<String> {
+    if !config_exists {
+        return None;
+    }
+
+    if let Some(value) = live_value {
+        if !has_live_credential(tool, value) {
+            return Some(
+                "The local config exists, but the required API credential is missing.".to_string(),
+            );
+        }
+        if extract_live_endpoint(tool, value)
+            .map(|endpoint| endpoint.trim().is_empty())
+            .unwrap_or(true)
+        {
+            return Some(
+                "The local config exists, but the target endpoint is missing.".to_string(),
+            );
+        }
+    }
+
+    if current_provider_is_codego {
+        return None;
+    }
+
+    if let Some(provider_name) = current_provider_name.filter(|name| !name.trim().is_empty()) {
+        return Some(format!(
+            "{} is currently routed through {} instead of Code Go.",
+            tool_label(tool),
+            provider_name
+        ));
+    }
+
+    if let Some(provider_id) = current_provider_id.filter(|id| !id.trim().is_empty()) {
+        return Some(format!(
+            "{} is currently routed through provider {} instead of Code Go.",
+            tool_label(tool),
+            provider_id
+        ));
+    }
+
+    Some(format!(
+        "{} already has a local config. Review the preview before applying Code Go over it.",
+        tool_label(tool)
+    ))
 }
 
 fn config_status_for_app(tool: &str) -> Result<(bool, String), String> {
@@ -952,7 +1094,10 @@ fn capture_live_snapshot(tool: &str) -> Result<CodeGoLiveSnapshot, String> {
         AppType::Hermes => {
             let path = get_hermes_config_path();
             let config = if path.exists() {
-                Some(hermes_yaml_to_json(&read_hermes_config().map_err(|e| e.to_string())?).map_err(|e| e.to_string())?)
+                Some(
+                    hermes_yaml_to_json(&read_hermes_config().map_err(|e| e.to_string())?)
+                        .map_err(|e| e.to_string())?,
+                )
             } else {
                 None
             };
@@ -1022,12 +1167,15 @@ fn restore_live_snapshot(snapshot: &CodeGoLiveSnapshot) -> Result<(), String> {
                     .and_then(Value::as_object)
                     .cloned()
                     .unwrap_or_default();
-                let existing = crate::openclaw_config::get_providers().map_err(|e| e.to_string())?;
+                let existing =
+                    crate::openclaw_config::get_providers().map_err(|e| e.to_string())?;
                 for provider_id in existing.keys() {
-                    crate::openclaw_config::remove_provider(provider_id).map_err(|e| e.to_string())?;
+                    crate::openclaw_config::remove_provider(provider_id)
+                        .map_err(|e| e.to_string())?;
                 }
                 for (provider_id, provider_value) in providers {
-                    set_openclaw_provider(&provider_id, provider_value).map_err(|e| e.to_string())?;
+                    set_openclaw_provider(&provider_id, provider_value)
+                        .map_err(|e| e.to_string())?;
                 }
 
                 let env_config: OpenClawEnvConfig = value
@@ -1062,7 +1210,10 @@ fn restore_live_snapshot(snapshot: &CodeGoLiveSnapshot) -> Result<(), String> {
                     let typed: OpenClawAgentsDefaults = serde_json::from_value(defaults.clone())
                         .map_err(|e| format!("failed to restore OpenClaw agents.defaults: {e}"))?;
                     set_openclaw_agents_defaults(&typed).map_err(|e| e.to_string())?;
-                } else if get_openclaw_agents_defaults().map_err(|e| e.to_string())?.is_some() {
+                } else if get_openclaw_agents_defaults()
+                    .map_err(|e| e.to_string())?
+                    .is_some()
+                {
                     set_openclaw_agents_defaults(&OpenClawAgentsDefaults {
                         model: None,
                         models: None,
@@ -1131,7 +1282,10 @@ fn live_settings_value_for_tool(tool: &str) -> Result<Option<Value>, String> {
         Err(_) => return Ok(None),
     };
 
-    if matches!(app_type, AppType::OpenCode | AppType::OpenClaw | AppType::Hermes) {
+    if matches!(
+        app_type,
+        AppType::OpenCode | AppType::OpenClaw | AppType::Hermes
+    ) {
         return Ok(match app_type {
             AppType::OpenCode => value
                 .get("provider")
@@ -1166,6 +1320,82 @@ fn live_preview_for_tool(tool: &str) -> String {
         Ok(Some(value)) => preview_string_for_tool(tool, &value),
         Ok(None) => "(not configured)".to_string(),
         Err(error) => error,
+    }
+}
+
+fn malformed_local_config_error(
+    subject: &str,
+    path: &Path,
+    error: impl std::fmt::Display,
+) -> String {
+    format!(
+        "Current local {subject} is malformed, so Code Go cannot safely overwrite it. Fix the file and try again: {}. Details: {error}",
+        path.display()
+    )
+}
+
+fn ensure_tool_config_safe_to_write(tool: &str) -> Result<(), String> {
+    match tool_to_app_type(tool)? {
+        AppType::Claude => {
+            let path = crate::config::get_claude_settings_path();
+            if path.exists() {
+                read_json_file::<Value>(&path)
+                    .map_err(|error| malformed_local_config_error("Claude config", &path, error))?;
+            }
+            Ok(())
+        }
+        AppType::Codex => {
+            let auth_path = get_codex_auth_path();
+            if auth_path.exists() {
+                read_json_file::<Value>(&auth_path).map_err(|error| {
+                    malformed_local_config_error("Codex auth.json", &auth_path, error)
+                })?;
+            }
+
+            let config_path = get_codex_config_path();
+            if config_path.exists() {
+                crate::codex_config::read_and_validate_codex_config_text().map_err(|error| {
+                    malformed_local_config_error("Codex config.toml", &config_path, error)
+                })?;
+            }
+            Ok(())
+        }
+        AppType::Gemini => {
+            let settings_path = crate::gemini_config::get_gemini_settings_path();
+            if settings_path.exists() {
+                read_json_file::<Value>(&settings_path).map_err(|error| {
+                    malformed_local_config_error("Gemini settings.json", &settings_path, error)
+                })?;
+            }
+            Ok(())
+        }
+        AppType::OpenCode => {
+            let path = get_opencode_config_path();
+            if path.exists() {
+                read_opencode_config().map_err(|error| {
+                    malformed_local_config_error("OpenCode config", &path, error)
+                })?;
+            }
+            Ok(())
+        }
+        AppType::OpenClaw => {
+            let path = get_openclaw_config_path();
+            if path.exists() {
+                read_openclaw_config().map_err(|error| {
+                    malformed_local_config_error("OpenClaw config", &path, error)
+                })?;
+            }
+            Ok(())
+        }
+        AppType::Hermes => {
+            let path = get_hermes_config_path();
+            if path.exists() {
+                read_hermes_config()
+                    .map_err(|error| malformed_local_config_error("Hermes config", &path, error))?;
+            }
+            Ok(())
+        }
+        _ => Err(format!("unsupported Code Go tool: {tool}")),
     }
 }
 
@@ -1286,7 +1516,11 @@ struct CodeGoModelProbe {
     headers: HeaderMap,
 }
 
-fn build_model_probe(tool: &str, endpoint: &str, value: &Value) -> Result<Option<CodeGoModelProbe>, String> {
+fn build_model_probe(
+    tool: &str,
+    endpoint: &str,
+    value: &Value,
+) -> Result<Option<CodeGoModelProbe>, String> {
     let endpoint = endpoint.trim();
     if endpoint.is_empty() {
         return Ok(None);
@@ -1332,14 +1566,13 @@ fn probe_response_matches_tool(tool: &str, payload: &Value) -> bool {
     match tool {
         "claude" => payload.get("data").and_then(Value::as_array).is_some(),
         "gemini" => payload.get("models").and_then(Value::as_array).is_some(),
-        "codex" | "opencode" | "openclaw" | "hermes" => payload
-            .get("data")
-            .and_then(Value::as_array)
-            .is_some()
-            || payload
-                .get("object")
-                .and_then(Value::as_str)
-                .is_some_and(|value| value == "list"),
+        "codex" | "opencode" | "openclaw" | "hermes" => {
+            payload.get("data").and_then(Value::as_array).is_some()
+                || payload
+                    .get("object")
+                    .and_then(Value::as_str)
+                    .is_some_and(|value| value == "list")
+        }
         _ => false,
     }
 }
@@ -1397,23 +1630,38 @@ pub async fn codego_get_tool_config_statuses(
             let (current_provider_id, current_provider_name) =
                 current_provider_for_tool(state.inner(), tool)?;
             let has_backup = codego_backup_path(tool).exists();
+            let live_value = live_settings_value_for_tool(tool)?;
+            let current_provider_is_codego = if matches!(*tool, "opencode" | "openclaw" | "hermes")
+            {
+                provider_exists_in_live_config(&tool_to_app_type(tool)?, &codego_provider_id(tool))
+                    .map_err(|e| e.to_string())?
+            } else {
+                current_provider_id
+                    .as_deref()
+                    .is_some_and(|id| id == codego_provider_id(tool))
+            };
+            let conflict_reason = detect_tool_conflict_reason(
+                tool,
+                config_exists,
+                current_provider_id.as_deref(),
+                current_provider_name.as_deref(),
+                current_provider_is_codego,
+                live_value.as_ref(),
+            );
             Ok(CodeGoToolConfigStatus {
                 tool: (*tool).to_string(),
                 app: tool_to_app_type(tool)?.as_str().to_string(),
                 label: tool_label(tool).to_string(),
                 config_exists,
                 config_path,
-                current_provider_is_codego: if matches!(*tool, "opencode" | "openclaw" | "hermes") {
-                    provider_exists_in_live_config(&tool_to_app_type(tool)?, &codego_provider_id(tool))
-                        .map_err(|e| e.to_string())?
-                } else {
-                    current_provider_id
-                        .as_deref()
-                        .is_some_and(|id| id == codego_provider_id(tool))
-                },
+                current_provider_is_codego,
                 current_provider_id,
                 current_provider_name,
                 has_backup,
+                conflict_detected: conflict_reason.is_some(),
+                conflict_reason,
+                restart_hint: tool_restart_hint(tool).to_string(),
+                verify_hint: tool_verify_hint(tool).to_string(),
             })
         })
         .collect()
@@ -1427,6 +1675,7 @@ pub async fn codego_get_tool_config_preview(
     if !auth.authenticated {
         return Err("Code Go is not authenticated".to_string());
     }
+    ensure_tool_config_safe_to_write(&tool)?;
 
     let template = fetch_config_template(&auth, &tool).await?;
     let (full_key, _) = ensure_desktop_token(&auth).await?;
@@ -1455,14 +1704,7 @@ pub async fn codego_apply_tool_config(
     tool: String,
 ) -> Result<CodeGoToolConfigApplyResult, String> {
     let auth = load_auth_state();
-    if !auth.authenticated {
-        return Err("Code Go is not authenticated".to_string());
-    }
-
-    let template = fetch_config_template(&auth, &tool).await?;
-    let (full_key, _) = ensure_desktop_token(&auth).await?;
-    let provider = build_provider_from_codego(&tool, &template, &full_key)?;
-    apply_provider_for_codego_tool(&app, state.inner(), &tool, provider)
+    apply_codego_tool_config_inner(Some(&app), state.inner(), &auth, &tool).await
 }
 
 #[tauri::command]
@@ -1473,18 +1715,8 @@ pub async fn codego_apply_tool_config_from_token(
     tool: String,
 ) -> Result<CodeGoToolConfigApplyResult, String> {
     let auth = load_auth_state();
-    if !auth.authenticated {
-        return Err("Code Go is not authenticated".to_string());
-    }
-
-    let token_config = fetch_token_config(&auth, token_id).await?;
-    let payload = token_config
-        .tools
-        .get(&tool)
-        .ok_or_else(|| format!("token config missing tool {tool}"))?;
-    let provider = build_provider_from_token_payload(payload)?;
-
-    apply_provider_for_codego_tool(&app, state.inner(), &tool, provider)
+    apply_codego_tool_config_from_token_inner(Some(&app), state.inner(), &auth, token_id, &tool)
+        .await
 }
 
 #[tauri::command]
@@ -1551,7 +1783,8 @@ pub async fn codego_test_tool_config(tool: String) -> Result<CodeGoToolConfigTes
         false
     };
     let (connectivity_reachable, connectivity_error) = if config_exists && credential_present {
-        match probe_live_model_endpoint(&tool, live_endpoint.as_deref(), live_value.as_ref()).await {
+        match probe_live_model_endpoint(&tool, live_endpoint.as_deref(), live_value.as_ref()).await
+        {
             Ok(result) => (result, None),
             Err(error) => (false, Some(error)),
         }
@@ -1793,7 +2026,9 @@ fn build_provider_from_token_payload(
     payload: &CodeGoTokenToolConfigPayload,
 ) -> Result<Provider, String> {
     let settings_config = match payload.tool.as_str() {
-        "claude" | "codex" | "opencode" | "openclaw" | "hermes" => decode_token_config_json(payload)?,
+        "claude" | "codex" | "opencode" | "openclaw" | "hermes" => {
+            decode_token_config_json(payload)?
+        }
         "gemini" => {
             let decoded = decode_token_config_json(payload)?;
             if decoded.get("env").is_some() {
@@ -1812,10 +2047,7 @@ fn build_provider_from_token_payload(
         Some(payload.homepage.clone()).filter(|value| !value.trim().is_empty()),
     );
     provider.category = Some("custom".to_string());
-    provider.icon = payload
-        .icon
-        .clone()
-        .or_else(|| Some("newapi".to_string()));
+    provider.icon = payload.icon.clone().or_else(|| Some("newapi".to_string()));
     provider.icon_color = Some(
         match payload.tool.as_str() {
             "claude" => "#E37A1F",
@@ -1836,14 +2068,15 @@ fn build_provider_from_token_payload(
 }
 
 fn apply_provider_for_codego_tool(
-    app: &tauri::AppHandle,
+    app: Option<&tauri::AppHandle>,
     state: &AppState,
     tool: &str,
     provider: Provider,
 ) -> Result<CodeGoToolConfigApplyResult, String> {
     let app_type = tool_to_app_type(tool)?;
-    let previous_provider_id = crate::settings::get_effective_current_provider(&state.db, &app_type)
-        .map_err(|e| e.to_string())?;
+    let previous_provider_id =
+        crate::settings::get_effective_current_provider(&state.db, &app_type)
+            .map_err(|e| e.to_string())?;
 
     let snapshot = capture_live_snapshot(tool)?;
     save_tool_backup(
@@ -1862,8 +2095,13 @@ fn apply_provider_for_codego_tool(
         .is_some();
 
     if exists {
-        ProviderService::update(state, app_type.clone(), Some(&provider.id), provider.clone())
-            .map_err(|e| e.to_string())?;
+        ProviderService::update(
+            state,
+            app_type.clone(),
+            Some(&provider.id),
+            provider.clone(),
+        )
+        .map_err(|e| e.to_string())?;
     } else {
         ProviderService::add(state, app_type.clone(), provider.clone(), true)
             .map_err(|e| e.to_string())?;
@@ -1871,10 +2109,12 @@ fn apply_provider_for_codego_tool(
 
     ProviderService::switch(state, app_type, &provider.id).map_err(|e| e.to_string())?;
 
-    let _ = app.emit(
-        "codego-tool-config-updated",
-        json!({ "tool": tool, "providerId": provider.id }),
-    );
+    if let Some(app) = app {
+        let _ = app.emit(
+            "codego-tool-config-updated",
+            json!({ "tool": tool, "providerId": provider.id }),
+        );
+    }
 
     Ok(CodeGoToolConfigApplyResult {
         tool: tool.to_string(),
@@ -1882,6 +2122,45 @@ fn apply_provider_for_codego_tool(
         provider_name: provider.name,
         backup_saved: true,
     })
+}
+
+async fn apply_codego_tool_config_inner(
+    app: Option<&tauri::AppHandle>,
+    state: &AppState,
+    auth: &CodeGoAuthState,
+    tool: &str,
+) -> Result<CodeGoToolConfigApplyResult, String> {
+    if !auth.authenticated {
+        return Err("Code Go is not authenticated".to_string());
+    }
+    ensure_tool_config_safe_to_write(tool)?;
+
+    let template = fetch_config_template(auth, tool).await?;
+    let (full_key, _) = ensure_desktop_token(auth).await?;
+    let provider = build_provider_from_codego(tool, &template, &full_key)?;
+    apply_provider_for_codego_tool(app, state, tool, provider)
+}
+
+async fn apply_codego_tool_config_from_token_inner(
+    app: Option<&tauri::AppHandle>,
+    state: &AppState,
+    auth: &CodeGoAuthState,
+    token_id: i64,
+    tool: &str,
+) -> Result<CodeGoToolConfigApplyResult, String> {
+    if !auth.authenticated {
+        return Err("Code Go is not authenticated".to_string());
+    }
+    ensure_tool_config_safe_to_write(tool)?;
+
+    let token_config = fetch_token_config(auth, token_id).await?;
+    let payload = token_config
+        .tools
+        .get(tool)
+        .ok_or_else(|| format!("token config missing tool {tool}"))?;
+    let provider = build_provider_from_token_payload(payload)?;
+
+    apply_provider_for_codego_tool(app, state, tool, provider)
 }
 
 #[tauri::command]
@@ -2062,21 +2341,32 @@ pub async fn codego_get_usage_trends(days: Option<u32>) -> Result<Value, String>
 mod tests {
     use super::{
         apply_account_summary_side_effects, apply_account_summary_side_effects_with_sink,
-        build_model_probe, build_provider_from_codego, build_provider_from_token_payload,
-        codego_balance_usd_from_summary, codego_provider_id, codego_tray_snapshot,
-        extract_live_endpoint, has_live_credential, probe_response_matches_tool,
-        should_send_low_balance_notification, summary_topup_url, BASE64_STANDARD,
-        CodeGoSummarySideEffectSink,
-        CodeGoTokenToolConfigPayload,
+        apply_codego_tool_config_from_token_inner, apply_codego_tool_config_inner,
+        apply_provider_for_codego_tool, build_model_probe, build_provider_from_codego,
+        build_provider_from_token_payload, capture_live_snapshot, codego_backup_path,
+        codego_balance_usd_from_summary, codego_get_tool_config_preview, codego_provider_id,
+        codego_tray_snapshot, detect_tool_conflict_reason, ensure_tool_config_safe_to_write,
+        extract_live_endpoint, has_live_credential, load_auth_state, load_tool_backup,
+        probe_response_matches_tool, resolve_codego_secure_storage_notice, restore_live_snapshot,
+        save_tool_backup, should_send_low_balance_notification, summary_topup_url,
+        CodeGoSavedToolBackup, CodeGoSecureStorageStatus, CodeGoSummarySideEffectSink,
+        CodeGoTokenToolConfigPayload, BASE64_STANDARD,
     };
-    use base64::Engine;
+    use crate::app_config::AppType;
+    use crate::codex_config::get_codex_config_path;
+    use crate::database::Database;
+    use crate::provider::Provider;
+    use crate::services::ProviderService;
     use crate::settings::{
         get_codego_last_seen_quota_usd, get_settings, update_settings, AppSettings,
     };
+    use crate::store::AppState;
+    use base64::Engine;
     use reqwest::header::AUTHORIZATION;
     use serde_json::json;
     use serial_test::serial;
-    use std::sync::{Mutex, OnceLock};
+    use std::fs;
+    use std::sync::{Arc, Mutex, OnceLock};
     use tempfile::TempDir;
 
     struct TempSettingsEnv {
@@ -2135,6 +2425,968 @@ mod tests {
         LOCK.get_or_init(|| Mutex::new(()))
             .lock()
             .unwrap_or_else(|error| error.into_inner())
+    }
+
+    fn write_test_json(path: &std::path::Path, value: &serde_json::Value) {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("create test json parent");
+        }
+        crate::config::write_json_file(path, value).expect("write test json");
+    }
+
+    fn write_test_text(path: &std::path::Path, value: &str) {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("create test text parent");
+        }
+        crate::config::write_text_file(path, value).expect("write test text");
+    }
+
+    fn test_state() -> AppState {
+        AppState::new(Arc::new(Database::memory().expect("create memory db")))
+    }
+
+    fn seed_authenticated_codego_settings() {
+        let mut settings = AppSettings::default();
+        settings.codego_server_address = Some("https://shu26.cfd".to_string());
+        settings.codego_user_id = Some(7);
+        update_settings(settings).expect("persist authenticated Code Go settings");
+        crate::secure_store::set_test_codego_auth_token(Some("cg_test_access_token".to_string()));
+    }
+
+    fn authenticated_auth_state() -> super::CodeGoAuthState {
+        super::CodeGoAuthState {
+            server_address: Some("https://shu26.cfd".to_string()),
+            access_token: Some("cg_test_access_token".to_string()),
+            user_id: Some(7),
+            device_id: Some(11),
+            last_username: Some("demo-user".to_string()),
+            authenticated: true,
+            secure_storage_status: CodeGoSecureStorageStatus::Protected,
+            secure_storage_message: None,
+        }
+    }
+
+    #[test]
+    fn resolve_codego_secure_storage_notice_is_clean_when_protected() {
+        let (status, message) = resolve_codego_secure_storage_notice(true);
+
+        assert_eq!(status, CodeGoSecureStorageStatus::Protected);
+        assert!(message.is_none());
+    }
+
+    #[test]
+    fn resolve_codego_secure_storage_notice_marks_unavailable_without_fallback() {
+        let (status, message) = resolve_codego_secure_storage_notice(false);
+
+        assert_eq!(status, CodeGoSecureStorageStatus::Unavailable);
+        assert!(message
+            .as_deref()
+            .is_some_and(|value| value.contains("cannot safely persist")));
+    }
+
+    #[test]
+    #[serial]
+    fn load_auth_state_migrates_legacy_token_into_secure_store_and_clears_plaintext() {
+        let _guard = settings_test_guard();
+        let _env = TempSettingsEnv::new();
+        let mut settings = AppSettings::default();
+        settings.codego_server_address = Some("https://shu26.cfd".to_string());
+        settings.codego_user_id = Some(7);
+        update_settings(settings).expect("persist legacy codego settings");
+        crate::settings::set_test_codego_access_token(Some("legacy-token".to_string()))
+            .expect("seed legacy codego token");
+        crate::secure_store::set_test_codego_auth_token(None);
+
+        let auth = load_auth_state();
+
+        assert_eq!(auth.access_token.as_deref(), Some("legacy-token"));
+        assert!(auth.authenticated);
+        assert_eq!(
+            auth.secure_storage_status,
+            CodeGoSecureStorageStatus::Protected
+        );
+        assert!(auth.secure_storage_message.is_none());
+        assert_eq!(get_settings().codego_access_token, None);
+        assert_eq!(
+            crate::secure_store::load_codego_auth().expect("load migrated secure token"),
+            Some("legacy-token".to_string())
+        );
+    }
+
+    #[test]
+    #[serial]
+    fn ensure_tool_config_safe_to_write_rejects_malformed_claude_json() {
+        let _guard = settings_test_guard();
+        let _env = TempSettingsEnv::new();
+        let path = crate::config::get_claude_settings_path();
+
+        write_test_text(&path, "{ invalid json");
+
+        let error = ensure_tool_config_safe_to_write("claude")
+            .expect_err("malformed Claude config should block safe write");
+        assert!(error.contains("cannot safely overwrite"));
+        assert!(error.contains("Claude config"));
+        assert!(error.contains(&path.display().to_string()));
+    }
+
+    #[test]
+    #[serial]
+    fn ensure_tool_config_safe_to_write_rejects_malformed_codex_toml() {
+        let _guard = settings_test_guard();
+        let _env = TempSettingsEnv::new();
+        let config_path = get_codex_config_path();
+
+        write_test_text(&config_path, "[model_providers\nbroken = true");
+
+        let error = ensure_tool_config_safe_to_write("codex")
+            .expect_err("malformed Codex TOML should block safe write");
+        assert!(error.contains("cannot safely overwrite"));
+        assert!(error.contains("Codex config.toml"));
+        assert!(error.contains(&config_path.display().to_string()));
+    }
+
+    #[test]
+    #[serial]
+    fn ensure_tool_config_safe_to_write_rejects_malformed_codex_auth_json() {
+        let _guard = settings_test_guard();
+        let _env = TempSettingsEnv::new();
+        let auth_path = crate::codex_config::get_codex_auth_path();
+
+        write_test_text(&auth_path, "{ invalid json");
+
+        let error = ensure_tool_config_safe_to_write("codex")
+            .expect_err("malformed Codex auth.json should block safe write");
+        assert!(error.contains("cannot safely overwrite"));
+        assert!(error.contains("Codex auth.json"));
+        assert!(error.contains(&auth_path.display().to_string()));
+    }
+
+    #[test]
+    #[serial]
+    fn ensure_tool_config_safe_to_write_rejects_malformed_gemini_settings_json() {
+        let _guard = settings_test_guard();
+        let _env = TempSettingsEnv::new();
+        let settings_path = crate::gemini_config::get_gemini_settings_path();
+
+        write_test_text(&settings_path, "{ invalid json");
+
+        let error = ensure_tool_config_safe_to_write("gemini")
+            .expect_err("malformed Gemini settings.json should block safe write");
+        assert!(error.contains("cannot safely overwrite"));
+        assert!(error.contains("Gemini settings.json"));
+        assert!(error.contains(&settings_path.display().to_string()));
+    }
+
+    #[test]
+    #[serial]
+    fn ensure_tool_config_safe_to_write_rejects_malformed_opencode_config() {
+        let _guard = settings_test_guard();
+        let _env = TempSettingsEnv::new();
+        let config_path = crate::opencode_config::get_opencode_config_path();
+
+        write_test_text(&config_path, "{ provider: ");
+
+        let error = ensure_tool_config_safe_to_write("opencode")
+            .expect_err("malformed OpenCode config should block safe write");
+        assert!(error.contains("cannot safely overwrite"));
+        assert!(error.contains("OpenCode config"));
+        assert!(error.contains(&config_path.display().to_string()));
+    }
+
+    #[test]
+    #[serial]
+    fn ensure_tool_config_safe_to_write_rejects_malformed_openclaw_config() {
+        let _guard = settings_test_guard();
+        let _env = TempSettingsEnv::new();
+        let config_path = crate::openclaw_config::get_openclaw_config_path();
+
+        write_test_text(&config_path, "{ models: ");
+
+        let error = ensure_tool_config_safe_to_write("openclaw")
+            .expect_err("malformed OpenClaw config should block safe write");
+        assert!(error.contains("cannot safely overwrite"));
+        assert!(error.contains("OpenClaw config"));
+        assert!(error.contains(&config_path.display().to_string()));
+    }
+
+    #[test]
+    #[serial]
+    fn ensure_tool_config_safe_to_write_rejects_malformed_hermes_config() {
+        let _guard = settings_test_guard();
+        let _env = TempSettingsEnv::new();
+        let config_path = crate::hermes_config::get_hermes_config_path();
+
+        write_test_text(&config_path, "model: [broken");
+
+        let error = ensure_tool_config_safe_to_write("hermes")
+            .expect_err("malformed Hermes config should block safe write");
+        assert!(error.contains("cannot safely overwrite"));
+        assert!(error.contains("Hermes config"));
+        assert!(error.contains(&config_path.display().to_string()));
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn codego_get_tool_config_preview_rejects_malformed_codex_config_without_creating_backup()
+    {
+        let _guard = settings_test_guard();
+        let _env = TempSettingsEnv::new();
+        let config_path = get_codex_config_path();
+        let malformed_config = "[model_providers\nbroken = true";
+
+        seed_authenticated_codego_settings();
+        write_test_text(&config_path, malformed_config);
+
+        assert!(load_tool_backup("codex")
+            .expect("load Codex backup before preview")
+            .is_none());
+
+        let error = codego_get_tool_config_preview("codex".to_string())
+            .await
+            .expect_err("preview should stop before overwriting malformed Codex config");
+
+        assert!(error.contains("cannot safely overwrite"));
+        assert!(error.contains("Codex config.toml"));
+        assert_eq!(
+            fs::read_to_string(&config_path).expect("read Codex config after failed preview"),
+            malformed_config
+        );
+        assert!(load_tool_backup("codex")
+            .expect("load Codex backup after preview")
+            .is_none());
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn apply_codego_tool_config_inner_rejects_malformed_codex_config_without_side_effects() {
+        let _guard = settings_test_guard();
+        let _env = TempSettingsEnv::new();
+        let state = test_state();
+        let auth = authenticated_auth_state();
+        let config_path = get_codex_config_path();
+        let malformed_config = "[model_providers\nbroken = true";
+        let existing_provider = Provider::with_id(
+            "custom-codex".to_string(),
+            "Custom Codex".to_string(),
+            json!({
+                "auth": { "OPENAI_API_KEY": "sk-existing" },
+                "config": "model_provider = \"default\"\n",
+            }),
+            Some("https://original.example".to_string()),
+        );
+
+        ProviderService::add(&state, AppType::Codex, existing_provider, false)
+            .expect("add existing codex provider");
+        crate::settings::set_current_provider(&AppType::Codex, Some("custom-codex"))
+            .expect("set current codex provider");
+        state
+            .db
+            .set_current_provider("codex", "custom-codex")
+            .expect("set current codex provider in db");
+        write_test_text(&config_path, malformed_config);
+
+        assert!(load_tool_backup("codex")
+            .expect("load Codex backup before apply")
+            .is_none());
+
+        let error = apply_codego_tool_config_inner(None, &state, &auth, "codex")
+            .await
+            .expect_err("apply should stop before overwriting malformed Codex config");
+
+        assert!(error.contains("cannot safely overwrite"));
+        assert!(error.contains("Codex config.toml"));
+        assert_eq!(
+            fs::read_to_string(&config_path).expect("read Codex config after failed apply"),
+            malformed_config
+        );
+        assert!(load_tool_backup("codex")
+            .expect("load Codex backup after apply")
+            .is_none());
+        assert_eq!(
+            crate::settings::get_effective_current_provider(&state.db, &AppType::Codex)
+                .expect("current Codex provider after failed apply"),
+            Some("custom-codex".to_string())
+        );
+        assert!(state
+            .db
+            .get_provider_by_id(&codego_provider_id("codex"), "codex")
+            .expect("look up Code Go Codex provider")
+            .is_none());
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn apply_codego_tool_config_from_token_inner_rejects_malformed_codex_config_without_side_effects(
+    ) {
+        let _guard = settings_test_guard();
+        let _env = TempSettingsEnv::new();
+        let state = test_state();
+        let auth = authenticated_auth_state();
+        let auth_path = crate::codex_config::get_codex_auth_path();
+        let malformed_auth = "{ invalid json";
+        let existing_provider = Provider::with_id(
+            "custom-codex".to_string(),
+            "Custom Codex".to_string(),
+            json!({
+                "auth": { "OPENAI_API_KEY": "sk-existing" },
+                "config": "model_provider = \"default\"\n",
+            }),
+            Some("https://original.example".to_string()),
+        );
+
+        ProviderService::add(&state, AppType::Codex, existing_provider, false)
+            .expect("add existing codex provider");
+        crate::settings::set_current_provider(&AppType::Codex, Some("custom-codex"))
+            .expect("set current codex provider");
+        state
+            .db
+            .set_current_provider("codex", "custom-codex")
+            .expect("set current codex provider in db");
+        write_test_text(&auth_path, malformed_auth);
+
+        assert!(load_tool_backup("codex")
+            .expect("load Codex backup before token apply")
+            .is_none());
+
+        let error = apply_codego_tool_config_from_token_inner(None, &state, &auth, 1, "codex")
+            .await
+            .expect_err("apply-from-token should stop before overwriting malformed Codex auth");
+
+        assert!(error.contains("cannot safely overwrite"));
+        assert!(error.contains("Codex auth.json"));
+        assert_eq!(
+            fs::read_to_string(&auth_path).expect("read Codex auth after failed token apply"),
+            malformed_auth
+        );
+        assert!(load_tool_backup("codex")
+            .expect("load Codex backup after token apply")
+            .is_none());
+        assert_eq!(
+            crate::settings::get_effective_current_provider(&state.db, &AppType::Codex)
+                .expect("current Codex provider after failed token apply"),
+            Some("custom-codex".to_string())
+        );
+        assert!(state
+            .db
+            .get_provider_by_id(&codego_provider_id("codex"), "codex")
+            .expect("look up Code Go Codex provider after token apply")
+            .is_none());
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn apply_codego_tool_config_inner_rejects_malformed_claude_config_without_side_effects() {
+        let _guard = settings_test_guard();
+        let _env = TempSettingsEnv::new();
+        let state = test_state();
+        let auth = authenticated_auth_state();
+        let settings_path = crate::config::get_claude_settings_path();
+        let malformed_settings = "{ invalid json";
+        let existing_provider = Provider::with_id(
+            "custom-claude".to_string(),
+            "Custom Claude".to_string(),
+            json!({
+                "env": {
+                    "ANTHROPIC_AUTH_TOKEN": "sk-existing",
+                    "ANTHROPIC_BASE_URL": "https://original.example/v1"
+                }
+            }),
+            Some("https://original.example".to_string()),
+        );
+
+        ProviderService::add(&state, AppType::Claude, existing_provider, false)
+            .expect("add existing claude provider");
+        crate::settings::set_current_provider(&AppType::Claude, Some("custom-claude"))
+            .expect("set current claude provider");
+        state
+            .db
+            .set_current_provider("claude", "custom-claude")
+            .expect("set current claude provider in db");
+        write_test_text(&settings_path, malformed_settings);
+
+        assert!(load_tool_backup("claude")
+            .expect("load Claude backup before apply")
+            .is_none());
+
+        let error = apply_codego_tool_config_inner(None, &state, &auth, "claude")
+            .await
+            .expect_err("apply should stop before overwriting malformed Claude config");
+
+        assert!(error.contains("cannot safely overwrite"));
+        assert!(error.contains("Claude config"));
+        assert_eq!(
+            fs::read_to_string(&settings_path).expect("read Claude config after failed apply"),
+            malformed_settings
+        );
+        assert!(load_tool_backup("claude")
+            .expect("load Claude backup after apply")
+            .is_none());
+        assert_eq!(
+            crate::settings::get_effective_current_provider(&state.db, &AppType::Claude)
+                .expect("current Claude provider after failed apply"),
+            Some("custom-claude".to_string())
+        );
+        assert!(state
+            .db
+            .get_provider_by_id(&codego_provider_id("claude"), "claude")
+            .expect("look up Code Go Claude provider")
+            .is_none());
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn apply_codego_tool_config_from_token_inner_rejects_malformed_claude_config_without_side_effects(
+    ) {
+        let _guard = settings_test_guard();
+        let _env = TempSettingsEnv::new();
+        let state = test_state();
+        let auth = authenticated_auth_state();
+        let settings_path = crate::config::get_claude_settings_path();
+        let malformed_settings = "{ invalid json";
+        let existing_provider = Provider::with_id(
+            "custom-claude".to_string(),
+            "Custom Claude".to_string(),
+            json!({
+                "env": {
+                    "ANTHROPIC_AUTH_TOKEN": "sk-existing",
+                    "ANTHROPIC_BASE_URL": "https://original.example/v1"
+                }
+            }),
+            Some("https://original.example".to_string()),
+        );
+
+        ProviderService::add(&state, AppType::Claude, existing_provider, false)
+            .expect("add existing claude provider");
+        crate::settings::set_current_provider(&AppType::Claude, Some("custom-claude"))
+            .expect("set current claude provider");
+        state
+            .db
+            .set_current_provider("claude", "custom-claude")
+            .expect("set current claude provider in db");
+        write_test_text(&settings_path, malformed_settings);
+
+        assert!(load_tool_backup("claude")
+            .expect("load Claude backup before token apply")
+            .is_none());
+
+        let error = apply_codego_tool_config_from_token_inner(None, &state, &auth, 1, "claude")
+            .await
+            .expect_err("apply-from-token should stop before overwriting malformed Claude config");
+
+        assert!(error.contains("cannot safely overwrite"));
+        assert!(error.contains("Claude config"));
+        assert_eq!(
+            fs::read_to_string(&settings_path)
+                .expect("read Claude config after failed token apply"),
+            malformed_settings
+        );
+        assert!(load_tool_backup("claude")
+            .expect("load Claude backup after token apply")
+            .is_none());
+        assert_eq!(
+            crate::settings::get_effective_current_provider(&state.db, &AppType::Claude)
+                .expect("current Claude provider after failed token apply"),
+            Some("custom-claude".to_string())
+        );
+        assert!(state
+            .db
+            .get_provider_by_id(&codego_provider_id("claude"), "claude")
+            .expect("look up Code Go Claude provider after token apply")
+            .is_none());
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn apply_codego_tool_config_inner_rejects_malformed_gemini_settings_without_side_effects()
+    {
+        let _guard = settings_test_guard();
+        let _env = TempSettingsEnv::new();
+        let state = test_state();
+        let auth = authenticated_auth_state();
+        let settings_path = crate::gemini_config::get_gemini_settings_path();
+        let malformed_settings = "{ invalid json";
+        let existing_provider = Provider::with_id(
+            "custom-gemini".to_string(),
+            "Custom Gemini".to_string(),
+            json!({
+                "env": {
+                    "GEMINI_API_KEY": "sk-existing"
+                }
+            }),
+            Some("https://original.example".to_string()),
+        );
+
+        ProviderService::add(&state, AppType::Gemini, existing_provider, false)
+            .expect("add existing gemini provider");
+        crate::settings::set_current_provider(&AppType::Gemini, Some("custom-gemini"))
+            .expect("set current gemini provider");
+        state
+            .db
+            .set_current_provider("gemini", "custom-gemini")
+            .expect("set current gemini provider in db");
+        write_test_text(&settings_path, malformed_settings);
+
+        assert!(load_tool_backup("gemini")
+            .expect("load Gemini backup before apply")
+            .is_none());
+
+        let error = apply_codego_tool_config_inner(None, &state, &auth, "gemini")
+            .await
+            .expect_err("apply should stop before overwriting malformed Gemini settings");
+
+        assert!(error.contains("cannot safely overwrite"));
+        assert!(error.contains("Gemini settings.json"));
+        assert_eq!(
+            fs::read_to_string(&settings_path).expect("read Gemini settings after failed apply"),
+            malformed_settings
+        );
+        assert!(load_tool_backup("gemini")
+            .expect("load Gemini backup after apply")
+            .is_none());
+        assert_eq!(
+            crate::settings::get_effective_current_provider(&state.db, &AppType::Gemini)
+                .expect("current Gemini provider after failed apply"),
+            Some("custom-gemini".to_string())
+        );
+        assert!(state
+            .db
+            .get_provider_by_id(&codego_provider_id("gemini"), "gemini")
+            .expect("look up Code Go Gemini provider")
+            .is_none());
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn apply_codego_tool_config_from_token_inner_rejects_malformed_gemini_settings_without_side_effects(
+    ) {
+        let _guard = settings_test_guard();
+        let _env = TempSettingsEnv::new();
+        let state = test_state();
+        let auth = authenticated_auth_state();
+        let settings_path = crate::gemini_config::get_gemini_settings_path();
+        let malformed_settings = "{ invalid json";
+        let existing_provider = Provider::with_id(
+            "custom-gemini".to_string(),
+            "Custom Gemini".to_string(),
+            json!({
+                "env": {
+                    "GEMINI_API_KEY": "sk-existing"
+                }
+            }),
+            Some("https://original.example".to_string()),
+        );
+
+        ProviderService::add(&state, AppType::Gemini, existing_provider, false)
+            .expect("add existing gemini provider");
+        crate::settings::set_current_provider(&AppType::Gemini, Some("custom-gemini"))
+            .expect("set current gemini provider");
+        state
+            .db
+            .set_current_provider("gemini", "custom-gemini")
+            .expect("set current gemini provider in db");
+        write_test_text(&settings_path, malformed_settings);
+
+        assert!(load_tool_backup("gemini")
+            .expect("load Gemini backup before token apply")
+            .is_none());
+
+        let error = apply_codego_tool_config_from_token_inner(None, &state, &auth, 1, "gemini")
+            .await
+            .expect_err(
+                "apply-from-token should stop before overwriting malformed Gemini settings",
+            );
+
+        assert!(error.contains("cannot safely overwrite"));
+        assert!(error.contains("Gemini settings.json"));
+        assert_eq!(
+            fs::read_to_string(&settings_path)
+                .expect("read Gemini settings after failed token apply"),
+            malformed_settings
+        );
+        assert!(load_tool_backup("gemini")
+            .expect("load Gemini backup after token apply")
+            .is_none());
+        assert_eq!(
+            crate::settings::get_effective_current_provider(&state.db, &AppType::Gemini)
+                .expect("current Gemini provider after failed token apply"),
+            Some("custom-gemini".to_string())
+        );
+        assert!(state
+            .db
+            .get_provider_by_id(&codego_provider_id("gemini"), "gemini")
+            .expect("look up Code Go Gemini provider after token apply")
+            .is_none());
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn apply_codego_tool_config_inner_rejects_malformed_opencode_config_without_side_effects()
+    {
+        let _guard = settings_test_guard();
+        let _env = TempSettingsEnv::new();
+        let state = test_state();
+        let auth = authenticated_auth_state();
+        let config_path = crate::opencode_config::get_opencode_config_path();
+        let malformed_config = "{ invalid json";
+        let existing_provider = Provider::with_id(
+            "custom-opencode".to_string(),
+            "Custom OpenCode".to_string(),
+            json!({
+                "options": {
+                    "baseURL": "https://original.example/v1"
+                }
+            }),
+            Some("https://original.example".to_string()),
+        );
+
+        ProviderService::add(&state, AppType::OpenCode, existing_provider, false)
+            .expect("add existing opencode provider");
+        crate::settings::set_current_provider(&AppType::OpenCode, Some("custom-opencode"))
+            .expect("set current opencode provider");
+        state
+            .db
+            .set_current_provider("opencode", "custom-opencode")
+            .expect("set current opencode provider in db");
+        write_test_text(&config_path, malformed_config);
+
+        assert!(load_tool_backup("opencode")
+            .expect("load OpenCode backup before apply")
+            .is_none());
+
+        let error = apply_codego_tool_config_inner(None, &state, &auth, "opencode")
+            .await
+            .expect_err("apply should stop before overwriting malformed OpenCode config");
+
+        assert!(error.contains("cannot safely overwrite"));
+        assert!(error.contains("OpenCode config"));
+        assert_eq!(
+            fs::read_to_string(&config_path).expect("read OpenCode config after failed apply"),
+            malformed_config
+        );
+        assert!(load_tool_backup("opencode")
+            .expect("load OpenCode backup after apply")
+            .is_none());
+        assert_eq!(
+            crate::settings::get_effective_current_provider(&state.db, &AppType::OpenCode)
+                .expect("current OpenCode provider after failed apply"),
+            Some("custom-opencode".to_string())
+        );
+        assert!(state
+            .db
+            .get_provider_by_id(&codego_provider_id("opencode"), "opencode")
+            .expect("look up Code Go OpenCode provider")
+            .is_none());
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn apply_codego_tool_config_from_token_inner_rejects_malformed_opencode_config_without_side_effects(
+    ) {
+        let _guard = settings_test_guard();
+        let _env = TempSettingsEnv::new();
+        let state = test_state();
+        let auth = authenticated_auth_state();
+        let config_path = crate::opencode_config::get_opencode_config_path();
+        let malformed_config = "{ invalid json";
+        let existing_provider = Provider::with_id(
+            "custom-opencode".to_string(),
+            "Custom OpenCode".to_string(),
+            json!({
+                "options": {
+                    "baseURL": "https://original.example/v1"
+                }
+            }),
+            Some("https://original.example".to_string()),
+        );
+
+        ProviderService::add(&state, AppType::OpenCode, existing_provider, false)
+            .expect("add existing opencode provider");
+        crate::settings::set_current_provider(&AppType::OpenCode, Some("custom-opencode"))
+            .expect("set current opencode provider");
+        state
+            .db
+            .set_current_provider("opencode", "custom-opencode")
+            .expect("set current opencode provider in db");
+        write_test_text(&config_path, malformed_config);
+
+        assert!(load_tool_backup("opencode")
+            .expect("load OpenCode backup before token apply")
+            .is_none());
+
+        let error = apply_codego_tool_config_from_token_inner(None, &state, &auth, 1, "opencode")
+            .await
+            .expect_err(
+                "apply-from-token should stop before overwriting malformed OpenCode config",
+            );
+
+        assert!(error.contains("cannot safely overwrite"));
+        assert!(error.contains("OpenCode config"));
+        assert_eq!(
+            fs::read_to_string(&config_path)
+                .expect("read OpenCode config after failed token apply"),
+            malformed_config
+        );
+        assert!(load_tool_backup("opencode")
+            .expect("load OpenCode backup after token apply")
+            .is_none());
+        assert_eq!(
+            crate::settings::get_effective_current_provider(&state.db, &AppType::OpenCode)
+                .expect("current OpenCode provider after failed token apply"),
+            Some("custom-opencode".to_string())
+        );
+        assert!(state
+            .db
+            .get_provider_by_id(&codego_provider_id("opencode"), "opencode")
+            .expect("look up Code Go OpenCode provider after token apply")
+            .is_none());
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn apply_codego_tool_config_inner_rejects_malformed_openclaw_config_without_side_effects()
+    {
+        let _guard = settings_test_guard();
+        let _env = TempSettingsEnv::new();
+        let state = test_state();
+        let auth = authenticated_auth_state();
+        let config_path = crate::openclaw_config::get_openclaw_config_path();
+        let malformed_config = "{ invalid yaml";
+        let existing_provider = Provider::with_id(
+            "custom-openclaw".to_string(),
+            "Custom OpenClaw".to_string(),
+            json!({
+                "models": {
+                    "providers": {
+                        "custom": {
+                            "baseUrl": "https://original.example/v1"
+                        }
+                    }
+                }
+            }),
+            Some("https://original.example".to_string()),
+        );
+
+        ProviderService::add(&state, AppType::OpenClaw, existing_provider, false)
+            .expect("add existing openclaw provider");
+        crate::settings::set_current_provider(&AppType::OpenClaw, Some("custom-openclaw"))
+            .expect("set current openclaw provider");
+        state
+            .db
+            .set_current_provider("openclaw", "custom-openclaw")
+            .expect("set current openclaw provider in db");
+        write_test_text(&config_path, malformed_config);
+
+        assert!(load_tool_backup("openclaw")
+            .expect("load OpenClaw backup before apply")
+            .is_none());
+
+        let error = apply_codego_tool_config_inner(None, &state, &auth, "openclaw")
+            .await
+            .expect_err("apply should stop before overwriting malformed OpenClaw config");
+
+        assert!(error.contains("cannot safely overwrite"));
+        assert!(error.contains("OpenClaw config"));
+        assert_eq!(
+            fs::read_to_string(&config_path).expect("read OpenClaw config after failed apply"),
+            malformed_config
+        );
+        assert!(load_tool_backup("openclaw")
+            .expect("load OpenClaw backup after apply")
+            .is_none());
+        assert_eq!(
+            crate::settings::get_effective_current_provider(&state.db, &AppType::OpenClaw)
+                .expect("current OpenClaw provider after failed apply"),
+            Some("custom-openclaw".to_string())
+        );
+        assert!(state
+            .db
+            .get_provider_by_id(&codego_provider_id("openclaw"), "openclaw")
+            .expect("look up Code Go OpenClaw provider")
+            .is_none());
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn apply_codego_tool_config_from_token_inner_rejects_malformed_openclaw_config_without_side_effects(
+    ) {
+        let _guard = settings_test_guard();
+        let _env = TempSettingsEnv::new();
+        let state = test_state();
+        let auth = authenticated_auth_state();
+        let config_path = crate::openclaw_config::get_openclaw_config_path();
+        let malformed_config = "{ invalid yaml";
+        let existing_provider = Provider::with_id(
+            "custom-openclaw".to_string(),
+            "Custom OpenClaw".to_string(),
+            json!({
+                "models": {
+                    "providers": {
+                        "custom": {
+                            "baseUrl": "https://original.example/v1"
+                        }
+                    }
+                }
+            }),
+            Some("https://original.example".to_string()),
+        );
+
+        ProviderService::add(&state, AppType::OpenClaw, existing_provider, false)
+            .expect("add existing openclaw provider");
+        crate::settings::set_current_provider(&AppType::OpenClaw, Some("custom-openclaw"))
+            .expect("set current openclaw provider");
+        state
+            .db
+            .set_current_provider("openclaw", "custom-openclaw")
+            .expect("set current openclaw provider in db");
+        write_test_text(&config_path, malformed_config);
+
+        assert!(load_tool_backup("openclaw")
+            .expect("load OpenClaw backup before token apply")
+            .is_none());
+
+        let error = apply_codego_tool_config_from_token_inner(None, &state, &auth, 1, "openclaw")
+            .await
+            .expect_err(
+                "apply-from-token should stop before overwriting malformed OpenClaw config",
+            );
+
+        assert!(error.contains("cannot safely overwrite"));
+        assert!(error.contains("OpenClaw config"));
+        assert_eq!(
+            fs::read_to_string(&config_path)
+                .expect("read OpenClaw config after failed token apply"),
+            malformed_config
+        );
+        assert!(load_tool_backup("openclaw")
+            .expect("load OpenClaw backup after token apply")
+            .is_none());
+        assert_eq!(
+            crate::settings::get_effective_current_provider(&state.db, &AppType::OpenClaw)
+                .expect("current OpenClaw provider after failed token apply"),
+            Some("custom-openclaw".to_string())
+        );
+        assert!(state
+            .db
+            .get_provider_by_id(&codego_provider_id("openclaw"), "openclaw")
+            .expect("look up Code Go OpenClaw provider after token apply")
+            .is_none());
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn apply_codego_tool_config_inner_rejects_malformed_hermes_config_without_side_effects() {
+        let _guard = settings_test_guard();
+        let _env = TempSettingsEnv::new();
+        let state = test_state();
+        let auth = authenticated_auth_state();
+        let config_path = crate::hermes_config::get_hermes_config_path();
+        let malformed_config = "model: [broken";
+        let existing_provider = Provider::with_id(
+            "custom-hermes".to_string(),
+            "Custom Hermes".to_string(),
+            json!({
+                "base_url": "https://original.example/v1",
+                "api_key": "sk-existing"
+            }),
+            Some("https://original.example".to_string()),
+        );
+
+        ProviderService::add(&state, AppType::Hermes, existing_provider, false)
+            .expect("add existing hermes provider");
+        crate::settings::set_current_provider(&AppType::Hermes, Some("custom-hermes"))
+            .expect("set current hermes provider");
+        state
+            .db
+            .set_current_provider("hermes", "custom-hermes")
+            .expect("set current hermes provider in db");
+        write_test_text(&config_path, malformed_config);
+
+        assert!(load_tool_backup("hermes")
+            .expect("load Hermes backup before apply")
+            .is_none());
+
+        let error = apply_codego_tool_config_inner(None, &state, &auth, "hermes")
+            .await
+            .expect_err("apply should stop before overwriting malformed Hermes config");
+
+        assert!(error.contains("cannot safely overwrite"));
+        assert!(error.contains("Hermes config"));
+        assert_eq!(
+            fs::read_to_string(&config_path).expect("read Hermes config after failed apply"),
+            malformed_config
+        );
+        assert!(load_tool_backup("hermes")
+            .expect("load Hermes backup after apply")
+            .is_none());
+        assert_eq!(
+            crate::settings::get_effective_current_provider(&state.db, &AppType::Hermes)
+                .expect("current Hermes provider after failed apply"),
+            Some("custom-hermes".to_string())
+        );
+        assert!(state
+            .db
+            .get_provider_by_id(&codego_provider_id("hermes"), "hermes")
+            .expect("look up Code Go Hermes provider")
+            .is_none());
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn apply_codego_tool_config_from_token_inner_rejects_malformed_hermes_config_without_side_effects(
+    ) {
+        let _guard = settings_test_guard();
+        let _env = TempSettingsEnv::new();
+        let state = test_state();
+        let auth = authenticated_auth_state();
+        let config_path = crate::hermes_config::get_hermes_config_path();
+        let malformed_config = "model: [broken";
+        let existing_provider = Provider::with_id(
+            "custom-hermes".to_string(),
+            "Custom Hermes".to_string(),
+            json!({
+                "base_url": "https://original.example/v1",
+                "api_key": "sk-existing"
+            }),
+            Some("https://original.example".to_string()),
+        );
+
+        ProviderService::add(&state, AppType::Hermes, existing_provider, false)
+            .expect("add existing hermes provider");
+        crate::settings::set_current_provider(&AppType::Hermes, Some("custom-hermes"))
+            .expect("set current hermes provider");
+        state
+            .db
+            .set_current_provider("hermes", "custom-hermes")
+            .expect("set current hermes provider in db");
+        write_test_text(&config_path, malformed_config);
+
+        assert!(load_tool_backup("hermes")
+            .expect("load Hermes backup before token apply")
+            .is_none());
+
+        let error = apply_codego_tool_config_from_token_inner(None, &state, &auth, 1, "hermes")
+            .await
+            .expect_err("apply-from-token should stop before overwriting malformed Hermes config");
+
+        assert!(error.contains("cannot safely overwrite"));
+        assert!(error.contains("Hermes config"));
+        assert_eq!(
+            fs::read_to_string(&config_path).expect("read Hermes config after failed token apply"),
+            malformed_config
+        );
+        assert!(load_tool_backup("hermes")
+            .expect("load Hermes backup after token apply")
+            .is_none());
+        assert_eq!(
+            crate::settings::get_effective_current_provider(&state.db, &AppType::Hermes)
+                .expect("current Hermes provider after failed token apply"),
+            Some("custom-hermes".to_string())
+        );
+        assert!(state
+            .db
+            .get_provider_by_id(&codego_provider_id("hermes"), "hermes")
+            .expect("look up Code Go Hermes provider after token apply")
+            .is_none());
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -2337,6 +3589,62 @@ mod tests {
     }
 
     #[test]
+    fn detect_tool_conflict_reason_flags_missing_credentials() {
+        let conflict = detect_tool_conflict_reason(
+            "opencode",
+            true,
+            Some("codego-opencode"),
+            Some("Code Go OpenCode"),
+            true,
+            Some(&json!({
+                "options": {
+                    "baseURL": "https://shu26.cfd/v1",
+                    "apiKey": "   "
+                }
+            })),
+        );
+
+        assert_eq!(
+            conflict.as_deref(),
+            Some("The local config exists, but the required API credential is missing.")
+        );
+    }
+
+    #[test]
+    fn detect_tool_conflict_reason_flags_other_provider_routing() {
+        let conflict = detect_tool_conflict_reason(
+            "codex",
+            true,
+            Some("custom-upstream"),
+            Some("Custom Upstream"),
+            false,
+            None,
+        );
+
+        assert_eq!(
+            conflict.as_deref(),
+            Some("Codex is currently routed through Custom Upstream instead of Code Go.")
+        );
+    }
+
+    #[test]
+    fn detect_tool_conflict_reason_is_clear_for_active_codego_config() {
+        let conflict = detect_tool_conflict_reason(
+            "openclaw",
+            true,
+            Some("codego-openclaw"),
+            Some("Code Go OpenClaw"),
+            true,
+            Some(&json!({
+                "baseUrl": "https://shu26.cfd/v1",
+                "apiKey": "sk-openclaw"
+            })),
+        );
+
+        assert!(conflict.is_none());
+    }
+
+    #[test]
     fn build_model_probe_uses_claude_headers_and_models_path() {
         let value = json!({
             "env": {
@@ -2460,8 +3768,7 @@ mod tests {
             Some("sk-openclaw")
         );
 
-        let hermes =
-            build_provider_from_codego("hermes", &template, "sk-hermes").expect("hermes");
+        let hermes = build_provider_from_codego("hermes", &template, "sk-hermes").expect("hermes");
         assert_eq!(hermes.id, codego_provider_id("hermes"));
         assert_eq!(hermes.name, "Code Go Hermes");
         assert_eq!(hermes.website_url.as_deref(), Some("https://shu26.cfd"));
@@ -2543,6 +3850,342 @@ mod tests {
             Some("sk-hermes")
         );
         assert_eq!(hermes.icon.as_deref(), Some("newapi"));
+    }
+
+    #[test]
+    #[serial]
+    fn claude_live_snapshot_round_trips_settings_file() {
+        let _guard = settings_test_guard();
+        let _env = TempSettingsEnv::new();
+        let settings_path = crate::config::get_claude_settings_path();
+        let original = json!({
+            "env": {
+                "ANTHROPIC_AUTH_TOKEN": "sk-claude-original",
+                "ANTHROPIC_BASE_URL": "https://shu26.cfd/v1"
+            },
+            "theme": "dark"
+        });
+        let mutated = json!({
+            "env": {
+                "ANTHROPIC_AUTH_TOKEN": "sk-claude-mutated",
+                "ANTHROPIC_BASE_URL": "https://other.example/v1"
+            }
+        });
+
+        write_test_json(&settings_path, &original);
+        let snapshot = capture_live_snapshot("claude").expect("capture claude snapshot");
+        write_test_json(&settings_path, &mutated);
+
+        restore_live_snapshot(&snapshot).expect("restore claude snapshot");
+
+        let restored: serde_json::Value =
+            crate::config::read_json_file(&settings_path).expect("read restored claude settings");
+        assert_eq!(restored, original);
+    }
+
+    #[test]
+    #[serial]
+    fn codex_live_snapshot_round_trips_auth_and_config_files() {
+        let _guard = settings_test_guard();
+        let _env = TempSettingsEnv::new();
+        let auth_path = crate::codex_config::get_codex_auth_path();
+        let config_path = crate::codex_config::get_codex_config_path();
+        let original_auth = json!({
+            "OPENAI_API_KEY": "sk-codex-original"
+        });
+        let original_config = "[model_providers.codego]\nbase_url = \"https://shu26.cfd/v1\"\n\n[general]\nmodel = \"gpt-5\"\n";
+        let mutated_auth = json!({
+            "OPENAI_API_KEY": "sk-codex-mutated"
+        });
+        let mutated_config = "[model_providers.codego]\nbase_url = \"https://other.example/v1\"\n";
+
+        write_test_json(&auth_path, &original_auth);
+        write_test_text(&config_path, original_config);
+        let snapshot = capture_live_snapshot("codex").expect("capture codex snapshot");
+
+        write_test_json(&auth_path, &mutated_auth);
+        write_test_text(&config_path, mutated_config);
+
+        restore_live_snapshot(&snapshot).expect("restore codex snapshot");
+
+        let restored_auth: serde_json::Value =
+            crate::config::read_json_file(&auth_path).expect("read restored codex auth");
+        let restored_config = fs::read_to_string(&config_path).expect("read restored codex config");
+        assert_eq!(restored_auth, original_auth);
+        assert_eq!(restored_config, original_config);
+    }
+
+    #[test]
+    #[serial]
+    fn gemini_backup_file_round_trips_and_restore_recovers_env_and_settings() {
+        let _guard = settings_test_guard();
+        let _env = TempSettingsEnv::new();
+        let env_path = crate::gemini_config::get_gemini_env_path();
+        let settings_path = crate::gemini_config::get_gemini_settings_path();
+        let original_env = std::collections::HashMap::from([
+            (
+                "GEMINI_API_KEY".to_string(),
+                "sk-gemini-original".to_string(),
+            ),
+            (
+                "GOOGLE_GEMINI_BASE_URL".to_string(),
+                "https://shu26.cfd/v1beta".to_string(),
+            ),
+        ]);
+        let original_settings = json!({
+            "selectedAuthType": "gemini-api-key",
+            "model": "gemini-2.5-pro"
+        });
+
+        crate::gemini_config::write_gemini_env_atomic(&original_env)
+            .expect("write original gemini env");
+        write_test_json(&settings_path, &original_settings);
+        let snapshot = capture_live_snapshot("gemini").expect("capture gemini snapshot");
+
+        let backup = CodeGoSavedToolBackup {
+            saved_at: "2026-06-28T12:00:00Z".to_string(),
+            previous_provider_id: Some("custom-gemini".to_string()),
+            snapshot: snapshot.clone(),
+        };
+        save_tool_backup("gemini", &backup).expect("save gemini backup");
+
+        crate::gemini_config::write_gemini_env_atomic(&std::collections::HashMap::from([(
+            "GEMINI_API_KEY".to_string(),
+            "sk-gemini-mutated".to_string(),
+        )]))
+        .expect("write mutated gemini env");
+        write_test_json(
+            &settings_path,
+            &json!({
+                "selectedAuthType": "oauth-personal"
+            }),
+        );
+
+        let loaded_backup = load_tool_backup("gemini")
+            .expect("load gemini backup")
+            .expect("gemini backup should exist");
+        assert_eq!(loaded_backup.saved_at, "2026-06-28T12:00:00Z");
+        assert_eq!(
+            loaded_backup.previous_provider_id.as_deref(),
+            Some("custom-gemini")
+        );
+
+        restore_live_snapshot(&loaded_backup.snapshot).expect("restore gemini snapshot");
+
+        let restored_env =
+            crate::gemini_config::read_gemini_env().expect("read restored gemini env");
+        let restored_settings: serde_json::Value =
+            crate::config::read_json_file(&settings_path).expect("read restored gemini settings");
+        assert_eq!(restored_env, original_env);
+        assert_eq!(restored_settings, original_settings);
+        assert!(codego_backup_path("gemini").exists());
+        assert_eq!(env_path, crate::gemini_config::get_gemini_env_path());
+    }
+
+    #[test]
+    #[serial]
+    fn claude_apply_provider_for_codego_tool_writes_live_config_switches_current_and_saves_backup()
+    {
+        let _guard = settings_test_guard();
+        let _env = TempSettingsEnv::new();
+        let state = test_state();
+        let settings_path = crate::config::get_claude_settings_path();
+        let original_live = json!({
+            "env": {
+                "ANTHROPIC_AUTH_TOKEN": "sk-claude-original",
+                "ANTHROPIC_BASE_URL": "https://original.example/v1"
+            },
+            "permissions": { "allow": ["Read"] }
+        });
+        let template = json!({
+            "endpoint": "https://shu26.cfd/v1",
+            "server_address": "https://shu26.cfd"
+        });
+
+        write_test_json(&settings_path, &original_live);
+        let provider =
+            build_provider_from_codego("claude", &template, "sk-claude-codego").expect("provider");
+
+        let result = apply_provider_for_codego_tool(None, &state, "claude", provider.clone())
+            .expect("apply claude provider");
+
+        assert_eq!(result.provider_id, provider.id);
+        assert_eq!(result.provider_name, provider.name);
+        assert!(result.backup_saved);
+        assert_eq!(
+            crate::settings::get_effective_current_provider(&state.db, &AppType::Claude)
+                .expect("current provider"),
+            Some(provider.id.clone())
+        );
+        assert!(state
+            .db
+            .get_provider_by_id(&provider.id, "claude")
+            .expect("stored provider lookup")
+            .is_some());
+
+        let written_live: serde_json::Value =
+            crate::config::read_json_file(&settings_path).expect("read written claude live");
+        assert_eq!(
+            written_live.pointer("/env/ANTHROPIC_AUTH_TOKEN"),
+            Some(&json!("sk-claude-codego"))
+        );
+        assert_eq!(
+            written_live.pointer("/env/ANTHROPIC_BASE_URL"),
+            Some(&json!("https://shu26.cfd/v1"))
+        );
+
+        let backup = load_tool_backup("claude")
+            .expect("load claude backup")
+            .expect("claude backup exists");
+        assert!(backup.previous_provider_id.is_none());
+        match backup.snapshot {
+            super::CodeGoLiveSnapshot::Claude { settings } => {
+                assert_eq!(settings, Some(original_live));
+            }
+            other => panic!("unexpected backup snapshot: {other:?}"),
+        }
+    }
+
+    #[test]
+    #[serial]
+    fn codex_apply_provider_for_codego_tool_writes_auth_and_config_and_tracks_previous_provider() {
+        let _guard = settings_test_guard();
+        let _env = TempSettingsEnv::new();
+        let state = test_state();
+        let auth_path = crate::codex_config::get_codex_auth_path();
+        let config_path = crate::codex_config::get_codex_config_path();
+        let original_auth = json!({
+            "OPENAI_API_KEY": "sk-codex-original"
+        });
+        let original_config =
+            "[model_providers.custom]\nbase_url = \"https://original.example/v1\"\n";
+        let existing_provider = Provider::with_id(
+            "custom-codex".to_string(),
+            "Custom Codex".to_string(),
+            json!({
+                "auth": { "OPENAI_API_KEY": "sk-existing" },
+                "config": original_config,
+            }),
+            Some("https://original.example".to_string()),
+        );
+        let template = json!({
+            "endpoint": "https://shu26.cfd/v1",
+            "server_address": "https://shu26.cfd"
+        });
+
+        ProviderService::add(&state, AppType::Codex, existing_provider, false)
+            .expect("add existing codex provider");
+        crate::settings::set_current_provider(&AppType::Codex, Some("custom-codex"))
+            .expect("set current codex provider");
+        state
+            .db
+            .set_current_provider("codex", "custom-codex")
+            .expect("set current codex provider in db");
+        write_test_json(&auth_path, &original_auth);
+        write_test_text(&config_path, original_config);
+
+        let provider =
+            build_provider_from_codego("codex", &template, "sk-codex-codego").expect("provider");
+        let result = apply_provider_for_codego_tool(None, &state, "codex", provider.clone())
+            .expect("apply codex provider");
+
+        assert_eq!(result.provider_id, provider.id);
+        assert_eq!(
+            crate::settings::get_effective_current_provider(&state.db, &AppType::Codex)
+                .expect("current codex provider"),
+            Some(provider.id.clone())
+        );
+
+        let written_auth: serde_json::Value =
+            crate::config::read_json_file(&auth_path).expect("read written codex auth");
+        let written_config = fs::read_to_string(&config_path).expect("read written codex config");
+        assert_eq!(
+            written_auth.pointer("/OPENAI_API_KEY"),
+            Some(&json!("sk-codex-codego"))
+        );
+        assert!(written_config.contains("https://shu26.cfd/v1"));
+        assert!(written_config.contains("gpt-5.5"));
+
+        let backup = load_tool_backup("codex")
+            .expect("load codex backup")
+            .expect("codex backup exists");
+        assert_eq!(backup.previous_provider_id.as_deref(), Some("custom-codex"));
+        match backup.snapshot {
+            super::CodeGoLiveSnapshot::Codex { auth, config } => {
+                assert_eq!(auth, Some(original_auth));
+                assert_eq!(config.as_deref(), Some(original_config));
+            }
+            other => panic!("unexpected backup snapshot: {other:?}"),
+        }
+    }
+
+    #[test]
+    #[serial]
+    fn gemini_apply_provider_for_codego_tool_writes_env_switches_current_and_saves_backup() {
+        let _guard = settings_test_guard();
+        let _env = TempSettingsEnv::new();
+        let state = test_state();
+        let settings_path = crate::gemini_config::get_gemini_settings_path();
+        let original_env = std::collections::HashMap::from([(
+            "GEMINI_API_KEY".to_string(),
+            "sk-gemini-original".to_string(),
+        )]);
+        let original_settings = json!({
+            "security": {
+                "auth": {
+                    "selectedType": "oauth-personal"
+                }
+            }
+        });
+        let template = json!({
+            "endpoint": "https://shu26.cfd/v1beta",
+            "server_address": "https://shu26.cfd"
+        });
+
+        crate::gemini_config::write_gemini_env_atomic(&original_env)
+            .expect("write original gemini env");
+        write_test_json(&settings_path, &original_settings);
+
+        let provider =
+            build_provider_from_codego("gemini", &template, "sk-gemini-codego").expect("provider");
+        let result = apply_provider_for_codego_tool(None, &state, "gemini", provider.clone())
+            .expect("apply gemini provider");
+
+        assert_eq!(result.provider_id, provider.id);
+        assert_eq!(
+            crate::settings::get_effective_current_provider(&state.db, &AppType::Gemini)
+                .expect("current gemini provider"),
+            Some(provider.id.clone())
+        );
+
+        let written_env = crate::gemini_config::read_gemini_env().expect("read written gemini env");
+        let written_settings: serde_json::Value =
+            crate::config::read_json_file(&settings_path).expect("read written gemini settings");
+        assert_eq!(
+            written_env.get("GEMINI_API_KEY").map(String::as_str),
+            Some("sk-gemini-codego")
+        );
+        assert_eq!(
+            written_env
+                .get("GOOGLE_GEMINI_BASE_URL")
+                .map(String::as_str),
+            Some("https://shu26.cfd/v1beta")
+        );
+        assert_eq!(
+            written_settings.pointer("/security/auth/selectedType"),
+            Some(&json!("gemini-api-key"))
+        );
+
+        let backup = load_tool_backup("gemini")
+            .expect("load gemini backup after apply")
+            .expect("gemini backup exists");
+        match backup.snapshot {
+            super::CodeGoLiveSnapshot::Gemini { env, config } => {
+                assert_eq!(env, Some(original_env));
+                assert_eq!(config, Some(original_settings));
+            }
+            other => panic!("unexpected backup snapshot: {other:?}"),
+        }
     }
 
     #[test]

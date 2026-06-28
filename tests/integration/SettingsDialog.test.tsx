@@ -158,7 +158,7 @@ describe("SettingsPage integration", () => {
     expect((appInput as HTMLInputElement).value).toBe("/home/mock/.cc-switch");
   });
 
-  it("updates Code Go desktop reminder settings from the auth tab", async () => {
+  it("updates codego desktop reminder settings from the auth tab", async () => {
     renderDialog();
 
     await waitFor(() =>
@@ -168,7 +168,7 @@ describe("SettingsPage integration", () => {
     fireEvent.click(screen.getByText("认证"));
 
     const traySwitch = screen.getByRole("switch", {
-      name: "Code Go tray balance summary",
+      name: "codego tray balance summary",
     });
     fireEvent.click(traySwitch);
 
@@ -177,7 +177,7 @@ describe("SettingsPage integration", () => {
     });
 
     const thresholdInput = screen.getByLabelText(
-      "Code Go low balance threshold in USD",
+      "codego low balance threshold in USD",
     );
     fireEvent.change(thresholdInput, { target: { value: "6.5" } });
     fireEvent.blur(thresholdInput);

@@ -51,7 +51,7 @@ export function CodeGoDiagnosticReportCard({
         <div className="space-y-1">
           <CardTitle className="text-base">Diagnostics</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Review the latest local crash excerpt before sending it to Code Go
+            Review the latest local crash excerpt before sending it to codego
             support.
           </p>
         </div>

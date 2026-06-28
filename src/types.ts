@@ -372,12 +372,13 @@ export interface Settings {
   // 首选语言（可选，默认中文）
   language?: "en" | "zh" | "zh-TW" | "ja";
 
-  // ===== Code Go Desktop 站点认证 =====
+  // ===== codego Desktop 站点认证 =====
   codegoServerAddress?: string;
   codegoAccessToken?: string;
   codegoUserId?: number;
   codegoLastUsername?: string;
   codegoTrayEnabled?: boolean;
+  codegoAutoRefreshEnabled?: boolean;
   codegoLowBalanceNotificationsEnabled?: boolean;
   codegoLowBalanceThresholdUsd?: number;
   codegoTelemetryEnabled?: boolean;

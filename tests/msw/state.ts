@@ -23,6 +23,8 @@ interface CodeGoAuthStateFixture {
   userId?: number;
   deviceId?: number;
   lastUsername?: string;
+  secureStorageStatus?: "protected" | "unavailable";
+  secureStorageMessage?: string;
 }
 
 interface CodeGoAuthSessionFixture {
@@ -177,7 +179,10 @@ interface CodeGoToolConfigBackupFixture {
 
 interface CodeGoToolConfigFixture {
   tool: CodeGoTool;
-  app: Extract<AppId, "codex" | "claude" | "gemini" | "opencode" | "openclaw" | "hermes">;
+  app: Extract<
+    AppId,
+    "codex" | "claude" | "gemini" | "opencode" | "openclaw" | "hermes"
+  >;
   label: string;
   configPath: string;
   configExists: boolean;
@@ -198,7 +203,7 @@ const codeGoTokenConfigPreviewByTool = (
   switch (tool) {
     case "codex":
       return {
-        providerName: "Code Go Codex",
+        providerName: "codego Codex",
         preview: `{
   "OPENAI_API_KEY": "${tokenKey}"
 }
@@ -209,14 +214,14 @@ model_reasoning_effort = "high"
 disable_response_storage = true
 
 [model_providers.custom]
-name = "Code Go"
+name = "codego"
 base_url = "https://shu26.cfd/v1"
 wire_api = "responses"
 requires_openai_auth = true`,
       };
     case "claude":
       return {
-        providerName: "Code Go Claude",
+        providerName: "codego Claude",
         preview: `{
   "env": {
     "ANTHROPIC_BASE_URL": "https://shu26.cfd",
@@ -226,7 +231,7 @@ requires_openai_auth = true`,
       };
     case "gemini":
       return {
-        providerName: "Code Go Gemini",
+        providerName: "codego Gemini",
         preview: `{
   "env": {
     "GOOGLE_GEMINI_BASE_URL": "https://shu26.cfd",
@@ -237,7 +242,7 @@ requires_openai_auth = true`,
       };
     case "openclaw":
       return {
-        providerName: "Code Go OpenClaw",
+        providerName: "codego OpenClaw",
         preview: `{
   "baseUrl": "https://shu26.cfd/v1",
   "apiKey": "${tokenKey}",
@@ -252,9 +257,9 @@ requires_openai_auth = true`,
       };
     case "hermes":
       return {
-        providerName: "Code Go Hermes",
+        providerName: "codego Hermes",
         preview: `{
-  "name": "Code Go Hermes",
+  "name": "codego Hermes",
   "base_url": "https://shu26.cfd/v1",
   "api_key": "${tokenKey}",
   "api_mode": "chat_completions",
@@ -268,10 +273,10 @@ requires_openai_auth = true`,
       };
   }
   return {
-    providerName: "Code Go OpenCode",
+    providerName: "codego OpenCode",
     preview: `{
   "npm": "@ai-sdk/openai-compatible",
-  "name": "Code Go OpenCode",
+  "name": "codego OpenCode",
   "options": {
     "baseURL": "https://shu26.cfd/v1",
     "apiKey": "${tokenKey}",
@@ -354,7 +359,10 @@ const createDefaultCurrent = (): CurrentProviderState => ({
   hermes: "",
 });
 
-const createDefaultToolConfigs = (): Record<CodeGoTool, CodeGoToolConfigFixture> => ({
+const createDefaultToolConfigs = (): Record<
+  CodeGoTool,
+  CodeGoToolConfigFixture
+> => ({
   codex: {
     tool: "codex",
     app: "codex",
@@ -363,7 +371,7 @@ const createDefaultToolConfigs = (): Record<CodeGoTool, CodeGoToolConfigFixture>
     configExists: true,
     endpoint: "https://shu26.cfd/v1",
     providerId: "codego-codex",
-    providerName: "Code Go Codex",
+    providerName: "codego Codex",
     currentPreview: `{
   "auth": {
     "OPENAI_API_KEY": "existing-key"
@@ -382,7 +390,7 @@ model_reasoning_effort = "high"
 disable_response_storage = true
 
 [model_providers.custom]
-name = "Code Go"
+name = "codego"
 base_url = "https://shu26.cfd/v1"
 wire_api = "responses"
 requires_openai_auth = true`,
@@ -396,7 +404,7 @@ requires_openai_auth = true`,
     configExists: true,
     endpoint: "https://shu26.cfd",
     providerId: "codego-claude",
-    providerName: "Code Go Claude",
+    providerName: "codego Claude",
     currentPreview: `{
   "env": {
     "ANTHROPIC_BASE_URL": "https://api.anthropic.com",
@@ -419,7 +427,7 @@ requires_openai_auth = true`,
     configExists: true,
     endpoint: "https://shu26.cfd",
     providerId: "codego-gemini",
-    providerName: "Code Go Gemini",
+    providerName: "codego Gemini",
     currentPreview: `{
   "env": {
     "GOOGLE_GEMINI_BASE_URL": "https://generativelanguage.googleapis.com",
@@ -443,7 +451,7 @@ requires_openai_auth = true`,
     configExists: true,
     endpoint: "https://shu26.cfd/v1",
     providerId: "codego-opencode",
-    providerName: "Code Go OpenCode",
+    providerName: "codego OpenCode",
     currentPreview: `{
   "npm": "@ai-sdk/openai-compatible",
   "name": "Existing OpenCode",
@@ -459,7 +467,7 @@ requires_openai_auth = true`,
 }`,
     nextPreview: `{
   "npm": "@ai-sdk/openai-compatible",
-  "name": "Code Go OpenCode",
+  "name": "codego OpenCode",
   "options": {
     "baseURL": "https://shu26.cfd/v1",
     "apiKey": "cg_desktop_full_key",
@@ -481,7 +489,7 @@ requires_openai_auth = true`,
     configExists: true,
     endpoint: "https://shu26.cfd/v1",
     providerId: "codego-openclaw",
-    providerName: "Code Go OpenClaw",
+    providerName: "codego OpenClaw",
     currentPreview: `{
   "baseUrl": "https://api.example.com/v1",
   "apiKey": "existing-key",
@@ -514,7 +522,7 @@ requires_openai_auth = true`,
     configExists: true,
     endpoint: "https://shu26.cfd/v1",
     providerId: "codego-hermes",
-    providerName: "Code Go Hermes",
+    providerName: "codego Hermes",
     currentPreview: `{
   "name": "Existing Hermes",
   "base_url": "https://api.example.com/v1",
@@ -528,7 +536,7 @@ requires_openai_auth = true`,
   ]
 }`,
     nextPreview: `{
-  "name": "Code Go Hermes",
+  "name": "codego Hermes",
   "base_url": "https://shu26.cfd/v1",
   "api_key": "cg_desktop_full_key",
   "api_mode": "chat_completions",
@@ -576,7 +584,7 @@ let codeGoUsageLogs: CodeGoUsageLogItemFixture[] = [
     type: 1,
     content: "chat completion",
     model_name: "gpt-5.5",
-    token_name: "Code Go Desktop - Default",
+    token_name: "codego desktop - default",
     quota: 1.25,
     prompt_tokens: 220,
     completion_tokens: 84,
@@ -590,7 +598,7 @@ let codeGoUsageLogs: CodeGoUsageLogItemFixture[] = [
     type: 1,
     content: "claude request",
     model_name: "claude-sonnet-4",
-    token_name: "Code Go Desktop - Default",
+    token_name: "codego desktop - default",
     quota: 0.88,
     prompt_tokens: 140,
     completion_tokens: 61,
@@ -606,7 +614,7 @@ let codeGoUsageTrends: Record<number, CodeGoUsageTrendPointFixture[]> = {
 let codeGoTokens: CodeGoTokenFixture[] = [
   {
     id: 1,
-    name: "Code Go Desktop - Default",
+    name: "codego desktop - default",
     key: "cg_desktop_xxxx",
     remain_quota: 99,
     unlimited_quota: false,
@@ -616,7 +624,7 @@ let codeGoTokens: CodeGoTokenFixture[] = [
   },
   {
     id: 2,
-    name: "Code Go Codex Workstation",
+    name: "codego codex workstation",
     key: "cg_codex_xxxx",
     remain_quota: 250,
     unlimited_quota: false,
@@ -628,7 +636,7 @@ let codeGoTokens: CodeGoTokenFixture[] = [
 let codeGoAuthorizedDevices: CodeGoAuthorizedDeviceFixture[] = [
   {
     id: 11,
-    deviceName: "Code Go Desktop",
+    deviceName: "codego desktop",
     platform: "windows",
     appVersion: "0.1.0",
     status: "active",
@@ -669,7 +677,7 @@ let codeGoSummary: CodeGoAccountSummaryFixture = {
     total: 1,
     desktop_token: {
       id: 1,
-      name: "Code Go Desktop - Default",
+      name: "codego desktop - default",
       key: "cg_desktop_xxxx",
       remain_quota: 99,
       unlimited_quota: false,
@@ -708,7 +716,7 @@ let codeGoTemplates: Record<
     auth_scheme: "bearer",
     model_format: "openai-responses",
     env: {},
-    default_provider: "Code Go",
+    default_provider: "codego",
   },
   claude: {
     tool: "claude",
@@ -718,7 +726,7 @@ let codeGoTemplates: Record<
     auth_scheme: "bearer",
     model_format: "anthropic",
     env: {},
-    default_provider: "Code Go",
+    default_provider: "codego",
   },
   gemini: {
     tool: "gemini",
@@ -728,7 +736,7 @@ let codeGoTemplates: Record<
     auth_scheme: "bearer",
     model_format: "gemini",
     env: {},
-    default_provider: "Code Go",
+    default_provider: "codego",
   },
   opencode: {
     tool: "opencode",
@@ -740,7 +748,7 @@ let codeGoTemplates: Record<
     env: {
       OPENAI_BASE_URL: "https://shu26.cfd/v1",
     },
-    default_provider: "Code Go OpenCode",
+    default_provider: "codego OpenCode",
   },
   openclaw: {
     tool: "openclaw",
@@ -752,7 +760,7 @@ let codeGoTemplates: Record<
     env: {
       OPENAI_BASE_URL: "https://shu26.cfd/v1",
     },
-    default_provider: "Code Go OpenClaw",
+    default_provider: "codego OpenClaw",
   },
   hermes: {
     tool: "hermes",
@@ -764,7 +772,7 @@ let codeGoTemplates: Record<
     env: {
       OPENAI_BASE_URL: "https://shu26.cfd/v1",
     },
-    default_provider: "Code Go Hermes",
+    default_provider: "codego Hermes",
   },
 };
 let codeGoToolConfigs = createDefaultToolConfigs();
@@ -903,7 +911,7 @@ export const resetProviderState = () => {
       type: 1,
       content: "chat completion",
       model_name: "gpt-5.5",
-      token_name: "Code Go Desktop - Default",
+      token_name: "codego desktop - default",
       quota: 1.25,
       prompt_tokens: 220,
       completion_tokens: 84,
@@ -917,7 +925,7 @@ export const resetProviderState = () => {
       type: 1,
       content: "claude request",
       model_name: "claude-sonnet-4",
-      token_name: "Code Go Desktop - Default",
+      token_name: "codego desktop - default",
       quota: 0.88,
       prompt_tokens: 140,
       completion_tokens: 61,
@@ -933,7 +941,7 @@ export const resetProviderState = () => {
   codeGoTokens = [
     {
       id: 1,
-      name: "Code Go Desktop - Default",
+      name: "codego desktop - default",
       key: "cg_desktop_xxxx",
       remain_quota: 99,
       unlimited_quota: false,
@@ -943,7 +951,7 @@ export const resetProviderState = () => {
     },
     {
       id: 2,
-      name: "Code Go Codex Workstation",
+      name: "codego codex workstation",
       key: "cg_codex_xxxx",
       remain_quota: 250,
       unlimited_quota: false,
@@ -955,7 +963,7 @@ export const resetProviderState = () => {
   codeGoAuthorizedDevices = [
     {
       id: 11,
-      deviceName: "Code Go Desktop",
+      deviceName: "codego desktop",
       platform: "windows",
       appVersion: "0.1.0",
       status: "active",
@@ -996,7 +1004,7 @@ export const resetProviderState = () => {
       total: 1,
       desktop_token: {
         id: 1,
-        name: "Code Go Desktop - Default",
+        name: "codego desktop - default",
         key: "cg_desktop_xxxx",
         remain_quota: 99,
         unlimited_quota: false,
@@ -1032,7 +1040,7 @@ export const resetProviderState = () => {
       auth_scheme: "bearer",
       model_format: "openai-responses",
       env: {},
-      default_provider: "Code Go",
+      default_provider: "codego",
     },
     claude: {
       tool: "claude",
@@ -1042,7 +1050,7 @@ export const resetProviderState = () => {
       auth_scheme: "bearer",
       model_format: "anthropic",
       env: {},
-      default_provider: "Code Go",
+      default_provider: "codego",
     },
     gemini: {
       tool: "gemini",
@@ -1052,7 +1060,7 @@ export const resetProviderState = () => {
       auth_scheme: "bearer",
       model_format: "gemini",
       env: {},
-      default_provider: "Code Go",
+      default_provider: "codego",
     },
     opencode: {
       tool: "opencode",
@@ -1064,7 +1072,7 @@ export const resetProviderState = () => {
       env: {
         OPENAI_BASE_URL: "https://shu26.cfd/v1",
       },
-      default_provider: "Code Go OpenCode",
+      default_provider: "codego OpenCode",
     },
     openclaw: {
       tool: "openclaw",
@@ -1076,7 +1084,7 @@ export const resetProviderState = () => {
       env: {
         OPENAI_BASE_URL: "https://shu26.cfd/v1",
       },
-      default_provider: "Code Go OpenClaw",
+      default_provider: "codego OpenClaw",
     },
     hermes: {
       tool: "hermes",
@@ -1088,7 +1096,7 @@ export const resetProviderState = () => {
       env: {
         OPENAI_BASE_URL: "https://shu26.cfd/v1",
       },
-      default_provider: "Code Go Hermes",
+      default_provider: "codego Hermes",
     },
   };
   codeGoToolConfigs = createDefaultToolConfigs();
@@ -1316,8 +1324,12 @@ export const setCodeGoAuthState = (value: Partial<CodeGoAuthStateFixture>) => {
 export const getCodeGoAuthSession = () =>
   deepClone(codeGoAuthSession) as CodeGoAuthSessionFixture | null;
 
-export const setCodeGoAuthSession = (value: CodeGoAuthSessionFixture | null) => {
-  codeGoAuthSession = value ? (deepClone(value) as CodeGoAuthSessionFixture) : null;
+export const setCodeGoAuthSession = (
+  value: CodeGoAuthSessionFixture | null,
+) => {
+  codeGoAuthSession = value
+    ? (deepClone(value) as CodeGoAuthSessionFixture)
+    : null;
 };
 
 export const getCodeGoSummary = () =>
@@ -1364,7 +1376,9 @@ export const setCodeGoUsageLogs = (value: CodeGoUsageLogItemFixture[]) => {
 };
 
 export const getCodeGoUsageTrends = (days: number) =>
-  deepClone(codeGoUsageTrends[days] ?? codeGoUsageTrends[7]) as CodeGoUsageTrendPointFixture[];
+  deepClone(
+    codeGoUsageTrends[days] ?? codeGoUsageTrends[7],
+  ) as CodeGoUsageTrendPointFixture[];
 
 export const setCodeGoUsageTrends = (
   days: number,
@@ -1404,7 +1418,9 @@ export const revokeCodeGoAuthorizedDevice = (id: number) => {
   const target = codeGoAuthorizedDevices.find((item) => item.id === id);
   if (!target) return false;
 
-  codeGoAuthorizedDevices = codeGoAuthorizedDevices.filter((item) => item.id !== id);
+  codeGoAuthorizedDevices = codeGoAuthorizedDevices.filter(
+    (item) => item.id !== id,
+  );
   if (codeGoAuthState.deviceId === id) {
     codeGoAuthState = {
       ...codeGoAuthState,
@@ -1420,8 +1436,7 @@ export const revokeCodeGoAuthorizedDevice = (id: number) => {
 
 export const getCodeGoTemplate = (
   tool: "codex" | "claude" | "gemini" | "opencode" | "openclaw" | "hermes",
-) =>
-  deepClone(codeGoTemplates[tool]) as CodeGoConfigTemplateFixture;
+) => deepClone(codeGoTemplates[tool]) as CodeGoConfigTemplateFixture;
 
 export const setCodeGoTemplate = (
   tool: "codex" | "claude" | "gemini" | "opencode" | "openclaw" | "hermes",
@@ -1470,7 +1485,7 @@ export const applyCodeGoToolConfig = (tool: CodeGoTool) => {
               ? "#2563EB"
               : tool === "hermes"
                 ? "#14B8A6"
-            : "#0F172A",
+                : "#0F172A",
     sortIndex: 99,
     createdAt: Date.now(),
   });
@@ -1492,7 +1507,10 @@ export const applyCodeGoToolConfigFromToken = (
 ) => {
   const config = codeGoToolConfigs[tool];
   const previousProviderId = getCurrentProviderId(config.app);
-  const { preview, providerName } = codeGoTokenConfigPreviewByTool(tokenId, tool);
+  const { preview, providerName } = codeGoTokenConfigPreviewByTool(
+    tokenId,
+    tool,
+  );
 
   codeGoToolConfigs[tool] = {
     ...config,
@@ -1523,7 +1541,7 @@ export const applyCodeGoToolConfigFromToken = (
               ? "#2563EB"
               : tool === "hermes"
                 ? "#14B8A6"
-            : "#0F172A",
+                : "#0F172A",
     sortIndex: 99,
     createdAt: Date.now(),
   });

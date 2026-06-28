@@ -27,7 +27,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { ToolType } from "./codegoShared";
+import { normalizeCodeGoBrand, type ToolType } from "./codegoShared";
 
 const TOOL_ORDER: ToolType[] = [
   "codex",
@@ -39,6 +39,7 @@ const TOOL_ORDER: ToolType[] = [
 ];
 
 function statusTone(status: CodeGoToolConfigStatus) {
+  if (status.conflictDetected) return "conflict";
   if (status.currentProviderIsCodego) return "ready";
   if (status.configExists) return "detected";
   return "missing";
@@ -48,9 +49,7 @@ interface CodeGoToolConfigPanelProps {
   enabled: boolean;
 }
 
-export function CodeGoToolConfigPanel({
-  enabled,
-}: CodeGoToolConfigPanelProps) {
+export function CodeGoToolConfigPanel({ enabled }: CodeGoToolConfigPanelProps) {
   const queryClient = useQueryClient();
   const [previewTool, setPreviewTool] = useState<ToolType | null>(null);
 
@@ -70,11 +69,23 @@ export function CodeGoToolConfigPanel({
     mutationFn: (tool: ToolType) => codegoApi.applyToolConfig(tool),
     onSuccess: async (result) => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["codego", "tool-config-statuses"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["codego", "tool-config-statuses"],
+        }),
         queryClient.invalidateQueries({ queryKey: ["providers"] }),
         queryClient.invalidateQueries({ queryKey: ["codego", "summary"] }),
       ]);
-      toast.success(`${result.providerName} applied`, { closeButton: true });
+      toast.success(
+        normalizeCodeGoBrand(`${result.providerName} applied`).toLowerCase(),
+        {
+          closeButton: true,
+        },
+      );
+    },
+    onError: (error) => {
+      toast.error(
+        extractErrorMessage(error) || "Failed to apply the codego tool config",
+      );
     },
   });
 
@@ -82,13 +93,21 @@ export function CodeGoToolConfigPanel({
     mutationFn: (tool: ToolType) => codegoApi.restoreToolConfig(tool),
     onSuccess: async (result, tool) => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["codego", "tool-config-statuses"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["codego", "tool-config-statuses"],
+        }),
         queryClient.invalidateQueries({ queryKey: ["providers"] }),
       ]);
       toast.success(`${tool} config restored`, {
         description: result.backupSavedAt || undefined,
         closeButton: true,
       });
+    },
+    onError: (error) => {
+      toast.error(
+        extractErrorMessage(error) ||
+          "Failed to restore the previous tool config",
+      );
     },
   });
 
@@ -103,9 +122,11 @@ export function CodeGoToolConfigPanel({
         result.connectivityReachable &&
         result.summaryReachable
       ) {
-        toast.success(result.message, { closeButton: true });
+        toast.success(normalizeCodeGoBrand(result.message).toLowerCase(), {
+          closeButton: true,
+        });
       } else {
-        toast.error(result.message);
+        toast.error(normalizeCodeGoBrand(result.message).toLowerCase());
       }
     },
   });
@@ -113,7 +134,9 @@ export function CodeGoToolConfigPanel({
   const sortedStatuses = useMemo(() => {
     const items = statusQuery.data ?? [];
     return [...items].sort(
-      (a, b) => TOOL_ORDER.indexOf(a.tool as ToolType) - TOOL_ORDER.indexOf(b.tool as ToolType),
+      (a, b) =>
+        TOOL_ORDER.indexOf(a.tool as ToolType) -
+        TOOL_ORDER.indexOf(b.tool as ToolType),
     );
   }, [statusQuery.data]);
 
@@ -141,10 +164,14 @@ export function CodeGoToolConfigPanel({
         <CardContent className="space-y-3">
           {sortedStatuses.map((status) => {
             const tone = statusTone(status);
-            const isApplying = applyMutation.isPending && applyMutation.variables === status.tool;
+            const isApplying =
+              applyMutation.isPending &&
+              applyMutation.variables === status.tool;
             const isRestoring =
-              restoreMutation.isPending && restoreMutation.variables === status.tool;
-            const isTesting = testMutation.isPending && testMutation.variables === status.tool;
+              restoreMutation.isPending &&
+              restoreMutation.variables === status.tool;
+            const isTesting =
+              testMutation.isPending && testMutation.variables === status.tool;
 
             return (
               <div
@@ -154,30 +181,59 @@ export function CodeGoToolConfigPanel({
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <div className="font-medium text-foreground">{status.label}</div>
+                      <div className="font-medium text-foreground">
+                        {status.label}
+                      </div>
                       <Badge
                         variant="outline"
                         className={
-                          tone === "ready"
-                            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700"
-                            : tone === "detected"
-                              ? "border-amber-500/30 bg-amber-500/10 text-amber-700"
-                              : "border-border"
+                          tone === "conflict"
+                            ? "border-rose-500/30 bg-rose-500/10 text-rose-700"
+                            : tone === "ready"
+                              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700"
+                              : tone === "detected"
+                                ? "border-amber-500/30 bg-amber-500/10 text-amber-700"
+                                : "border-border"
                         }
                       >
-                        {tone === "ready"
-                          ? "Code Go active"
+                        {tone === "conflict"
+                          ? "Conflict detected"
+                          : tone === "ready"
+                            ? "codego active"
                           : tone === "detected"
                             ? "Config detected"
                             : "Not configured"}
                       </Badge>
-                      {status.hasBackup && <Badge variant="outline">Backup ready</Badge>}
+                      {status.hasBackup && (
+                        <Badge variant="outline">Backup ready</Badge>
+                      )}
                     </div>
-                    <div className="text-xs text-muted-foreground">{status.configPath}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {status.configPath}
+                    </div>
                     <div className="text-sm text-muted-foreground">
                       {status.currentProviderName
                         ? `Current provider: ${status.currentProviderName}`
-                        : "No provider selected in cc-switch"}
+                        : "No provider selected in codego"}
+                    </div>
+                    {status.conflictReason && (
+                      <div className="rounded-md border border-rose-500/20 bg-rose-500/5 px-3 py-2 text-xs text-rose-700">
+                        {status.conflictReason}
+                      </div>
+                    )}
+                    <div className="space-y-1 text-xs text-muted-foreground">
+                      <div>
+                        <span className="font-medium text-foreground">
+                          After apply:
+                        </span>{" "}
+                        {status.restartHint}
+                      </div>
+                      <div>
+                        <span className="font-medium text-foreground">
+                          Verify:
+                        </span>{" "}
+                        {status.verifyHint}
+                      </div>
                     </div>
                   </div>
 
@@ -193,7 +249,9 @@ export function CodeGoToolConfigPanel({
                     <Button
                       variant="outline"
                       className="h-8 gap-2"
-                      onClick={() => void settingsApi.openConfigFolder(status.app)}
+                      onClick={() =>
+                        void settingsApi.openConfigFolder(status.app)
+                      }
                     >
                       <FolderOpen className="h-4 w-4" />
                       Folder
@@ -202,7 +260,9 @@ export function CodeGoToolConfigPanel({
                       variant="outline"
                       className="h-8 gap-2"
                       disabled={!status.hasBackup || isRestoring}
-                      onClick={() => void restoreMutation.mutateAsync(status.tool as ToolType)}
+                      onClick={() =>
+                        restoreMutation.mutate(status.tool as ToolType)
+                      }
                     >
                       {isRestoring ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -215,7 +275,9 @@ export function CodeGoToolConfigPanel({
                       variant="outline"
                       className="h-8 gap-2"
                       disabled={isTesting}
-                      onClick={() => void testMutation.mutateAsync(status.tool as ToolType)}
+                      onClick={() =>
+                        testMutation.mutate(status.tool as ToolType)
+                      }
                     >
                       {isTesting ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -227,7 +289,9 @@ export function CodeGoToolConfigPanel({
                     <Button
                       className="h-8 gap-2"
                       disabled={isApplying}
-                      onClick={() => void applyMutation.mutateAsync(status.tool as ToolType)}
+                      onClick={() =>
+                        applyMutation.mutate(status.tool as ToolType)
+                      }
                     >
                       {isApplying ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -247,7 +311,8 @@ export function CodeGoToolConfigPanel({
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Tool status failed</AlertTitle>
               <AlertDescription>
-                {extractErrorMessage(statusQuery.error) || "Failed to inspect local tool configuration."}
+                {extractErrorMessage(statusQuery.error) ||
+                  "Failed to inspect local tool configuration."}
               </AlertDescription>
             </Alert>
           )}
@@ -263,10 +328,11 @@ export function CodeGoToolConfigPanel({
         <DialogContent className="max-w-5xl">
           <DialogHeader>
             <DialogTitle>
-              {previewQuery.data?.label || "Tool"} Code Go preview
+              {previewQuery.data?.label || "Tool"} codego preview
             </DialogTitle>
             <DialogDescription>
-              Review the current local config and the Code Go version before applying changes.
+              Review the current local config and the codego version before
+              applying changes.
             </DialogDescription>
           </DialogHeader>
 
@@ -275,7 +341,8 @@ export function CodeGoToolConfigPanel({
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Preview failed</AlertTitle>
               <AlertDescription>
-                {extractErrorMessage(previewQuery.error) || "Failed to build the preview."}
+                {extractErrorMessage(previewQuery.error) ||
+                  "Failed to build the preview."}
               </AlertDescription>
             </Alert>
           ) : previewQuery.isLoading ? (
@@ -292,7 +359,9 @@ export function CodeGoToolConfigPanel({
                   variant="ghost"
                   size="sm"
                   className="h-7 gap-1 px-2"
-                  onClick={() => void settingsApi.openExternal(previewQuery.data.endpoint)}
+                  onClick={() =>
+                    void settingsApi.openExternal(previewQuery.data.endpoint)
+                  }
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
                   Endpoint
@@ -301,7 +370,9 @@ export function CodeGoToolConfigPanel({
 
               <div className="grid gap-4 lg:grid-cols-2">
                 <div className="space-y-2">
-                  <div className="text-sm font-medium">Current local config</div>
+                  <div className="text-sm font-medium">
+                    Current local config
+                  </div>
                   <ScrollArea className="h-80 rounded-lg border border-border bg-muted/20">
                     <pre className="p-4 text-xs leading-5 text-foreground whitespace-pre-wrap break-all">
                       {previewQuery.data.currentPreview}
@@ -309,7 +380,7 @@ export function CodeGoToolConfigPanel({
                   </ScrollArea>
                 </div>
                 <div className="space-y-2">
-                  <div className="text-sm font-medium">Code Go config</div>
+                  <div className="text-sm font-medium">codego config</div>
                   <ScrollArea className="h-80 rounded-lg border border-border bg-muted/20">
                     <pre className="p-4 text-xs leading-5 text-foreground whitespace-pre-wrap break-all">
                       {previewQuery.data.nextPreview}

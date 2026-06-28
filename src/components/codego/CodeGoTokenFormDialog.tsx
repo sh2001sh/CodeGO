@@ -33,7 +33,7 @@ interface CodeGoTokenFormDialogProps {
   onSubmit: () => void;
 }
 
-/** Edit or create a Code Go token without inflating the table container file. */
+/** Edit or create a codego token without inflating the table container file. */
 export function CodeGoTokenFormDialog({
   open,
   formState,
@@ -48,7 +48,7 @@ export function CodeGoTokenFormDialog({
         <DialogHeader>
           <DialogTitle>{formState.id ? "Edit token" : "Create token"}</DialogTitle>
           <DialogDescription>
-            Configure the token name, expiry, quota, and optional model restrictions before saving it to your Code Go account.
+            Configure the token name, expiry, quota, and optional model restrictions before saving it to your codego account.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 px-6 py-5 sm:grid-cols-2">
@@ -60,7 +60,7 @@ export function CodeGoTokenFormDialog({
               onChange={(event) =>
                 onChange((value) => ({ ...value, name: event.target.value }))
               }
-              placeholder="Code Go Codex Workstation"
+              placeholder="codego codex workstation"
             />
           </div>
           <div className="space-y-2">

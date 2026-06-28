@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Copy, KeyRound, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +19,7 @@ import type {
   CodeGoTokenUpdateInput,
 } from "@/lib/api/codego";
 import { codegoApi } from "@/lib/api";
+import { copySensitiveText } from "@/lib/clipboard";
 import {
   useCodeGoCreateTokenMutation,
   useCodeGoDeleteTokenMutation,
@@ -99,9 +101,11 @@ export function CodeGoTokenManager({
   desktopTokenId,
 }: CodeGoTokenManagerProps) {
   const [page, setPage] = useState(0);
-  const [formState, setFormState] = useState<CodeGoTokenFormState>(DEFAULT_FORM_STATE);
+  const [formState, setFormState] =
+    useState<CodeGoTokenFormState>(DEFAULT_FORM_STATE);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<CodeGoToken | null>(null);
+  const [copyTarget, setCopyTarget] = useState<CodeGoToken | null>(null);
   const [copyingTokenId, setCopyingTokenId] = useState<number | null>(null);
 
   const tokensQuery = useCodeGoTokensQuery({ p: page, size: 10 }, enabled);
@@ -112,7 +116,10 @@ export function CodeGoTokenManager({
   const tokenPage = tokensQuery.data;
   const totalPages = useMemo(() => {
     if (!tokenPage) return 1;
-    return Math.max(1, Math.ceil(tokenPage.total / Math.max(tokenPage.size, 1)));
+    return Math.max(
+      1,
+      Math.ceil(tokenPage.total / Math.max(tokenPage.size, 1)),
+    );
   }, [tokenPage]);
 
   const resetDialog = () => {
@@ -123,7 +130,7 @@ export function CodeGoTokenManager({
   const openCreateDialog = () => {
     setFormState({
       ...DEFAULT_FORM_STATE,
-      name: `Code Go Desktop ${tokenPage?.total ? `#${tokenPage.total + 1}` : ""}`.trim(),
+      name: `codego desktop ${tokenPage?.total ? `#${tokenPage.total + 1}` : ""}`.trim(),
     });
     setDialogOpen(true);
   };
@@ -137,7 +144,7 @@ export function CodeGoTokenManager({
     setCopyingTokenId(token.id);
     try {
       const result = await codegoApi.getTokenKey(token.id);
-      await navigator.clipboard.writeText(result.key);
+      await copySensitiveText(result.key);
       toast.success(`Copied full key for ${token.name}`, { closeButton: true });
     } catch (error) {
       toast.error(extractErrorMessage(error) || "Failed to copy full token");
@@ -188,7 +195,8 @@ export function CodeGoTokenManager({
           <div className="space-y-1">
             <CardTitle className="text-base">Token management</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Create scoped keys for each local tool and only reveal the full key on demand.
+              Create scoped keys for each local tool and only reveal the full
+              key on demand.
             </p>
           </div>
           <Button className="h-9 gap-2" onClick={openCreateDialog}>
@@ -212,7 +220,9 @@ export function CodeGoTokenManager({
                     <TableHead>Quota</TableHead>
                     <TableHead>Expires</TableHead>
                     <TableHead>Key</TableHead>
-                    <TableHead className="w-[180px] text-right">Actions</TableHead>
+                    <TableHead className="w-[180px] text-right">
+                      Actions
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -224,10 +234,10 @@ export function CodeGoTokenManager({
                           <div className="flex items-center gap-2">
                             <span className="font-medium">{token.name}</span>
                             {isDesktop ? (
-                              <Badge variant="outline" className="gap-1">
-                                <KeyRound className="h-3 w-3" />
-                                Desktop
-                              </Badge>
+                            <Badge variant="outline" className="gap-1">
+                              <KeyRound className="h-3 w-3" />
+                              Desktop
+                            </Badge>
                             ) : null}
                           </div>
                           <div className="text-xs text-muted-foreground">
@@ -235,15 +245,21 @@ export function CodeGoTokenManager({
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline">{getTokenStatusTone(token)}</Badge>
+                          <Badge variant="outline">
+                            {getTokenStatusTone(token)}
+                          </Badge>
                         </TableCell>
                         <TableCell>
                           {token.unlimited_quota
                             ? "Unlimited"
                             : `${token.remain_quota ?? 0} remaining`}
                         </TableCell>
-                        <TableCell>{formatDateTime(token.expired_time)}</TableCell>
-                        <TableCell className="font-mono text-xs">{token.key}</TableCell>
+                        <TableCell>
+                          {formatDateTime(token.expired_time)}
+                        </TableCell>
+                        <TableCell className="font-mono text-xs">
+                          {token.key}
+                        </TableCell>
                         <TableCell>
                           <div className="flex justify-end gap-2">
                             <CodeGoTokenApplyMenu token={token} />
@@ -251,7 +267,7 @@ export function CodeGoTokenManager({
                               variant="outline"
                               size="sm"
                               className="h-8 gap-1.5"
-                              onClick={() => void handleCopyToken(token)}
+                              onClick={() => setCopyTarget(token)}
                               disabled={copyingTokenId === token.id}
                             >
                               {copyingTokenId === token.id ? (
@@ -313,7 +329,8 @@ export function CodeGoTokenManager({
             </>
           ) : (
             <div className="rounded-lg border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
-              No tokens yet. Create a dedicated token for each local tool so you can rotate or revoke them independently.
+              No tokens yet. Create a dedicated token for each local tool so you
+              can rotate or revoke them independently.
             </div>
           )}
         </CardContent>
@@ -338,6 +355,27 @@ export function CodeGoTokenManager({
           if (!open) setDeleteTarget(null);
         }}
         onConfirm={() => void handleDelete()}
+      />
+
+      <ConfirmDialog
+        isOpen={Boolean(copyTarget)}
+        title="Copy full token key"
+        message={
+          copyTarget
+            ? `Copy the full key for ${copyTarget.name}? The copied value grants API access until you rotate or revoke the token.`
+            : ""
+        }
+        confirmText="Copy key"
+        cancelText="Cancel"
+        variant="info"
+        onConfirm={() => {
+          const target = copyTarget;
+          setCopyTarget(null);
+          if (target) {
+            void handleCopyToken(target);
+          }
+        }}
+        onCancel={() => setCopyTarget(null)}
       />
     </>
   );

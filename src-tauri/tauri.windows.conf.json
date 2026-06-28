@@ -4,7 +4,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Code Go Desktop",
+        "title": "CodeGo",
         "titleBarStyle": "Visible",
         "visible": false,
         "minWidth": 900,

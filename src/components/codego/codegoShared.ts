@@ -14,17 +14,17 @@ export const EMPTY_LOG_QUERY = { p: 0, size: 8 };
 export function toProviderName(tool: ToolType) {
   switch (tool) {
     case "codex":
-      return "Code Go Codex";
+      return "codego codex";
     case "claude":
-      return "Code Go Claude";
+      return "codego claude";
     case "gemini":
-      return "Code Go Gemini";
+      return "codego gemini";
     case "opencode":
-      return "Code Go OpenCode";
+      return "codego opencode";
     case "openclaw":
-      return "Code Go OpenClaw";
+      return "codego openclaw";
     case "hermes":
-      return "Code Go Hermes";
+      return "codego hermes";
   }
 }
 
@@ -43,6 +43,16 @@ export function getToolLabel(tool: ToolType) {
     case "hermes":
       return "Hermes";
   }
+}
+
+export function normalizeCodeGoBrand(value: string) {
+  return value
+    .replace(/\bcodego\b/gi, "codego")
+    .replace(/\bcc-switch\b/gi, "codego")
+    .replace(/\bCode\s*Go\b/gi, "codego")
+    .replace(/\bCodeGo\b/gi, "codego")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export function formatUsd(value: number) {
@@ -116,7 +126,7 @@ model_reasoning_effort = "high"
 disable_response_storage = true
 
 [model_providers.custom]
-name = "Code Go"
+name = "codego"
 base_url = "${template.endpoint}"
 wire_api = "responses"
 requires_openai_auth = true`,

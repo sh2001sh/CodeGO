@@ -25,12 +25,10 @@ static OPENAI_KEY_RE: Lazy<Regex> =
 static WINDOWS_PATH_RE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"[A-Za-z]:\\(?:[^\\\r\n\t ]+\\)*[^\\\r\n\t ]*").expect("valid windows path regex")
 });
-static MAC_HOME_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"/Users/[^/\s]+(?:/[^\s]*)?").expect("valid mac home path regex")
-});
-static LINUX_HOME_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"/home/[^/\s]+(?:/[^\s]*)?").expect("valid linux home path regex")
-});
+static MAC_HOME_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"/Users/[^/\s]+(?:/[^\s]*)?").expect("valid mac home path regex"));
+static LINUX_HOME_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"/home/[^/\s]+(?:/[^\s]*)?").expect("valid linux home path regex"));
 static MESSAGE_RE: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"(?m)^Message:\s*(.+)$").expect("valid message regex"));
 
@@ -202,7 +200,10 @@ pub async fn codego_submit_diagnostic_report(
 
     let response: CodeGoSubmitDiagnosticReportResponse = parse_response(
         client
-            .post(build_url(&server_address, "/api/desktop/diagnostics/report"))
+            .post(build_url(
+                &server_address,
+                "/api/desktop/diagnostics/report",
+            ))
             .json(&RemoteDiagnosticReportRequest {
                 report_type: preview.report_type,
                 source: preview.source,

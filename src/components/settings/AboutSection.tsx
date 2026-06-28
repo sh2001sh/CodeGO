@@ -34,7 +34,7 @@ import type {
 import { useUpdate } from "@/contexts/UpdateContext";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
-import appIcon from "@/assets/icons/app-icon.png";
+import { CodeGoMark } from "@/components/codego/CodeGoMark";
 import fable5VerifiedBanner from "@/assets/fable5-verified.png";
 import { APP_ICON_MAP } from "@/config/appConfig";
 import type { AppId } from "@/lib/api/types";
@@ -47,6 +47,8 @@ import { ToolInstallRow } from "./ToolInstallRow";
 interface AboutSectionProps {
   isPortable: boolean;
 }
+
+const APP_BRAND_NAME = "CodeGo";
 
 interface ToolVersion {
   name: string;
@@ -813,143 +815,173 @@ export function AboutSection({ isPortable }: AboutSectionProps) {
       transition={{ duration: 0.3 }}
       className="space-y-6"
     >
-      <header className="space-y-1">
-        <h3 className="text-sm font-medium">{t("common.about")}</h3>
-        <p className="text-xs text-muted-foreground">
-          {t("settings.aboutHint")}
-        </p>
-      </header>
+      <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3, delay: 0.05 }}
+          className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm"
+        >
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-5">
+              <div className="flex items-start gap-4">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-border/60 bg-muted/35">
+                  <CodeGoMark size={40} className="h-10 w-10" />
+                </div>
+                <div className="space-y-2">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                      {t("common.about")}
+                    </p>
+                    <h4 className="text-2xl font-semibold tracking-tight text-foreground">
+                      {APP_BRAND_NAME}
+                    </h4>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline" className="gap-1.5">
+                      <span className="text-muted-foreground">
+                        {t("common.version")}
+                      </span>
+                      {isLoadingVersion ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <span className="font-medium">{`v${displayVersion}`}</span>
+                      )}
+                    </Badge>
+                    {isPortable && (
+                      <Badge variant="secondary" className="gap-1.5">
+                        <Info className="h-3 w-3" />
+                        {t("settings.portableMode")}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
 
-      <motion.div
-        initial={{ opacity: 0, scale: 0.98 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.3, delay: 0.1 }}
-        className="rounded-xl border border-border bg-gradient-to-br from-card/80 to-card/40 p-6 space-y-5 shadow-sm"
-      >
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-8">
-            <div className="flex flex-col items-center gap-2">
-              <div className="flex items-center gap-2">
-                <img src={appIcon} alt="Code Go Desktop" className="h-5 w-5" />
-                <h4 className="text-lg font-semibold text-foreground">
-                  Code Go Desktop
-                </h4>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="gap-1.5 bg-background/80">
-                  <span className="text-muted-foreground">
-                    {t("common.version")}
-                  </span>
-                  {isLoadingVersion ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <span className="font-medium">{`v${displayVersion}`}</span>
+              <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+                {t("settings.aboutHint")}
+              </p>
+
+              {hasUpdate && updateInfo && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="rounded-xl border border-primary/20 bg-primary/8 px-4 py-3 text-sm"
+                >
+                  <p className="font-medium text-primary">
+                    {t("settings.updateAvailable", {
+                      version: updateInfo.availableVersion,
+                    })}
+                  </p>
+                  {updateInfo.notes && (
+                    <p className="mt-1 line-clamp-3 leading-relaxed text-muted-foreground">
+                      {updateInfo.notes}
+                    </p>
                   )}
-                </Badge>
-                {isPortable && (
-                  <Badge variant="secondary" className="gap-1.5">
-                    <Info className="h-3 w-3" />
-                    {t("settings.portableMode")}
-                  </Badge>
-                )}
-              </div>
+                </motion.div>
+              )}
             </div>
+
+            <div className="flex flex-col items-stretch gap-2 lg:min-w-[210px]">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => settingsApi.openExternal("https://shu26.cfd")}
+                className="h-9 justify-start gap-2 text-xs"
+              >
+                <Globe className="h-3.5 w-3.5" />
+                {t("settings.officialWebsite")}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  settingsApi.openExternal(
+                    "https://github.com/sh2001sh/CodeGO",
+                  )
+                }
+                className="h-9 justify-start gap-2 text-xs"
+              >
+                <Github className="h-3.5 w-3.5" />
+                {t("settings.github")}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleOpenReleaseNotes}
+                className="h-9 justify-start gap-2 text-xs"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                {t("settings.releaseNotes")}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleCheckUpdate}
+                disabled={isChecking || isDownloading}
+                className="h-9 justify-start gap-2 text-xs"
+              >
+                {isDownloading ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    {t("settings.updating")}
+                  </>
+                ) : hasUpdate ? (
+                  <>
+                    <Download className="h-3.5 w-3.5" />
+                    {t("settings.updateTo", {
+                      version: updateInfo?.availableVersion ?? "",
+                    })}
+                  </>
+                ) : isChecking ? (
+                  <>
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    {t("settings.checking")}
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    {t("settings.checkForUpdates")}
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </motion.div>
+
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
+          <div className="rounded-2xl border border-border/60 bg-muted/40 p-5">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+              {t("settings.localEnvCheck")}
+            </p>
+            <p className="mt-2 text-sm text-foreground">
+              {t("settings.aboutHint")}
+            </p>
+            <p className="mt-3 text-sm text-muted-foreground">
+              {isPortable
+                ? t("settings.portableMode")
+                : t("settings.officialWebsite")}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-border/60 bg-muted/40 p-5">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+              {t("settings.github")}
+            </p>
+            <p className="mt-2 text-sm text-foreground">
+              CodeGo keeps the release and support surfaces in one place.
+            </p>
             <img
               src={fable5VerifiedBanner}
-              alt="Fable 5 Verified"
-              className="h-16 w-auto shrink-0 select-none"
+              alt="Verified banner"
+              className="mt-4 h-14 w-auto select-none"
               draggable={false}
             />
           </div>
-
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => settingsApi.openExternal("https://shu26.cfd")}
-              className="h-8 gap-1.5 text-xs"
-            >
-              <Globe className="h-3.5 w-3.5" />
-              {t("settings.officialWebsite")}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                settingsApi.openExternal(
-                  "https://github.com/farion1231/cc-switch",
-                )
-              }
-              className="h-8 gap-1.5 text-xs"
-            >
-              <Github className="h-3.5 w-3.5" />
-              {t("settings.github")}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleOpenReleaseNotes}
-              className="h-8 gap-1.5 text-xs"
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-              {t("settings.releaseNotes")}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              onClick={handleCheckUpdate}
-              disabled={isChecking || isDownloading}
-              className="h-8 gap-1.5 text-xs"
-            >
-              {isDownloading ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  {t("settings.updating")}
-                </>
-              ) : hasUpdate ? (
-                <>
-                  <Download className="h-3.5 w-3.5" />
-                  {t("settings.updateTo", {
-                    version: updateInfo?.availableVersion ?? "",
-                  })}
-                </>
-              ) : isChecking ? (
-                <>
-                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                  {t("settings.checking")}
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="h-3.5 w-3.5" />
-                  {t("settings.checkForUpdates")}
-                </>
-              )}
-            </Button>
-          </div>
         </div>
-
-        {hasUpdate && updateInfo && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            className="rounded-lg bg-primary/10 border border-primary/20 px-4 py-3 text-sm"
-          >
-            <p className="font-medium text-primary mb-1">
-              {t("settings.updateAvailable", {
-                version: updateInfo.availableVersion,
-              })}
-            </p>
-            {updateInfo.notes && (
-              <p className="text-muted-foreground line-clamp-3 leading-relaxed">
-                {updateInfo.notes}
-              </p>
-            )}
-          </motion.div>
-        )}
-      </motion.div>
+      </div>
 
       <div className="space-y-3">
         <div className="flex flex-col gap-2 px-1 sm:flex-row sm:items-center sm:justify-between">

@@ -4,10 +4,12 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CodeGoTokenManager } from "@/components/codego/CodeGoTokenManager";
+import { codegoApi } from "@/lib/api";
 import { createTestQueryClient } from "../utils/testQueryClient";
 import {
   getCodeGoToolConfig,
@@ -26,10 +28,18 @@ vi.mock("sonner", () => ({
 }));
 
 vi.mock("@/components/ui/dropdown-menu", () => ({
-  DropdownMenu: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  DropdownMenuTrigger: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  DropdownMenuContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  DropdownMenuLabel: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  DropdownMenu: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DropdownMenuTrigger: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DropdownMenuContent: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DropdownMenuLabel: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
   DropdownMenuSeparator: () => <hr />,
   DropdownMenuItem: ({
     children,
@@ -63,18 +73,25 @@ describe("CodeGoTokenManager", () => {
     toastSuccessMock.mockReset();
     toastErrorMock.mockReset();
     setCodeGoAuthState({ authenticated: true });
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: vi.fn().mockResolvedValue(undefined),
+      },
+    });
   });
 
   it("applies a selected token to Codex through the token action menu", async () => {
     renderManager();
 
-    expect(await screen.findByText("Code Go Codex Workstation")).toBeInTheDocument();
+    expect(
+      await screen.findByText("codego codex workstation"),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getAllByRole("button", { name: "Codex" })[1]);
 
     await waitFor(() =>
       expect(toastSuccessMock).toHaveBeenCalledWith(
-        "Code Go Codex applied from Code Go Codex Workstation",
+        "codego codex applied from codego codex workstation",
         expect.objectContaining({ closeButton: true }),
       ),
     );
@@ -88,5 +105,37 @@ describe("CodeGoTokenManager", () => {
     expect(getCodeGoToolConfig("codex").currentPreview).toContain(
       'model_provider = "custom"',
     );
+  });
+
+  it("requires confirmation before copying a full token key", async () => {
+    const getTokenKeySpy = vi.spyOn(codegoApi, "getTokenKey");
+
+    renderManager();
+
+    expect(
+      await screen.findByText("codego desktop - default"),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Copy key" })[0]);
+
+    expect(screen.getByText("Copy full token key")).toBeInTheDocument();
+    expect(getTokenKeySpy).not.toHaveBeenCalled();
+
+    const dialog = screen.getByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Copy key" }));
+
+    await waitFor(() => expect(getTokenKeySpy).toHaveBeenCalledWith(1));
+    await waitFor(() =>
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+        "cg_desktop_xxxx_full",
+      ),
+    );
+
+    expect(toastSuccessMock).toHaveBeenCalledWith(
+      "Copied full key for codego desktop - default",
+      expect.objectContaining({ closeButton: true }),
+    );
+
+    getTokenKeySpy.mockRestore();
   });
 });

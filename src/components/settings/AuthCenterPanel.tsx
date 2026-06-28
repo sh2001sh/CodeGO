@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
-import { Activity, BellRing, Github, ShieldCheck, WalletCards } from "lucide-react";
+import {
+  Activity,
+  BellRing,
+  Github,
+  ShieldCheck,
+  WalletCards,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { CodexIcon } from "@/components/BrandIcons";
@@ -117,7 +123,7 @@ export function AuthCenterPanel({ settings, onChange }: AuthCenterPanelProps) {
             <WalletCards className="h-5 w-5 text-amber-500" />
           </div>
           <div className="space-y-1">
-            <h4 className="font-medium">Code Go desktop reminders</h4>
+            <h4 className="font-medium">codego desktop reminders</h4>
             <p className="text-sm text-muted-foreground">
               Keep the tray balance fresh and surface a desktop alert before the
               account runs out of quota.
@@ -128,19 +134,47 @@ export function AuthCenterPanel({ settings, onChange }: AuthCenterPanelProps) {
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-4 rounded-xl border border-border/70 bg-background/60 p-4">
             <div className="space-y-1">
-              <Label htmlFor="codego-tray-enabled" className="text-sm font-medium">
+              <Label
+                htmlFor="codego-auto-refresh-enabled"
+                className="text-sm font-medium"
+              >
+                Automatic balance refresh
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Refresh codego balance in the background every 3 minutes for
+                the dashboard, tray summary, and low-balance checks.
+              </p>
+            </div>
+            <Switch
+              id="codego-auto-refresh-enabled"
+              aria-label="codego automatic balance refresh"
+              checked={settings.codegoAutoRefreshEnabled ?? true}
+              onCheckedChange={(checked) =>
+                void onChange({ codegoAutoRefreshEnabled: checked })
+              }
+            />
+          </div>
+
+          <div className="flex items-center justify-between gap-4 rounded-xl border border-border/70 bg-background/60 p-4">
+            <div className="space-y-1">
+              <Label
+                htmlFor="codego-tray-enabled"
+                className="text-sm font-medium"
+              >
                 Tray balance summary
               </Label>
               <p className="text-xs text-muted-foreground">
-                Show the latest Code Go balance and quick actions in the system
+                Show the latest codego balance and quick actions in the system
                 tray.
               </p>
             </div>
             <Switch
               id="codego-tray-enabled"
-              aria-label="Code Go tray balance summary"
+              aria-label="codego tray balance summary"
               checked={settings.codegoTrayEnabled ?? true}
-              onCheckedChange={(checked) => void onChange({ codegoTrayEnabled: checked })}
+              onCheckedChange={(checked) =>
+                void onChange({ codegoTrayEnabled: checked })
+              }
             />
           </div>
 
@@ -156,13 +190,13 @@ export function AuthCenterPanel({ settings, onChange }: AuthCenterPanelProps) {
                 <BellRing className="h-3.5 w-3.5 text-muted-foreground" />
               </div>
               <p className="text-xs text-muted-foreground">
-                Send a desktop reminder when the remaining Code Go balance drops
+                Send a desktop reminder when the remaining codego balance drops
                 below the threshold.
               </p>
             </div>
             <Switch
               id="codego-low-balance-enabled"
-              aria-label="Code Go low balance notifications"
+              aria-label="codego low balance notifications"
               checked={settings.codegoLowBalanceNotificationsEnabled ?? true}
               onCheckedChange={(checked) =>
                 void onChange({ codegoLowBalanceNotificationsEnabled: checked })
@@ -173,7 +207,10 @@ export function AuthCenterPanel({ settings, onChange }: AuthCenterPanelProps) {
           <div className="rounded-xl border border-border/70 bg-background/60 p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div className="space-y-1">
-                <Label htmlFor="codego-low-balance-threshold" className="text-sm font-medium">
+                <Label
+                  htmlFor="codego-low-balance-threshold"
+                  className="text-sm font-medium"
+                >
                   Notification threshold
                 </Label>
                 <p className="text-xs text-muted-foreground">
@@ -184,13 +221,15 @@ export function AuthCenterPanel({ settings, onChange }: AuthCenterPanelProps) {
               <div className="w-full sm:w-40">
                 <Input
                   id="codego-low-balance-threshold"
-                  aria-label="Code Go low balance threshold in USD"
+                  aria-label="codego low balance threshold in USD"
                   type="number"
                   min={0}
                   step="0.5"
                   inputMode="decimal"
                   value={thresholdDraft}
-                  disabled={!(settings.codegoLowBalanceNotificationsEnabled ?? true)}
+                  disabled={
+                    !(settings.codegoLowBalanceNotificationsEnabled ?? true)
+                  }
                   onChange={(event) => setThresholdDraft(event.target.value)}
                   onBlur={() => void commitThreshold()}
                   onKeyDown={(event) => {
@@ -222,7 +261,7 @@ export function AuthCenterPanel({ settings, onChange }: AuthCenterPanelProps) {
             </div>
             <Switch
               id="codego-telemetry-enabled"
-              aria-label="Code Go privacy-safe telemetry"
+              aria-label="codego privacy-safe telemetry"
               checked={settings.codegoTelemetryEnabled ?? false}
               onCheckedChange={(checked) =>
                 void onChange({ codegoTelemetryEnabled: checked })

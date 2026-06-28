@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
-import { ChevronRight, Loader2, RefreshCw } from "lucide-react";
+import { AlertCircle, ChevronRight, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Dialog,
   DialogContent,
@@ -28,7 +29,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useCodeGoUsageLogsQuery } from "@/lib/query";
-import type { CodeGoUsageLogItem, CodeGoUsageLogsQuery } from "@/lib/api/codego";
+import type {
+  CodeGoUsageLogItem,
+  CodeGoUsageLogsQuery,
+} from "@/lib/api/codego";
 import { formatDateTime } from "./codegoShared";
 
 type LogTypeFilter = "all" | "1" | "2" | "3";
@@ -63,14 +67,16 @@ function typeLabel(type?: number) {
 }
 
 export function CodeGoLogsExplorer({ enabled }: CodeGoLogsExplorerProps) {
-  const [page, setPage] = useState(0);
+  const [page, setPage] = useState(1);
   const [tokenName, setTokenName] = useState("");
   const [modelName, setModelName] = useState("");
   const [requestId, setRequestId] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [typeFilter, setTypeFilter] = useState<LogTypeFilter>("all");
-  const [selectedLog, setSelectedLog] = useState<CodeGoUsageLogItem | null>(null);
+  const [selectedLog, setSelectedLog] = useState<CodeGoUsageLogItem | null>(
+    null,
+  );
 
   const query = useMemo<CodeGoUsageLogsQuery>(
     () => ({
@@ -88,13 +94,19 @@ export function CodeGoLogsExplorer({ enabled }: CodeGoLogsExplorerProps) {
 
   const logsQuery = useCodeGoUsageLogsQuery(query, enabled);
   const logsPage = logsQuery.data;
+  const errorMessage =
+    logsQuery.error instanceof Error
+      ? logsQuery.error.message
+      : logsQuery.error
+        ? String(logsQuery.error)
+        : "";
   const totalPages = useMemo(() => {
     if (!logsPage) return 1;
     return Math.max(1, Math.ceil(logsPage.total / Math.max(logsPage.size, 1)));
   }, [logsPage]);
 
   const resetFilters = () => {
-    setPage(0);
+    setPage(1);
     setTokenName("");
     setModelName("");
     setRequestId("");
@@ -110,7 +122,8 @@ export function CodeGoLogsExplorer({ enabled }: CodeGoLogsExplorerProps) {
           <div className="space-y-1">
             <CardTitle className="text-base">Usage logs</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Filter by model, token, request, and time range before drilling into the individual request record.
+              Filter by model, token, request, and time range before drilling
+              into the individual request record.
             </p>
           </div>
           <Button
@@ -130,7 +143,7 @@ export function CodeGoLogsExplorer({ enabled }: CodeGoLogsExplorerProps) {
                 id="codego-log-model"
                 value={modelName}
                 onChange={(event) => {
-                  setPage(0);
+                  setPage(1);
                   setModelName(event.target.value);
                 }}
                 placeholder="gpt-5.5"
@@ -142,7 +155,7 @@ export function CodeGoLogsExplorer({ enabled }: CodeGoLogsExplorerProps) {
                 id="codego-log-token"
                 value={tokenName}
                 onChange={(event) => {
-                  setPage(0);
+                  setPage(1);
                   setTokenName(event.target.value);
                 }}
                 placeholder="Desktop token"
@@ -154,7 +167,7 @@ export function CodeGoLogsExplorer({ enabled }: CodeGoLogsExplorerProps) {
                 id="codego-log-request"
                 value={requestId}
                 onChange={(event) => {
-                  setPage(0);
+                  setPage(1);
                   setRequestId(event.target.value);
                 }}
                 placeholder="req_..."
@@ -167,7 +180,7 @@ export function CodeGoLogsExplorer({ enabled }: CodeGoLogsExplorerProps) {
                 type="date"
                 value={startDate}
                 onChange={(event) => {
-                  setPage(0);
+                  setPage(1);
                   setStartDate(event.target.value);
                 }}
               />
@@ -179,7 +192,7 @@ export function CodeGoLogsExplorer({ enabled }: CodeGoLogsExplorerProps) {
                 type="date"
                 value={endDate}
                 onChange={(event) => {
-                  setPage(0);
+                  setPage(1);
                   setEndDate(event.target.value);
                 }}
               />
@@ -189,7 +202,7 @@ export function CodeGoLogsExplorer({ enabled }: CodeGoLogsExplorerProps) {
               <Select
                 value={typeFilter}
                 onValueChange={(value: LogTypeFilter) => {
-                  setPage(0);
+                  setPage(1);
                   setTypeFilter(value);
                 }}
               >
@@ -208,14 +221,24 @@ export function CodeGoLogsExplorer({ enabled }: CodeGoLogsExplorerProps) {
 
           <div className="flex items-center justify-between gap-3">
             <div className="text-sm text-muted-foreground">
-              {logsPage ? `${logsPage.total} matching requests` : "Waiting for data"}
+              {logsPage
+                ? `${logsPage.total} matching requests`
+                : "Waiting for data"}
             </div>
             <Button variant="outline" className="h-8" onClick={resetFilters}>
               Reset filters
             </Button>
           </div>
 
-          {logsQuery.isLoading ? (
+          {logsQuery.isError ? (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Failed to load logs</AlertTitle>
+              <AlertDescription>
+                {errorMessage || "Unable to read usage logs from codego."}
+              </AlertDescription>
+            </Alert>
+          ) : logsQuery.isLoading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               Loading logs
@@ -230,7 +253,9 @@ export function CodeGoLogsExplorer({ enabled }: CodeGoLogsExplorerProps) {
                     <TableHead>Model</TableHead>
                     <TableHead>Token</TableHead>
                     <TableHead>Quota</TableHead>
-                    <TableHead className="w-[120px] text-right">Detail</TableHead>
+                    <TableHead className="w-[120px] text-right">
+                      Detail
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -261,21 +286,21 @@ export function CodeGoLogsExplorer({ enabled }: CodeGoLogsExplorerProps) {
 
               <div className="flex items-center justify-between gap-3">
                 <div className="text-sm text-muted-foreground">
-                  Page {page + 1} of {totalPages}
+                  Page {page} of {totalPages}
                 </div>
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
                     className="h-8"
-                    disabled={page === 0}
-                    onClick={() => setPage((value) => Math.max(0, value - 1))}
+                    disabled={page <= 1}
+                    onClick={() => setPage((value) => Math.max(1, value - 1))}
                   >
                     Previous
                   </Button>
                   <Button
                     variant="outline"
                     className="h-8"
-                    disabled={page + 1 >= totalPages}
+                    disabled={page >= totalPages}
                     onClick={() => setPage((value) => value + 1)}
                   >
                     Next
@@ -291,31 +316,43 @@ export function CodeGoLogsExplorer({ enabled }: CodeGoLogsExplorerProps) {
         </CardContent>
       </Card>
 
-      <Dialog open={Boolean(selectedLog)} onOpenChange={(open) => !open && setSelectedLog(null)}>
+      <Dialog
+        open={Boolean(selectedLog)}
+        onOpenChange={(open) => !open && setSelectedLog(null)}
+      >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Request detail</DialogTitle>
             <DialogDescription>
-              Review the selected request record, including identifiers, token usage, and the recorded content summary.
+              Review the selected request record, including identifiers, token
+              usage, and the recorded content summary.
             </DialogDescription>
           </DialogHeader>
           {selectedLog ? (
             <div className="grid gap-4 px-6 py-5 sm:grid-cols-2">
               <div>
                 <div className="text-xs text-muted-foreground">Created</div>
-                <div className="mt-1 text-sm">{formatDateTime(selectedLog.created_at)}</div>
+                <div className="mt-1 text-sm">
+                  {formatDateTime(selectedLog.created_at)}
+                </div>
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">Type</div>
-                <div className="mt-1 text-sm">{typeLabel(selectedLog.type)}</div>
+                <div className="mt-1 text-sm">
+                  {typeLabel(selectedLog.type)}
+                </div>
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">Model</div>
-                <div className="mt-1 text-sm">{selectedLog.model_name || "-"}</div>
+                <div className="mt-1 text-sm">
+                  {selectedLog.model_name || "-"}
+                </div>
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">Token</div>
-                <div className="mt-1 text-sm">{selectedLog.token_name || "-"}</div>
+                <div className="mt-1 text-sm">
+                  {selectedLog.token_name || "-"}
+                </div>
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">Quota</div>
@@ -328,12 +365,20 @@ export function CodeGoLogsExplorer({ enabled }: CodeGoLogsExplorerProps) {
                 </div>
               </div>
               <div>
-                <div className="text-xs text-muted-foreground">Prompt tokens</div>
-                <div className="mt-1 text-sm">{selectedLog.prompt_tokens ?? "-"}</div>
+                <div className="text-xs text-muted-foreground">
+                  Prompt tokens
+                </div>
+                <div className="mt-1 text-sm">
+                  {selectedLog.prompt_tokens ?? "-"}
+                </div>
               </div>
               <div>
-                <div className="text-xs text-muted-foreground">Completion tokens</div>
-                <div className="mt-1 text-sm">{selectedLog.completion_tokens ?? "-"}</div>
+                <div className="text-xs text-muted-foreground">
+                  Completion tokens
+                </div>
+                <div className="mt-1 text-sm">
+                  {selectedLog.completion_tokens ?? "-"}
+                </div>
               </div>
               <div className="sm:col-span-2">
                 <div className="text-xs text-muted-foreground">Request ID</div>
@@ -342,7 +387,9 @@ export function CodeGoLogsExplorer({ enabled }: CodeGoLogsExplorerProps) {
                 </div>
               </div>
               <div className="sm:col-span-2">
-                <div className="text-xs text-muted-foreground">Upstream request ID</div>
+                <div className="text-xs text-muted-foreground">
+                  Upstream request ID
+                </div>
                 <div className="mt-1 break-all font-mono text-xs">
                   {selectedLog.upstream_request_id || "-"}
                 </div>

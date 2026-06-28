@@ -9,7 +9,13 @@ import {
   useCodeGoRevokeAuthorizedDeviceMutation,
 } from "@/lib/query";
 import { extractErrorMessage } from "@/utils/errorUtils";
-import { Laptop, Loader2, ShieldCheck, ShieldOff, Smartphone } from "lucide-react";
+import {
+  Laptop,
+  Loader2,
+  ShieldCheck,
+  ShieldOff,
+  Smartphone,
+} from "lucide-react";
 import { toast } from "sonner";
 import { formatDateTime } from "./codegoShared";
 
@@ -18,8 +24,22 @@ interface CodeGoAuthorizedDevicesCardProps {
   currentDeviceId?: number;
 }
 
+function isDeviceActive(device: CodeGoAuthorizedDevice) {
+  return (
+    device.revokedAt <= 0 && device.status.trim().toLowerCase() === "active"
+  );
+}
+
+function deviceAccessLabel(device: CodeGoAuthorizedDevice) {
+  if (device.revokedAt > 0) {
+    return "revoked";
+  }
+  const normalizedStatus = device.status.trim().toLowerCase();
+  return normalizedStatus || "active";
+}
+
 function deviceStatusTone(device: CodeGoAuthorizedDevice, isCurrent: boolean) {
-  if (device.revokedAt > 0 || device.status.toLowerCase() === "revoked") {
+  if (!isDeviceActive(device)) {
     return "destructive" as const;
   }
   if (isCurrent) {
@@ -56,15 +76,20 @@ export function CodeGoAuthorizedDevicesCard({
 }: CodeGoAuthorizedDevicesCardProps) {
   const devicesQuery = useCodeGoAuthorizedDevicesQuery(enabled);
   const revokeDeviceMutation = useCodeGoRevokeAuthorizedDeviceMutation();
-  const [pendingDevice, setPendingDevice] = useState<CodeGoAuthorizedDevice | null>(null);
+  const [pendingDevice, setPendingDevice] =
+    useState<CodeGoAuthorizedDevice | null>(null);
 
   const devices = useMemo(
     () => sortDevices(devicesQuery.data ?? [], currentDeviceId),
     [currentDeviceId, devicesQuery.data],
   );
+  const activeCount = useMemo(
+    () => devices.filter((device) => isDeviceActive(device)).length,
+    [devices],
+  );
 
   const handleRevoke = async () => {
-    if (!pendingDevice) return;
+    if (!pendingDevice || !isDeviceActive(pendingDevice)) return;
     const isCurrent = pendingDevice.id === currentDeviceId;
 
     try {
@@ -90,7 +115,7 @@ export function CodeGoAuthorizedDevicesCard({
           <div>
             <CardTitle className="text-base">Authorized devices</CardTitle>
           </div>
-          <Badge variant="outline">{devices.length} active</Badge>
+          <Badge variant="outline">{activeCount} active</Badge>
         </CardHeader>
         <CardContent className="space-y-4">
           {devicesQuery.isLoading ? (
@@ -102,11 +127,14 @@ export function CodeGoAuthorizedDevicesCard({
 
           {devicesQuery.error ? (
             <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-600">
-              {extractErrorMessage(devicesQuery.error) || "Failed to load device access"}
+              {extractErrorMessage(devicesQuery.error) ||
+                "Failed to load device access"}
             </div>
           ) : null}
 
-          {!devicesQuery.isLoading && !devicesQuery.error && devices.length === 0 ? (
+          {!devicesQuery.isLoading &&
+          !devicesQuery.error &&
+          devices.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-4 text-sm text-muted-foreground">
               No authorized devices found for this account.
             </div>
@@ -117,7 +145,10 @@ export function CodeGoAuthorizedDevicesCard({
               {devices.map((device) => {
                 const isCurrent = device.id === currentDeviceId;
                 const Icon = platformIcon(device.platform);
-                const isPending = revokeDeviceMutation.isPending && pendingDevice?.id === device.id;
+                const isPending =
+                  revokeDeviceMutation.isPending &&
+                  pendingDevice?.id === device.id;
+                const canRevoke = isDeviceActive(device);
 
                 return (
                   <div
@@ -132,7 +163,9 @@ export function CodeGoAuthorizedDevicesCard({
                             <span>{device.deviceName}</span>
                           </div>
                           <Badge variant={deviceStatusTone(device, isCurrent)}>
-                            {isCurrent ? "Current device" : device.status || "active"}
+                            {isCurrent
+                              ? "Current device"
+                              : device.status || "active"}
                           </Badge>
                           {device.revokedAt > 0 ? (
                             <Badge variant="destructive">Revoked</Badge>
@@ -143,19 +176,23 @@ export function CodeGoAuthorizedDevicesCard({
                           <div>Platform: {device.platform || "-"}</div>
                           <div>Version: {device.appVersion || "-"}</div>
                           <div>Created: {formatDateTime(device.createdAt)}</div>
-                          <div>Last used: {formatDateTime(device.lastUsedAt)}</div>
-                          <div>Expires: {formatDateTime(device.expiresAt)}</div>
                           <div>
-                            Access: {device.revokedAt > 0 ? "revoked" : "active"}
+                            Last used: {formatDateTime(device.lastUsedAt)}
                           </div>
+                          <div>Expires: {formatDateTime(device.expiresAt)}</div>
+                          <div>Access: {deviceAccessLabel(device)}</div>
                         </div>
                       </div>
 
                       <Button
                         variant={isCurrent ? "destructive" : "outline"}
                         className="h-9 gap-2"
-                        disabled={isPending}
-                        onClick={() => setPendingDevice(device)}
+                        disabled={isPending || !canRevoke}
+                        onClick={() => {
+                          if (canRevoke) {
+                            setPendingDevice(device);
+                          }
+                        }}
                       >
                         {isPending ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
@@ -184,11 +221,13 @@ export function CodeGoAuthorizedDevicesCard({
         }
         message={
           pendingDevice?.id === currentDeviceId
-            ? `Revoke ${pendingDevice?.deviceName || "this device"} now? This desktop will be disconnected immediately and must be authorized again before it can use Code Go.`
-            : `Revoke ${pendingDevice?.deviceName || "this device"}? That desktop will lose access to Code Go until it is authorized again.`
+            ? `Revoke ${pendingDevice?.deviceName || "this device"} now? This desktop will be disconnected immediately and must be authorized again before it can use codego.`
+            : `Revoke ${pendingDevice?.deviceName || "this device"}? That desktop will lose access to codego until it is authorized again.`
         }
         confirmText={
-          pendingDevice?.id === currentDeviceId ? "Revoke current device" : "Revoke access"
+          pendingDevice?.id === currentDeviceId
+            ? "Revoke current device"
+            : "Revoke access"
         }
         onConfirm={() => void handleRevoke()}
         onCancel={() => {

@@ -18,7 +18,7 @@ export default defineConfig(({ command }) => ({
     emptyOutDir: true,
   },
   server: {
-    port: 3000,
+    port: 3215,
     strictPort: true,
   },
   resolve: {
@@ -29,4 +29,3 @@ export default defineConfig(({ command }) => ({
   clearScreen: false,
   envPrefix: ["VITE_", "TAURI_"],
 }));
-

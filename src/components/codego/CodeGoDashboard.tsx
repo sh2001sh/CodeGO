@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { codegoApi, settingsApi } from "@/lib/api";
+import { copySensitiveText } from "@/lib/clipboard";
 import {
   useCodeGoAuthQuery,
   useCodeGoPollAuthSessionMutation,
@@ -8,9 +9,11 @@ import {
   useCodeGoStartAuthSessionMutation,
   useCodeGoSummaryQuery,
 } from "@/lib/query";
+import { useSettingsQuery } from "@/lib/query/queries";
 import { extractErrorMessage } from "@/utils/errorUtils";
 import { CodeGoAuthenticatedOverview } from "./CodeGoAuthenticatedOverview";
 import { CodeGoDesktopAuthView } from "./CodeGoDesktopAuthView";
+import { CodeGoMark } from "./CodeGoMark";
 
 interface CodeGoDashboardProps {
   onOpenSettings: () => void;
@@ -25,13 +28,19 @@ export function CodeGoDashboard({
   const startAuthMutation = useCodeGoStartAuthSessionMutation();
   const pollAuthMutation = useCodeGoPollAuthSessionMutation();
   const logoutMutation = useCodeGoLogoutMutation();
+  const settingsQuery = useSettingsQuery();
   const isAuthenticated = Boolean(authQuery.data?.authenticated);
-  const summaryQuery = useCodeGoSummaryQuery(isAuthenticated);
+  const autoRefreshEnabled =
+    settingsQuery.data?.codegoAutoRefreshEnabled ?? true;
+  const summaryQuery = useCodeGoSummaryQuery(
+    isAuthenticated,
+    autoRefreshEnabled,
+  );
 
   const [serverAddress, setServerAddress] = useState(
     authQuery.data?.serverAddress || "https://shu26.cfd",
   );
-  const [deviceName, setDeviceName] = useState("Code Go Desktop");
+  const [deviceName, setDeviceName] = useState("codego desktop");
   const [activeTab, setActiveTab] = useState("overview");
   const [isEnsuringToken, setIsEnsuringToken] = useState(false);
   const [authSession, setAuthSession] = useState<{
@@ -72,6 +81,18 @@ export function CodeGoDashboard({
     [summary?.usage.available_models],
   );
 
+  const handleOpenAuthorizationUrl = async (url: string) => {
+    try {
+      await settingsApi.openExternal(url);
+      setAuthError(null);
+    } catch (error) {
+      setAuthError(
+        extractErrorMessage(error) ||
+          "Failed to open browser for authorization",
+      );
+    }
+  };
+
   const handleStartAuth = async () => {
     try {
       stopAuthPolling();
@@ -86,13 +107,7 @@ export function CodeGoDashboard({
         await navigator.clipboard.writeText(session.userCode);
       } catch {}
 
-      try {
-        await settingsApi.openExternal(session.verificationUri);
-      } catch (error) {
-        setAuthError(
-          extractErrorMessage(error) || "Failed to open browser for authorization",
-        );
-      }
+      await handleOpenAuthorizationUrl(session.verificationUri);
 
       const expiresAt = Date.now() + session.expiresIn * 1000;
       authExpireRef.current = expiresAt;
@@ -112,14 +127,16 @@ export function CodeGoDashboard({
             stopAuthPolling();
             setAuthSession(null);
             setAuthError(null);
-            toast.success("Code Go account connected", { closeButton: true });
+            toast.success("codego account connected", { closeButton: true });
             return;
           }
 
           if (result.status === "rejected") {
             stopAuthPolling();
             setAuthSession(null);
-            setAuthError("Authorization was rejected from the website. Start again.");
+            setAuthError(
+              "Authorization was rejected from the website. Start again.",
+            );
             return;
           }
 
@@ -130,7 +147,8 @@ export function CodeGoDashboard({
           }
         } catch (error) {
           const message =
-            extractErrorMessage(error) || "Failed to verify desktop authorization";
+            extractErrorMessage(error) ||
+            "Failed to verify desktop authorization";
           if (!message.toLowerCase().includes("pending")) {
             stopAuthPolling();
             setAuthError(message);
@@ -145,7 +163,7 @@ export function CodeGoDashboard({
       );
     } catch (error) {
       setAuthError(
-        extractErrorMessage(error) || "Failed to start Code Go authorization",
+        extractErrorMessage(error) || "Failed to start codego authorization",
       );
     }
   };
@@ -153,10 +171,10 @@ export function CodeGoDashboard({
   const handleLogout = async () => {
     try {
       await logoutMutation.mutateAsync();
-      toast.success("Code Go account disconnected", { closeButton: true });
+      toast.success("codego account disconnected", { closeButton: true });
     } catch (error) {
       toast.error(
-        extractErrorMessage(error) || "Failed to disconnect Code Go account",
+        extractErrorMessage(error) || "Failed to disconnect codego account",
       );
     }
   };
@@ -175,7 +193,7 @@ export function CodeGoDashboard({
   const handleCopyToken = async () => {
     try {
       const result = await ensureDesktopToken();
-      await navigator.clipboard.writeText(result.full_key);
+      await copySensitiveText(result.full_key);
       toast.success("Desktop token copied", { closeButton: true });
     } catch (error) {
       toast.error(extractErrorMessage(error) || "Failed to copy token");
@@ -193,45 +211,66 @@ export function CodeGoDashboard({
 
   if (!isAuthenticated) {
     return (
-      <CodeGoDesktopAuthView
-        serverAddress={serverAddress}
-        deviceName={deviceName}
-        authError={authError}
-        authQueryError={extractErrorMessage(authQuery.error)}
-        authSession={authSession}
-        startPending={startAuthMutation.isPending}
-        pollPending={pollAuthMutation.isPending}
-        onServerAddressChange={setServerAddress}
-        onDeviceNameChange={setDeviceName}
-        onStartAuth={() => void handleStartAuth()}
-        onOpenSettings={onOpenSettings}
-        onOpenExternal={(url) => void settingsApi.openExternal(url)}
-        onCancelSession={() => {
-          stopAuthPolling();
-          setAuthSession(null);
-          setAuthError(null);
-        }}
-      />
+      <div className="flex flex-1 px-6 pb-8">
+        <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-5">
+          <div className="flex items-center gap-3 pt-2">
+            <div className="flex h-11 w-11 items-center justify-center rounded-[16px] border border-white/70 bg-white/75 shadow-sm">
+              <CodeGoMark size={30} className="h-7 w-7" />
+            </div>
+            <div>
+              <div className="codego-kicker">codego desktop</div>
+              <div className="text-base font-semibold text-foreground">
+                Browser approval and local tool control
+              </div>
+            </div>
+          </div>
+          <CodeGoDesktopAuthView
+            serverAddress={serverAddress}
+            deviceName={deviceName}
+            secureStorageStatus={authQuery.data?.secureStorageStatus}
+            secureStorageMessage={authQuery.data?.secureStorageMessage}
+            authError={authError}
+            authQueryError={extractErrorMessage(authQuery.error)}
+            authSession={authSession}
+            startPending={startAuthMutation.isPending}
+            pollPending={pollAuthMutation.isPending}
+            onServerAddressChange={setServerAddress}
+            onDeviceNameChange={setDeviceName}
+            onStartAuth={() => void handleStartAuth()}
+            onOpenSettings={onOpenSettings}
+            onOpenExternal={(url) => void handleOpenAuthorizationUrl(url)}
+            onCancelSession={() => {
+              stopAuthPolling();
+              setAuthSession(null);
+              setAuthError(null);
+            }}
+          />
+        </div>
+      </div>
     );
   }
 
   return (
-    <CodeGoAuthenticatedOverview
-      activeTab={activeTab}
-      summary={summary}
-      authState={authQuery.data}
-      usageModels={usageModels}
-      isAuthenticated={isAuthenticated}
-      summaryIsFetching={summaryQuery.isFetching}
-      logoutPending={logoutMutation.isPending}
-      isEnsuringToken={isEnsuringToken}
-      onActiveTabChange={setActiveTab}
-      onRefresh={() => void summaryQuery.refetch()}
-      onOpenProviders={onOpenProviders}
-      onLogout={() => void handleLogout()}
-      onCopyToken={() => void handleCopyToken()}
-      onEnsureToken={() => void ensureDesktopToken()}
-      onOpenTopUp={handleOpenTopUp}
-    />
+    <div className="flex flex-1 px-6 pb-8">
+      <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-5">
+        <CodeGoAuthenticatedOverview
+          activeTab={activeTab}
+          summary={summary}
+          authState={authQuery.data}
+          usageModels={usageModels}
+          isAuthenticated={isAuthenticated}
+          summaryIsFetching={summaryQuery.isFetching}
+          logoutPending={logoutMutation.isPending}
+          isEnsuringToken={isEnsuringToken}
+          onActiveTabChange={setActiveTab}
+          onRefresh={() => void summaryQuery.refetch()}
+          onOpenProviders={onOpenProviders}
+          onLogout={() => void handleLogout()}
+          onCopyToken={() => void handleCopyToken()}
+          onEnsureToken={() => void ensureDesktopToken()}
+          onOpenTopUp={handleOpenTopUp}
+        />
+      </div>
+    </div>
   );
 }

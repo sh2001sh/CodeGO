@@ -81,8 +81,8 @@ module.exports = {
         xl: "0.875rem",
       },
       fontFamily: {
-        // 使用与之前版本保持一致的系统字体栈
         sans: [
+          '"Public Sans"',
           "-apple-system",
           "BlinkMacSystemFont",
           '"Segoe UI"',
@@ -170,4 +170,3 @@ module.exports = {
   },
   plugins: [],
 };
-

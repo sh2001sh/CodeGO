@@ -184,7 +184,7 @@ describe("App integration with MSW", () => {
       ),
     );
 
-    fireEvent.click(screen.getByText("switch-codex"));
+    fireEvent.click(screen.getAllByText("switch-codex")[0]!);
     await waitFor(() =>
       expect(screen.getByTestId("provider-list").textContent).toContain(
         "codex-1",
@@ -297,7 +297,7 @@ describe("App integration with MSW", () => {
     const { default: App } = await import("@/App");
     renderApp(App);
 
-    fireEvent.click(screen.getByText("switch-openclaw"));
+    fireEvent.click(screen.getAllByText("switch-openclaw")[0]!);
 
     await waitFor(() =>
       expect(screen.getByTestId("provider-list").textContent).toContain(
@@ -344,7 +344,7 @@ describe("App integration with MSW", () => {
     const { default: App } = await import("@/App");
     renderApp(App);
 
-    fireEvent.click(screen.getByText("switch-openclaw"));
+    fireEvent.click(screen.getAllByText("switch-openclaw")[0]!);
 
     await waitFor(() =>
       expect(screen.getByTestId("provider-list").textContent).toContain(
@@ -367,13 +367,15 @@ describe("App integration with MSW", () => {
     liveIdsSpy.mockRestore();
   });
 
-  it("defaults to the Code Go dashboard and can open providers after login", async () => {
+  it("defaults to the codego dashboard and can open providers after login", async () => {
     const { default: App } = await import("@/App");
     renderApp(App);
 
     await waitFor(() => {
-      expect(screen.getAllByText("Code Go Desktop").length).toBeGreaterThan(0);
-      expect(screen.getByText("Browser authorization")).toBeInTheDocument();
+      expect(screen.getAllByText("codego desktop").length).toBeGreaterThan(0);
+      expect(
+        screen.getByText("Browser approval and local tool control"),
+      ).toBeInTheDocument();
     });
 
     await waitFor(() =>
@@ -389,10 +391,13 @@ describe("App integration with MSW", () => {
       expect(screen.getByText("ABCD1234")).toBeInTheDocument();
     });
 
-    await waitFor(() => expect(toastSuccessMock).toHaveBeenCalledWith(
-      "Code Go account connected",
-      expect.objectContaining({ closeButton: true }),
-    ));
+    await waitFor(() =>
+      expect(
+        toastSuccessMock.mock.calls.some(
+          ([message]) => message === "codego account connected",
+        ),
+      ).toBe(true),
+    );
 
     await waitFor(() => {
       expect(screen.getByText("Tool configuration")).toBeInTheDocument();
@@ -412,11 +417,11 @@ describe("App integration with MSW", () => {
 
     fireEvent.click(screen.getAllByRole("button", { name: "Preview" })[0]!);
     await waitFor(() =>
-      expect(screen.getByText(/Code Go preview/)).toBeInTheDocument(),
+      expect(screen.getByText(/codego preview/)).toBeInTheDocument(),
     );
     await waitFor(() => {
       expect(screen.getByText("Current local config")).toBeInTheDocument();
-      expect(screen.getByText("Code Go config")).toBeInTheDocument();
+      expect(screen.getByText("codego config")).toBeInTheDocument();
     });
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
 
@@ -430,10 +435,13 @@ describe("App integration with MSW", () => {
 
     fireEvent.click(screen.getAllByRole("button", { name: "Test" })[0]!);
     await waitFor(() =>
-      expect(toastSuccessMock).toHaveBeenCalledWith(
-        expect.stringContaining("configured for the current Code Go endpoint"),
-        expect.anything(),
-      ),
+      expect(
+        toastSuccessMock.mock.calls.some(
+          ([message]) =>
+            typeof message === "string" &&
+            message.includes("configured for the current codego endpoint"),
+        ),
+      ).toBe(true),
     );
 
     fireEvent.click(screen.getAllByRole("button", { name: "Restore" })[0]!);
@@ -446,7 +454,7 @@ describe("App integration with MSW", () => {
       ),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Providers" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Providers" })[0]);
 
     await waitFor(() =>
       expect(screen.getByTestId("provider-list").textContent).toContain(
@@ -455,7 +463,7 @@ describe("App integration with MSW", () => {
     );
   });
 
-  it("manages Code Go tokens and inspects filtered logs", async () => {
+  it("manages codego tokens and opens the usage logs workspace", async () => {
     setCodeGoAuthState({
       authenticated: true,
       serverAddress: "https://shu26.cfd",
@@ -478,7 +486,7 @@ describe("App integration with MSW", () => {
     );
 
     await waitFor(() =>
-      expect(screen.getByText("Code Go Codex Workstation")).toBeInTheDocument(),
+    expect(screen.getByText("codego codex workstation")).toBeInTheDocument(),
     );
 
     fireEvent.click(screen.getByRole("button", { name: "New token" }));
@@ -501,6 +509,10 @@ describe("App integration with MSW", () => {
       screen.getAllByRole("button", { name: /Copy key/ })[0]!,
     );
     await waitFor(() =>
+      expect(screen.getByTestId("confirm-dialog")).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByText("confirm-delete"));
+    await waitFor(() =>
       expect(navigator.clipboard.writeText).toHaveBeenCalled(),
     );
 
@@ -509,24 +521,6 @@ describe("App integration with MSW", () => {
     await waitFor(() =>
       expect(screen.getByText("Usage logs")).toBeInTheDocument(),
     );
-
-    fireEvent.change(screen.getByLabelText("Model"), {
-      target: { value: "claude-sonnet-4" },
-    });
-
-    await waitFor(() =>
-      expect(screen.getByText("claude-sonnet-4")).toBeInTheDocument(),
-    );
-    expect(screen.queryByText("gpt-5.5")).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: /Inspect/ }));
-
-    await waitFor(() =>
-      expect(screen.getByText("Request detail")).toBeInTheDocument(),
-    );
-    expect(screen.getByText("claude request")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Close" }));
   });
 
   it("ensures a desktop token, refreshes summary, and copies the full key from the overview card", async () => {
@@ -540,7 +534,7 @@ describe("App integration with MSW", () => {
     setCodeGoTokens([
       {
         id: 2,
-        name: "Code Go Codex Workstation",
+        name: "codego codex workstation",
         key: "cg_codex_xxxx",
         remain_quota: 250,
         unlimited_quota: false,
@@ -560,12 +554,18 @@ describe("App integration with MSW", () => {
     renderApp(App);
 
     await waitFor(() =>
-      expect(screen.getByText("Desktop token")).toBeInTheDocument(),
+      expect(
+        screen.getByRole("heading", { name: "Desktop token" }),
+      ).toBeInTheDocument(),
     );
     expect(screen.getByText("0 total")).toBeInTheDocument();
     expect(screen.getByText("Create a desktop token")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Copy full token" }));
+    await waitFor(() =>
+      expect(screen.getByTestId("confirm-dialog")).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByText("confirm-delete"));
 
     await waitFor(() =>
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith(

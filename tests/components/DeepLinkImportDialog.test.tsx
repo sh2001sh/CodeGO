@@ -1,5 +1,11 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DeepLinkImportDialog } from "@/components/DeepLinkImportDialog";
 import type { DeepLinkImportRequest } from "@/lib/api/deeplink";
@@ -16,7 +22,8 @@ const toastWarningMock = vi.fn();
 
 vi.mock("@/lib/api/deeplink", () => ({
   deeplinkApi: {
-    mergeDeeplinkConfig: (...args: unknown[]) => mergeDeeplinkConfigMock(...args),
+    mergeDeeplinkConfig: (...args: unknown[]) =>
+      mergeDeeplinkConfigMock(...args),
     importFromDeeplink: (...args: unknown[]) => importFromDeeplinkMock(...args),
   },
 }));
@@ -77,7 +84,7 @@ describe("DeepLinkImportDialog", () => {
       version: "1",
       resource: "provider",
       app: "codex",
-      name: "Code Go Codex",
+      name: "codego Codex",
       homepage: "https://shu26.cfd",
       endpoint: "https://shu26.cfd/v1",
       apiKey: "cg_test_1234567890",
@@ -85,7 +92,7 @@ describe("DeepLinkImportDialog", () => {
     };
     const mergedRequest: DeepLinkImportRequest = {
       ...originalRequest,
-      notes: "Imported from Code Go desktop flow",
+      notes: "Imported from codego desktop flow",
     };
 
     mergeDeeplinkConfigMock.mockResolvedValue(mergedRequest);
@@ -99,7 +106,7 @@ describe("DeepLinkImportDialog", () => {
     await emitDialogEvent("deeplink-import", originalRequest);
 
     await waitFor(() =>
-      expect(screen.getByText("Code Go Codex")).toBeInTheDocument(),
+      expect(screen.getByText("codego Codex")).toBeInTheDocument(),
     );
 
     expect(mergeDeeplinkConfigMock).toHaveBeenCalledWith(originalRequest);
@@ -142,7 +149,7 @@ describe("DeepLinkImportDialog", () => {
       version: "1",
       resource: "provider",
       app: "claude",
-      name: "Code Go Claude",
+      name: "codego Claude",
       homepage: "https://shu26.cfd",
       endpoint: "https://shu26.cfd",
       apiKey: "cg_merge_fail_token",
@@ -156,7 +163,7 @@ describe("DeepLinkImportDialog", () => {
     await emitDialogEvent("deeplink-import", originalRequest);
 
     await waitFor(() =>
-      expect(screen.getByText("Code Go Claude")).toBeInTheDocument(),
+      expect(screen.getByText("codego Claude")).toBeInTheDocument(),
     );
 
     expect(toastErrorMock).toHaveBeenCalledWith("deeplink.configMergeError", {
@@ -164,9 +171,7 @@ describe("DeepLinkImportDialog", () => {
     });
     expect(importFromDeeplinkMock).not.toHaveBeenCalled();
     expect(
-      screen.getByText((content) =>
-        content.trim() === "🔹 https://shu26.cfd",
-      ),
+      screen.getByText((content) => content.trim() === "🔹 https://shu26.cfd"),
     ).toBeInTheDocument();
   });
 
@@ -190,7 +195,7 @@ describe("DeepLinkImportDialog", () => {
       version: "1",
       resource: "prompt",
       app: "codex",
-      name: "Code Go review prompt",
+      name: "codego review prompt",
       description: "Reusable review instruction",
       content: btoa("Review this patch carefully."),
       enabled: true,
@@ -207,9 +212,13 @@ describe("DeepLinkImportDialog", () => {
 
     await emitDialogEvent("deeplink-import", request);
 
-    expect(await screen.findByText("Code Go review prompt")).toBeInTheDocument();
+    expect(
+      await screen.findByText("codego review prompt"),
+    ).toBeInTheDocument();
     expect(screen.getByText("Reusable review instruction")).toBeInTheDocument();
-    expect(screen.getByText(/Review this patch carefully\./)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Review this patch carefully\./),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "deeplink.import" }));
 
@@ -328,12 +337,12 @@ describe("DeepLinkImportDialog", () => {
     );
   });
 
-  it("applies Code Go tool config from deeplink token without importing provider", async () => {
+  it("applies codego tool config from deeplink token without importing provider", async () => {
     const request: DeepLinkImportRequest = {
       version: "1",
       resource: "provider",
       app: "codex",
-      name: "Code Go Codex",
+      name: "codego Codex",
       homepage: "https://shu26.cfd",
       endpoint: "https://shu26.cfd/v1",
       configUrl: "https://shu26.cfd/api/desktop/import/config?code=abc",
@@ -344,7 +353,7 @@ describe("DeepLinkImportDialog", () => {
     const applyResult: CodeGoToolConfigApplyResult = {
       tool: "codex",
       providerId: "codego-codex",
-      providerName: "Code Go Codex",
+      providerName: "codego Codex",
       backupSaved: true,
     };
 
@@ -355,9 +364,11 @@ describe("DeepLinkImportDialog", () => {
 
     await emitDialogEvent("deeplink-import", request);
 
-    expect(await screen.findByText("Code Go Codex")).toBeInTheDocument();
+    expect(await screen.findByText("codego Codex")).toBeInTheDocument();
     expect(
-      screen.getByText("Apply this Code Go token to the local tool configuration"),
+      screen.getByText(
+        "Apply this codego token to the local tool configuration",
+      ),
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "deeplink.import" }));
@@ -385,9 +396,59 @@ describe("DeepLinkImportDialog", () => {
         ["codego", "summary"],
       ]),
     );
-    expect(toastSuccessMock).toHaveBeenCalledWith("Code Go Codex applied", {
+    expect(toastSuccessMock).toHaveBeenCalledWith("codego Codex applied", {
       closeButton: true,
     });
+  });
+
+  it("surfaces codego tool apply errors from deeplink token imports and keeps the dialog open", async () => {
+    const request: DeepLinkImportRequest = {
+      version: "1",
+      resource: "provider",
+      app: "codex",
+      name: "codego Codex",
+      homepage: "https://shu26.cfd",
+      endpoint: "https://shu26.cfd/v1",
+      configUrl: "https://shu26.cfd/api/desktop/import/config?code=abc",
+      configFormat: "json",
+      codegoAction: "applyToolConfig",
+      tokenId: 42,
+    };
+
+    mergeDeeplinkConfigMock.mockResolvedValue(request);
+    applyToolConfigFromTokenMock.mockRejectedValue(
+      new Error(
+        "Current local Codex config.toml is malformed, so codego cannot safely overwrite it.",
+      ),
+    );
+
+    renderDialog();
+
+    await emitDialogEvent("deeplink-import", request);
+
+    expect(await screen.findByText("codego Codex")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Apply this codego token to the local tool configuration",
+      ),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "deeplink.import" }));
+
+    await waitFor(() =>
+      expect(applyToolConfigFromTokenMock).toHaveBeenCalledWith(42, "codex"),
+    );
+    await waitFor(() =>
+      expect(toastErrorMock).toHaveBeenCalledWith("deeplink.importError", {
+        description:
+          "Current local Codex config.toml is malformed, so codego cannot safely overwrite it.",
+      }),
+    );
+
+    expect(
+      screen.getByRole("button", { name: "deeplink.import" }),
+    ).toBeInTheDocument();
+    expect(importFromDeeplinkMock).not.toHaveBeenCalled();
   });
 
   it("applies OpenCode tool config from deeplink token without importing provider", async () => {
@@ -395,13 +456,13 @@ describe("DeepLinkImportDialog", () => {
       version: "1",
       resource: "provider",
       app: "opencode",
-      name: "Code Go OpenCode",
+      name: "codego OpenCode",
       homepage: "https://shu26.cfd",
       endpoint: "https://shu26.cfd/v1",
       config: btoa(
         JSON.stringify({
           npm: "@ai-sdk/openai-compatible",
-          name: "Code Go OpenCode",
+          name: "codego OpenCode",
           options: {
             baseURL: "https://shu26.cfd/v1",
             apiKey: "cg_token_52_full_key",
@@ -421,7 +482,7 @@ describe("DeepLinkImportDialog", () => {
     const applyResult: CodeGoToolConfigApplyResult = {
       tool: "opencode",
       providerId: "codego-opencode",
-      providerName: "Code Go OpenCode",
+      providerName: "codego OpenCode",
       backupSaved: true,
     };
 
@@ -432,7 +493,7 @@ describe("DeepLinkImportDialog", () => {
 
     await emitDialogEvent("deeplink-import", request);
 
-    expect(await screen.findByText("Code Go OpenCode")).toBeInTheDocument();
+    expect(await screen.findByText("codego OpenCode")).toBeInTheDocument();
     expect(screen.getByText("OpenCode JSON:")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "deeplink.import" }));
@@ -441,7 +502,7 @@ describe("DeepLinkImportDialog", () => {
       expect(applyToolConfigFromTokenMock).toHaveBeenCalledWith(52, "opencode"),
     );
     expect(importFromDeeplinkMock).not.toHaveBeenCalled();
-    expect(toastSuccessMock).toHaveBeenCalledWith("Code Go OpenCode applied", {
+    expect(toastSuccessMock).toHaveBeenCalledWith("codego OpenCode applied", {
       closeButton: true,
     });
   });
@@ -451,7 +512,7 @@ describe("DeepLinkImportDialog", () => {
       version: "1",
       resource: "provider",
       app: "openclaw",
-      name: "Code Go OpenClaw",
+      name: "codego OpenClaw",
       homepage: "https://shu26.cfd",
       endpoint: "https://shu26.cfd/v1",
       config: btoa(
@@ -469,7 +530,7 @@ describe("DeepLinkImportDialog", () => {
     const applyResult: CodeGoToolConfigApplyResult = {
       tool: "openclaw",
       providerId: "codego-openclaw",
-      providerName: "Code Go OpenClaw",
+      providerName: "codego OpenClaw",
       backupSaved: true,
     };
 
@@ -480,7 +541,7 @@ describe("DeepLinkImportDialog", () => {
 
     await emitDialogEvent("deeplink-import", request);
 
-    expect(await screen.findByText("Code Go OpenClaw")).toBeInTheDocument();
+    expect(await screen.findByText("codego OpenClaw")).toBeInTheDocument();
     expect(screen.getByText("OpenClaw JSON:")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "deeplink.import" }));
@@ -489,7 +550,7 @@ describe("DeepLinkImportDialog", () => {
       expect(applyToolConfigFromTokenMock).toHaveBeenCalledWith(53, "openclaw"),
     );
     expect(importFromDeeplinkMock).not.toHaveBeenCalled();
-    expect(toastSuccessMock).toHaveBeenCalledWith("Code Go OpenClaw applied", {
+    expect(toastSuccessMock).toHaveBeenCalledWith("codego OpenClaw applied", {
       closeButton: true,
     });
   });
@@ -499,12 +560,12 @@ describe("DeepLinkImportDialog", () => {
       version: "1",
       resource: "provider",
       app: "hermes",
-      name: "Code Go Hermes",
+      name: "codego Hermes",
       homepage: "https://shu26.cfd",
       endpoint: "https://shu26.cfd/v1",
       config: btoa(
         JSON.stringify({
-          name: "Code Go Hermes",
+          name: "codego Hermes",
           base_url: "https://shu26.cfd/v1",
           api_key: "cg_token_54_full_key",
           api_mode: "chat_completions",
@@ -518,7 +579,7 @@ describe("DeepLinkImportDialog", () => {
     const applyResult: CodeGoToolConfigApplyResult = {
       tool: "hermes",
       providerId: "codego-hermes",
-      providerName: "Code Go Hermes",
+      providerName: "codego Hermes",
       backupSaved: true,
     };
 
@@ -529,7 +590,7 @@ describe("DeepLinkImportDialog", () => {
 
     await emitDialogEvent("deeplink-import", request);
 
-    expect(await screen.findByText("Code Go Hermes")).toBeInTheDocument();
+    expect(await screen.findByText("codego Hermes")).toBeInTheDocument();
     expect(screen.getByText("Hermes JSON:")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "deeplink.import" }));
@@ -538,7 +599,7 @@ describe("DeepLinkImportDialog", () => {
       expect(applyToolConfigFromTokenMock).toHaveBeenCalledWith(54, "hermes"),
     );
     expect(importFromDeeplinkMock).not.toHaveBeenCalled();
-    expect(toastSuccessMock).toHaveBeenCalledWith("Code Go Hermes applied", {
+    expect(toastSuccessMock).toHaveBeenCalledWith("codego Hermes applied", {
       closeButton: true,
     });
   });

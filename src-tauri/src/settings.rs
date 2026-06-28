@@ -27,6 +27,10 @@ fn default_codego_tray_enabled() -> bool {
     true
 }
 
+fn default_codego_auto_refresh_enabled() -> bool {
+    true
+}
+
 fn default_codego_low_balance_notifications_enabled() -> bool {
     true
 }
@@ -428,6 +432,8 @@ pub struct AppSettings {
     pub codego_last_username: Option<String>,
     #[serde(default = "default_codego_tray_enabled")]
     pub codego_tray_enabled: bool,
+    #[serde(default = "default_codego_auto_refresh_enabled")]
+    pub codego_auto_refresh_enabled: bool,
     #[serde(default = "default_codego_low_balance_notifications_enabled")]
     pub codego_low_balance_notifications_enabled: bool,
     #[serde(default = "default_codego_low_balance_threshold_usd")]
@@ -555,6 +561,7 @@ impl Default for AppSettings {
             codego_device_id: None,
             codego_last_username: None,
             codego_tray_enabled: true,
+            codego_auto_refresh_enabled: true,
             codego_low_balance_notifications_enabled: true,
             codego_low_balance_threshold_usd: 10.0,
             codego_telemetry_enabled: false,
@@ -828,6 +835,13 @@ pub fn update_settings(mut new_settings: AppSettings) -> Result<(), AppError> {
 pub fn set_codego_last_seen_quota_usd(value: Option<f64>) -> Result<(), AppError> {
     mutate_settings(|settings| {
         settings.codego_last_seen_quota_usd = value.filter(|v| v.is_finite() && *v >= 0.0);
+    })
+}
+
+#[cfg(test)]
+pub(crate) fn set_test_codego_access_token(value: Option<String>) -> Result<(), AppError> {
+    mutate_settings(|settings| {
+        settings.codego_access_token = value.clone();
     })
 }
 
@@ -1241,5 +1255,23 @@ mod tests {
         .expect("visible apps");
 
         assert!(!visible.is_visible(&AppType::ClaudeDesktop));
+    }
+
+    #[test]
+    fn codego_auto_refresh_defaults_to_enabled() {
+        let settings = AppSettings::default();
+        assert!(settings.codego_auto_refresh_enabled);
+    }
+
+    #[test]
+    fn codego_auto_refresh_old_settings_default_to_enabled() {
+        let settings: AppSettings = serde_json::from_value(serde_json::json!({
+            "codegoTrayEnabled": true,
+            "codegoLowBalanceNotificationsEnabled": true,
+            "codegoLowBalanceThresholdUsd": 10.0
+        }))
+        .expect("settings");
+
+        assert!(settings.codego_auto_refresh_enabled);
     }
 }

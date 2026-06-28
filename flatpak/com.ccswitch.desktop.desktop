@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
-Name=CC Switch
-Comment=All-in-One Assistant for Claude Code, Codex & Gemini CLI
+Name=CodeGo
+Comment=Desktop control center for Claude Code, Codex & Gemini CLI
 Exec=cc-switch
 Icon=com.ccswitch.desktop
 Terminal=false

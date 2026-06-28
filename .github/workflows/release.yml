@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 permissions:
   contents: write
@@ -34,7 +34,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: "20"
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -129,6 +129,10 @@ jobs:
       - name: Install frontend deps
         run: pnpm install --frozen-lockfile
 
+      - name: Clean stale release artifacts
+        shell: bash
+        run: node scripts/clean-codego-release-artifacts.mjs
+
       - name: Prepare Tauri signing key
         shell: bash
         run: |
@@ -138,7 +142,7 @@ jobs:
             echo "请检查 GitHub 仓库 Settings > Secrets and variables > Actions" >&2
             exit 1
           fi
-          
+
           RAW="${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}"
           # 目标：提供正确的私钥“文件路径”给 Tauri CLI，避免内容解码歧义
           KEY_PATH="$RUNNER_TEMP/tauri_signing.key"
@@ -603,7 +607,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: "20"
 
       - name: Download built release artifacts
         uses: actions/download-artifact@v8
@@ -635,6 +639,185 @@ jobs:
             --manifest-out "release-assets/codego-desktop-release-manifest.json" \
             --latest-out "release-assets/latest.json"
 
+      - name: Build deploy bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/build-codego-release-deploy-bundle.mjs \
+            --assets-dir "release-assets" \
+            --manifest "release-assets/codego-desktop-release-manifest.json" \
+            --latest "release-assets/latest.json" \
+            --bundle-out "release-assets/deploy-bundle"
+
+      - name: Verify local release bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          node scripts/verify-codego-release-bundle.mjs \
+            --assets-dir "release-assets" \
+            --manifest "release-assets/codego-desktop-release-manifest.json" \
+            --latest "release-assets/latest.json" \
+            --bundle-out "release-assets/deploy-bundle" \
+            --expected-version "$VERSION"
+
+      - name: Generate release acceptance template
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          node scripts/build-codego-release-acceptance-template.mjs \
+            --manifest "release-assets/codego-desktop-release-manifest.json" \
+            --latest "release-assets/latest.json" \
+            --template-out "release-assets/acceptance/codego-release-acceptance-record.json" \
+            --checklist-out "release-assets/acceptance/codego-release-acceptance-checklist.md" \
+            --expected-version "$VERSION"
+
+      - name: Verify generated acceptance template
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          node scripts/verify-codego-release-acceptance-record.mjs \
+            --manifest "release-assets/codego-desktop-release-manifest.json" \
+            --latest "release-assets/latest.json" \
+            --record "release-assets/acceptance/codego-release-acceptance-record.json" \
+            --expected-version "$VERSION"
+
+      - name: Upload deploy bundle to workflow
+        uses: actions/upload-artifact@v7
+        with:
+          name: codego-release-deploy-bundle-${{ github.ref_name }}
+          path: release-assets/deploy-bundle/**
+          if-no-files-found: error
+
+      - name: Upload acceptance template to workflow
+        uses: actions/upload-artifact@v7
+        with:
+          name: codego-release-acceptance-template-${{ github.ref_name }}
+          path: release-assets/acceptance/**
+          if-no-files-found: error
+
+      - name: Resolve self-hosted deploy configuration
+        id: deploy-config
+        shell: bash
+        env:
+          CODEGO_RELEASE_DEPLOY_HOST: ${{ secrets.CODEGO_RELEASE_DEPLOY_HOST }}
+          CODEGO_RELEASE_DEPLOY_USER: ${{ secrets.CODEGO_RELEASE_DEPLOY_USER }}
+          CODEGO_RELEASE_DEPLOY_SSH_KEY: ${{ secrets.CODEGO_RELEASE_DEPLOY_SSH_KEY }}
+          CODEGO_RELEASE_STATIC_DIR: ${{ secrets.CODEGO_RELEASE_STATIC_DIR }}
+          CODEGO_RELEASE_MANIFEST_FILE: ${{ secrets.CODEGO_RELEASE_MANIFEST_FILE }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for key in \
+            CODEGO_RELEASE_DEPLOY_HOST \
+            CODEGO_RELEASE_DEPLOY_USER \
+            CODEGO_RELEASE_DEPLOY_SSH_KEY \
+            CODEGO_RELEASE_STATIC_DIR \
+            CODEGO_RELEASE_MANIFEST_FILE; do
+            if [ -z "${!key:-}" ]; then
+              missing+=("$key")
+            fi
+          done
+
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "summary=Skipping remote deploy because required secrets are missing: ${missing[*]}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+          echo "summary=Remote deploy is configured for this release." >> "$GITHUB_OUTPUT"
+
+      - name: Prepare deployment SSH key
+        if: steps.deploy-config.outputs.enabled == 'true'
+        shell: bash
+        env:
+          CODEGO_RELEASE_DEPLOY_HOST: ${{ secrets.CODEGO_RELEASE_DEPLOY_HOST }}
+          CODEGO_RELEASE_DEPLOY_PORT: ${{ secrets.CODEGO_RELEASE_DEPLOY_PORT }}
+          CODEGO_RELEASE_DEPLOY_SSH_KEY: ${{ secrets.CODEGO_RELEASE_DEPLOY_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.ssh"
+          printf '%s\n' "$CODEGO_RELEASE_DEPLOY_SSH_KEY" > "$HOME/.ssh/codego_release"
+          chmod 600 "$HOME/.ssh/codego_release"
+          touch "$HOME/.ssh/known_hosts"
+          ssh-keyscan -p "${CODEGO_RELEASE_DEPLOY_PORT:-22}" -H "$CODEGO_RELEASE_DEPLOY_HOST" >> "$HOME/.ssh/known_hosts"
+
+      - name: Deploy self-hosted release channel
+        if: steps.deploy-config.outputs.enabled == 'true'
+        shell: bash
+        env:
+          CODEGO_RELEASE_DEPLOY_HOST: ${{ secrets.CODEGO_RELEASE_DEPLOY_HOST }}
+          CODEGO_RELEASE_DEPLOY_PORT: ${{ secrets.CODEGO_RELEASE_DEPLOY_PORT }}
+          CODEGO_RELEASE_DEPLOY_USER: ${{ secrets.CODEGO_RELEASE_DEPLOY_USER }}
+          CODEGO_RELEASE_STATIC_DIR: ${{ secrets.CODEGO_RELEASE_STATIC_DIR }}
+          CODEGO_RELEASE_METADATA_DIR: ${{ secrets.CODEGO_RELEASE_METADATA_DIR }}
+          CODEGO_RELEASE_MANIFEST_FILE: ${{ secrets.CODEGO_RELEASE_MANIFEST_FILE }}
+          CODEGO_RELEASE_REMOTE_TMP_DIR: ${{ secrets.CODEGO_RELEASE_REMOTE_TMP_DIR }}
+        run: |
+          set -euo pipefail
+          port="${CODEGO_RELEASE_DEPLOY_PORT:-22}"
+          bundle_dir="release-assets/deploy-bundle"
+          static_dir="$CODEGO_RELEASE_STATIC_DIR"
+          metadata_dir="${CODEGO_RELEASE_METADATA_DIR:-$CODEGO_RELEASE_STATIC_DIR}"
+          remote_tmp="${CODEGO_RELEASE_REMOTE_TMP_DIR:-/tmp/codego-release-${GITHUB_REF_NAME}}"
+          ssh_target="${CODEGO_RELEASE_DEPLOY_USER}@${CODEGO_RELEASE_DEPLOY_HOST}"
+          ssh_key="$HOME/.ssh/codego_release"
+
+          [ -d "$bundle_dir" ] || { echo "Missing deploy bundle at $bundle_dir" >&2; exit 1; }
+
+          printf -v q_remote_tmp '%q' "$remote_tmp"
+          printf -v q_static_dir '%q' "$static_dir"
+          printf -v q_metadata_dir '%q' "$metadata_dir"
+          printf -v q_manifest_file '%q' "$CODEGO_RELEASE_MANIFEST_FILE"
+
+          tar -C "$bundle_dir" -czf - . | ssh -i "$ssh_key" -p "$port" "$ssh_target" "rm -rf $q_remote_tmp && mkdir -p $q_remote_tmp && tar -xzf - -C $q_remote_tmp"
+
+          ssh -i "$ssh_key" -p "$port" "$ssh_target" \
+            "REMOTE_TMP=$q_remote_tmp STATIC_DIR=$q_static_dir METADATA_DIR=$q_metadata_dir MANIFEST_FILE=$q_manifest_file bash -s" <<'EOF'
+          set -euo pipefail
+          mkdir -p "$STATIC_DIR" "$METADATA_DIR" "$(dirname "$MANIFEST_FILE")"
+          find "$REMOTE_TMP/static/downloads/codego" -maxdepth 1 -type f -exec cp -f "{}" "$STATIC_DIR"/ \;
+          install -m 0644 "$REMOTE_TMP/runtime/codego-desktop-release-manifest.json" "$MANIFEST_FILE"
+          install -m 0644 "$REMOTE_TMP/metadata/release-metadata/codego/latest.json" "$METADATA_DIR/latest.json"
+          install -m 0644 "$REMOTE_TMP/metadata/release-metadata/codego/codego-desktop-release-manifest.json" "$METADATA_DIR/codego-desktop-release-manifest.json"
+          rm -rf "$REMOTE_TMP"
+          EOF
+
+      - name: Reload release consumers
+        if: steps.deploy-config.outputs.enabled == 'true' && secrets.CODEGO_RELEASE_POST_DEPLOY_RELOAD_COMMAND != ''
+        shell: bash
+        env:
+          CODEGO_RELEASE_DEPLOY_HOST: ${{ secrets.CODEGO_RELEASE_DEPLOY_HOST }}
+          CODEGO_RELEASE_DEPLOY_PORT: ${{ secrets.CODEGO_RELEASE_DEPLOY_PORT }}
+          CODEGO_RELEASE_DEPLOY_USER: ${{ secrets.CODEGO_RELEASE_DEPLOY_USER }}
+          CODEGO_RELEASE_POST_DEPLOY_RELOAD_COMMAND: ${{ secrets.CODEGO_RELEASE_POST_DEPLOY_RELOAD_COMMAND }}
+        run: |
+          set -euo pipefail
+          port="${CODEGO_RELEASE_DEPLOY_PORT:-22}"
+          ssh_target="${CODEGO_RELEASE_DEPLOY_USER}@${CODEGO_RELEASE_DEPLOY_HOST}"
+          ssh_key="$HOME/.ssh/codego_release"
+          ssh -i "$ssh_key" -p "$port" "$ssh_target" "$CODEGO_RELEASE_POST_DEPLOY_RELOAD_COMMAND"
+
+      - name: Smoke test self-hosted release channel
+        if: steps.deploy-config.outputs.enabled == 'true'
+        shell: bash
+        env:
+          CODEGO_RELEASE_PUBLIC_BASE_URL: ${{ secrets.CODEGO_RELEASE_PUBLIC_BASE_URL }}
+        run: |
+          set -euo pipefail
+          public_base="${CODEGO_RELEASE_PUBLIC_BASE_URL:-https://shu26.cfd}"
+          public_base="${public_base%/}"
+          expected_version="${GITHUB_REF_NAME#v}"
+          node scripts/wait-for-codego-release-version.mjs \
+            --release-url "${public_base}/api/desktop/release/latest" \
+            --latest-url "${public_base}/api/desktop/release/latest.json" \
+            --expected-version "$expected_version" \
+            --timeout-ms "180000" \
+            --interval-ms "5000"
+
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v3
         with:
@@ -649,6 +832,8 @@ jobs:
             Canonical desktop download page: [https://shu26.cfd/download](https://shu26.cfd/download)
 
             The attached artifacts mirror the build outputs used by the self-hosted desktop release channel. The website download page remains the canonical user-facing entry point.
+
+            Deployment mode: `${{ steps.deploy-config.outputs.summary }}`
 
             ### Attached artifacts
 

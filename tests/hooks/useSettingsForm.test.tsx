@@ -220,7 +220,7 @@ describe("useSettingsForm Hook", () => {
     expect(changeLanguageSpy).not.toHaveBeenCalled();
   });
 
-  it("should preserve explicit Code Go desktop settings from server data", async () => {
+  it("should preserve explicit codego desktop settings from server data", async () => {
     useSettingsQueryMock.mockReturnValue({
       data: {
         showInTray: true,
