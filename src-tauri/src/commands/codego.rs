@@ -2390,6 +2390,7 @@ mod tests {
             std::env::set_var("USERPROFILE", dir.path());
 
             update_settings(AppSettings::default()).expect("reset temp settings");
+            crate::secure_store::set_test_codego_auth_token(None);
 
             Self {
                 _dir: dir,
@@ -2404,6 +2405,7 @@ mod tests {
     impl Drop for TempSettingsEnv {
         fn drop(&mut self) {
             update_settings(self.original_settings.clone()).expect("restore original settings");
+            crate::secure_store::set_test_codego_auth_token(None);
 
             match &self.previous_cc_switch_test_home {
                 Some(value) => std::env::set_var("CC_SWITCH_TEST_HOME", value),
