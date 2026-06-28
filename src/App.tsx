@@ -984,9 +984,7 @@ function App() {
             />
           );
         case "agents":
-          return (
-            <AgentsPanel onOpenChange={() => setCurrentView("codego")} />
-          );
+          return <AgentsPanel onOpenChange={() => setCurrentView("codego")} />;
         case "universal":
           return (
             <div className="px-6 pt-4">
@@ -1270,7 +1268,11 @@ function App() {
                   )}
                 >
                   <Book className="h-4 w-4 shrink-0" />
-                  <span>{t("prompts.title", { appName: t(`apps.${sharedFeatureApp}`) })}</span>
+                  <span>
+                    {t("prompts.title", {
+                      appName: t(`apps.${sharedFeatureApp}`),
+                    })}
+                  </span>
                 </button>
                 {hasSkillsSupport && (
                   <button
@@ -1421,7 +1423,9 @@ function App() {
                     </div>
                     <div className="min-w-0">
                       <div className="codego-kicker">
-                        {isPrimaryConsoleView ? "Control center" : "Workspace view"}
+                        {isPrimaryConsoleView
+                          ? "Control center"
+                          : "Workspace view"}
                       </div>
                       <h1 className="truncate text-xl font-semibold text-foreground">
                         {currentViewTitle}
@@ -1556,20 +1560,20 @@ function App() {
                       )}
                       {currentView === "skillsDiscovery" && (
                         <>
-                          {getSkillsPageHeaderActions(skillsDiscoverySource).map(
-                            ({ key, labelKey, Icon, execute }) => (
-                              <Button
-                                key={key}
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => execute(skillsPageRef.current)}
-                                className="hover:bg-black/5 dark:hover:bg-white/5"
-                              >
-                                <Icon className="mr-2 h-4 w-4" />
-                                {t(labelKey)}
-                              </Button>
-                            ),
-                          )}
+                          {getSkillsPageHeaderActions(
+                            skillsDiscoverySource,
+                          ).map(({ key, labelKey, Icon, execute }) => (
+                            <Button
+                              key={key}
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => execute(skillsPageRef.current)}
+                              className="hover:bg-black/5 dark:hover:bg-white/5"
+                            >
+                              <Icon className="mr-2 h-4 w-4" />
+                              {t(labelKey)}
+                            </Button>
+                          ))}
                         </>
                       )}
                       {currentView === "providers" && (
@@ -1613,7 +1617,9 @@ function App() {
                                     <Button
                                       variant="ghost"
                                       size="sm"
-                                      onClick={() => setCurrentView("hermesMemory")}
+                                      onClick={() =>
+                                        setCurrentView("hermesMemory")
+                                      }
                                       className="h-8 w-8 px-2 text-muted-foreground hover:bg-black/5 hover:text-foreground dark:hover:bg-white/5"
                                       title={t("hermes.memory.title")}
                                     >
@@ -1643,7 +1649,9 @@ function App() {
                                     <Button
                                       variant="ghost"
                                       size="sm"
-                                      onClick={() => setCurrentView("workspace")}
+                                      onClick={() =>
+                                        setCurrentView("workspace")
+                                      }
                                       className="h-8 w-8 px-2 text-muted-foreground hover:bg-black/5 hover:text-foreground dark:hover:bg-white/5"
                                       title={t("workspace.manage")}
                                     >
@@ -1652,7 +1660,9 @@ function App() {
                                     <Button
                                       variant="ghost"
                                       size="sm"
-                                      onClick={() => setCurrentView("openclawEnv")}
+                                      onClick={() =>
+                                        setCurrentView("openclawEnv")
+                                      }
                                       className="h-8 w-8 px-2 text-muted-foreground hover:bg-black/5 hover:text-foreground dark:hover:bg-white/5"
                                       title={t("openclaw.env.title")}
                                     >
@@ -1661,7 +1671,9 @@ function App() {
                                     <Button
                                       variant="ghost"
                                       size="sm"
-                                      onClick={() => setCurrentView("openclawTools")}
+                                      onClick={() =>
+                                        setCurrentView("openclawTools")
+                                      }
                                       className="h-8 w-8 px-2 text-muted-foreground hover:bg-black/5 hover:text-foreground dark:hover:bg-white/5"
                                       title={t("openclaw.tools.title")}
                                     >
@@ -1670,7 +1682,9 @@ function App() {
                                     <Button
                                       variant="ghost"
                                       size="sm"
-                                      onClick={() => setCurrentView("openclawAgents")}
+                                      onClick={() =>
+                                        setCurrentView("openclawAgents")
+                                      }
                                       className="h-8 w-8 px-2 text-muted-foreground hover:bg-black/5 hover:text-foreground dark:hover:bg-white/5"
                                       title={t("openclaw.agents.title")}
                                     >

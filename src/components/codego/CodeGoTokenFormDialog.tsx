@@ -29,7 +29,9 @@ interface CodeGoTokenFormDialogProps {
   formState: CodeGoTokenFormState;
   saving: boolean;
   onOpenChange: (open: boolean) => void;
-  onChange: (updater: (value: CodeGoTokenFormState) => CodeGoTokenFormState) => void;
+  onChange: (
+    updater: (value: CodeGoTokenFormState) => CodeGoTokenFormState,
+  ) => void;
   onSubmit: () => void;
 }
 
@@ -46,9 +48,12 @@ export function CodeGoTokenFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>{formState.id ? "Edit token" : "Create token"}</DialogTitle>
+          <DialogTitle>
+            {formState.id ? "Edit token" : "Create token"}
+          </DialogTitle>
           <DialogDescription>
-            Configure the token name, expiry, quota, and optional model restrictions before saving it to your codego account.
+            Configure the token name, expiry, quota, and optional model
+            restrictions before saving it to your codego account.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 px-6 py-5 sm:grid-cols-2">
@@ -148,14 +153,16 @@ export function CodeGoTokenFormDialog({
               className="min-h-[96px]"
             />
             <p className="text-xs text-muted-foreground">
-              Use the same comma-separated model format as the website token settings.
+              Use the same comma-separated model format as the website token
+              settings.
             </p>
           </div>
         </div>
         <DialogFooter>
           <div className="mr-auto flex items-start gap-2 text-xs text-muted-foreground">
             <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
-            Full keys remain masked in the list and are only fetched when you explicitly copy one.
+            Full keys remain masked in the list and are only fetched when you
+            explicitly copy one.
           </div>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel

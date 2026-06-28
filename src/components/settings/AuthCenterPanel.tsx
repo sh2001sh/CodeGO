@@ -141,8 +141,8 @@ export function AuthCenterPanel({ settings, onChange }: AuthCenterPanelProps) {
                 Automatic balance refresh
               </Label>
               <p className="text-xs text-muted-foreground">
-                Refresh codego balance in the background every 3 minutes for
-                the dashboard, tray summary, and low-balance checks.
+                Refresh codego balance in the background every 3 minutes for the
+                dashboard, tray summary, and low-balance checks.
               </p>
             </div>
             <Switch

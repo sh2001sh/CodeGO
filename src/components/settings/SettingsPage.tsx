@@ -244,7 +244,7 @@ export function SettingsPage({
               ref={tabScrollContainerRef}
               className="flex-1 overflow-y-auto overflow-x-hidden pr-2"
             >
-            <TabsContent value="general" className="mt-0 space-y-6">
+              <TabsContent value="general" className="mt-0 space-y-6">
                 {settings ? (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}

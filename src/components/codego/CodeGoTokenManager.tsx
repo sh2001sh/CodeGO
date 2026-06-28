@@ -234,10 +234,10 @@ export function CodeGoTokenManager({
                           <div className="flex items-center gap-2">
                             <span className="font-medium">{token.name}</span>
                             {isDesktop ? (
-                            <Badge variant="outline" className="gap-1">
-                              <KeyRound className="h-3 w-3" />
-                              Desktop
-                            </Badge>
+                              <Badge variant="outline" className="gap-1">
+                                <KeyRound className="h-3 w-3" />
+                                Desktop
+                              </Badge>
                             ) : null}
                           </div>
                           <div className="text-xs text-muted-foreground">

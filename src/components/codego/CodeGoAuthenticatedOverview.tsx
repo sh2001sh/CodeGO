@@ -67,18 +67,12 @@ export function CodeGoAuthenticatedOverview({
   ] as const;
 
   const overviewHighlights = [
-    [
-      "Connected server",
-      authState?.serverAddress || "https://shu26.cfd",
-    ],
+    ["Connected server", authState?.serverAddress || "https://shu26.cfd"],
     [
       "Desktop token",
       summary?.tokens.desktop_token?.name || "Create or refresh from Tokens",
     ],
-    [
-      "Last request",
-      formatDateTime(summary?.usage.last_request_at),
-    ],
+    ["Last request", formatDateTime(summary?.usage.last_request_at)],
   ] as const;
 
   return (
@@ -103,7 +97,8 @@ export function CodeGoAuthenticatedOverview({
                       ) : null}
                     </div>
                     <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-                      {summary?.account.display_name || summary?.account.username}
+                      {summary?.account.display_name ||
+                        summary?.account.username}
                     </h1>
                     <p className="max-w-xl text-sm leading-6 text-muted-foreground">
                       Browser-approved desktop access with token rotation, quota
@@ -128,7 +123,11 @@ export function CodeGoAuthenticatedOverview({
               </div>
 
               <div className="mt-6 flex flex-wrap items-center gap-2">
-                <Button variant="outline" onClick={onRefresh} className="h-9 gap-2">
+                <Button
+                  variant="outline"
+                  onClick={onRefresh}
+                  className="h-9 gap-2"
+                >
                   <RefreshCw className="h-4 w-4" />
                   Refresh
                 </Button>
@@ -157,10 +156,10 @@ export function CodeGoAuthenticatedOverview({
             </div>
 
             <div className="bg-[linear-gradient(180deg,rgba(255,255,255,0.5),rgba(255,255,255,0.18))] p-6 dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01))]">
-                <CodeGoSecureStorageNotice
-                  status={authState?.secureStorageStatus}
-                  message={authState?.secureStorageMessage}
-                />
+              <CodeGoSecureStorageNotice
+                status={authState?.secureStorageStatus}
+                message={authState?.secureStorageMessage}
+              />
 
               <div className="mt-4 grid gap-4 md:grid-cols-2">
                 {summaryMetrics.map(([label, value]) => (
@@ -276,7 +275,9 @@ export function CodeGoAuthenticatedOverview({
 
                 <Card className="codego-panel shadow-none">
                   <CardHeader>
-                    <CardTitle className="text-base">Available models</CardTitle>
+                    <CardTitle className="text-base">
+                      Available models
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="flex flex-wrap gap-2">
@@ -294,7 +295,9 @@ export function CodeGoAuthenticatedOverview({
                     </div>
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
                       <div>
-                        <div className="text-xs text-muted-foreground">Today</div>
+                        <div className="text-xs text-muted-foreground">
+                          Today
+                        </div>
                         <div className="text-sm font-medium">
                           {formatUsd(summary?.usage.today_usd || 0)}
                         </div>

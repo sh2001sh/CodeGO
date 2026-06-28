@@ -1,4 +1,5 @@
 use keyring::Entry;
+#[cfg(test)]
 use std::sync::{Mutex, OnceLock};
 
 const CODEGO_SERVICE_NAME: &str = "cc-switch.codego";

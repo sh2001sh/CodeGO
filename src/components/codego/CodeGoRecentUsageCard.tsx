@@ -43,7 +43,9 @@ export function CodeGoRecentUsageCard({
             ))}
           </div>
         ) : (
-          <div className="text-sm text-muted-foreground">No recent usage logs.</div>
+          <div className="text-sm text-muted-foreground">
+            No recent usage logs.
+          </div>
         )}
       </CardContent>
     </Card>

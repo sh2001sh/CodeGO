@@ -3,7 +3,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { codegoApi } from "@/lib/api";
-import type { CodeGoToken, CodeGoToolConfigApplyResult } from "@/lib/api/codego";
+import type {
+  CodeGoToken,
+  CodeGoToolConfigApplyResult,
+} from "@/lib/api/codego";
 import { extractErrorMessage } from "@/utils/errorUtils";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,15 +40,22 @@ const APPLY_TARGETS: Array<{ tool: ToolType; label: string }> = [
   { tool: "hermes", label: "Hermes" },
 ];
 
-async function refreshCodeGoQueries(queryClient: ReturnType<typeof useQueryClient>) {
+async function refreshCodeGoQueries(
+  queryClient: ReturnType<typeof useQueryClient>,
+) {
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: ["providers"] }),
-    queryClient.invalidateQueries({ queryKey: ["codego", "tool-config-statuses"] }),
+    queryClient.invalidateQueries({
+      queryKey: ["codego", "tool-config-statuses"],
+    }),
     queryClient.invalidateQueries({ queryKey: ["codego", "summary"] }),
   ]);
 }
 
-function buildSuccessMessage(result: CodeGoToolConfigApplyResult, tokenName: string) {
+function buildSuccessMessage(
+  result: CodeGoToolConfigApplyResult,
+  tokenName: string,
+) {
   return normalizeCodeGoBrand(
     `${result.providerName} applied from ${tokenName}`,
   ).toLowerCase();
@@ -61,7 +71,9 @@ export function CodeGoTokenApplyMenu({ token }: CodeGoTokenApplyMenuProps) {
     try {
       const result = await codegoApi.applyToolConfigFromToken(token.id, tool);
       await refreshCodeGoQueries(queryClient);
-      toast.success(buildSuccessMessage(result, token.name), { closeButton: true });
+      toast.success(buildSuccessMessage(result, token.name), {
+        closeButton: true,
+      });
     } catch (error) {
       toast.error(extractErrorMessage(error) || "Failed to apply token config");
     } finally {

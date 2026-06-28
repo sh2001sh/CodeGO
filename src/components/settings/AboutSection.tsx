@@ -432,9 +432,7 @@ export function AboutSection({ isPortable }: AboutSectionProps) {
           : "";
 
       if (!displayVersion) {
-        await settingsApi.openExternal(
-          "https://shu26.cfd/download",
-        );
+        await settingsApi.openExternal("https://shu26.cfd/download");
         return;
       }
 
@@ -898,9 +896,7 @@ export function AboutSection({ isPortable }: AboutSectionProps) {
                 variant="outline"
                 size="sm"
                 onClick={() =>
-                  settingsApi.openExternal(
-                    "https://github.com/sh2001sh/CodeGO",
-                  )
+                  settingsApi.openExternal("https://github.com/sh2001sh/CodeGO")
                 }
                 className="h-9 justify-start gap-2 text-xs"
               >

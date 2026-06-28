@@ -11,10 +11,18 @@ type OmoProviderRow = (
     String,
     Option<String>,
     Option<i64>,
-    Option<usize>,
+    Option<i64>,
     Option<String>,
     String,
 );
+
+fn decode_sort_index(raw: Option<i64>) -> Option<usize> {
+    raw.and_then(|value| usize::try_from(value).ok())
+}
+
+fn encode_sort_index(raw: Option<usize>) -> Option<i64> {
+    raw.and_then(|value| i64::try_from(value).ok())
+}
 
 impl Database {
     pub fn get_all_providers(
@@ -36,7 +44,7 @@ impl Database {
                 let website_url: Option<String> = row.get(3)?;
                 let category: Option<String> = row.get(4)?;
                 let created_at: Option<i64> = row.get(5)?;
-                let sort_index: Option<usize> = row.get(6)?;
+                let sort_index = decode_sort_index(row.get::<_, Option<i64>>(6)?);
                 let notes: Option<String> = row.get(7)?;
                 let icon: Option<String> = row.get(8)?;
                 let icon_color: Option<String> = row.get(9)?;
@@ -143,7 +151,7 @@ impl Database {
                 let website_url: Option<String> = row.get(2)?;
                 let category: Option<String> = row.get(3)?;
                 let created_at: Option<i64> = row.get(4)?;
-                let sort_index: Option<usize> = row.get(5)?;
+                let sort_index = decode_sort_index(row.get::<_, Option<i64>>(5)?);
                 let notes: Option<String> = row.get(6)?;
                 let icon: Option<String> = row.get(7)?;
                 let icon_color: Option<String> = row.get(8)?;
@@ -222,7 +230,7 @@ impl Database {
                     provider.website_url,
                     provider.category,
                     provider.created_at,
-                    provider.sort_index,
+                    encode_sort_index(provider.sort_index),
                     provider.notes,
                     provider.icon,
                     provider.icon_color,
@@ -251,7 +259,7 @@ impl Database {
                     provider.website_url,
                     provider.category,
                     provider.created_at,
-                    provider.sort_index,
+                    encode_sort_index(provider.sort_index),
                     provider.notes,
                     provider.icon,
                     provider.icon_color,
@@ -457,7 +465,7 @@ impl Database {
                     row.get(2)?,
                     row.get(3)?,
                     row.get(4)?,
-                    row.get(5)?,
+                    row.get::<_, Option<i64>>(5)?,
                     row.get(6)?,
                     row.get(7)?,
                 ))
@@ -493,7 +501,7 @@ impl Database {
             website_url: None,
             category: Some(category.to_string()),
             created_at,
-            sort_index,
+            sort_index: decode_sort_index(sort_index),
             notes,
             meta: Some(meta),
             icon: None,

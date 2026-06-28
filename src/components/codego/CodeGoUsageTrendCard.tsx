@@ -20,9 +20,7 @@ interface CodeGoUsageTrendCardProps {
   enabled: boolean;
 }
 
-export function CodeGoUsageTrendCard({
-  enabled,
-}: CodeGoUsageTrendCardProps) {
+export function CodeGoUsageTrendCard({ enabled }: CodeGoUsageTrendCardProps) {
   const [range, setRange] = useState<TrendRange>(7);
   const trendQuery = useCodeGoUsageTrendsQuery(range, enabled);
 
@@ -95,13 +93,28 @@ export function CodeGoUsageTrendCard({
             </div>
           ) : chartData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
+              <AreaChart
+                data={chartData}
+                margin={{ top: 10, right: 12, left: 0, bottom: 0 }}
+              >
                 <defs>
-                  <linearGradient id="codegoQuotaUsd" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient
+                    id="codegoQuotaUsd"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
                     <stop offset="5%" stopColor="#f97316" stopOpacity={0.22} />
                     <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
                   </linearGradient>
-                  <linearGradient id="codegoRequests" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient
+                    id="codegoRequests"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
                     <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.16} />
                     <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                   </linearGradient>

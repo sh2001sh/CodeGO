@@ -93,7 +93,7 @@ impl Database {
                         provider.website_url,
                         provider.category,
                         provider.created_at,
-                        provider.sort_index,
+                        provider.sort_index.and_then(|value| i64::try_from(value).ok()),
                         provider.notes,
                         provider.icon,
                         provider.icon_color,

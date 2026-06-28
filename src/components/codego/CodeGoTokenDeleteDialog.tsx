@@ -32,7 +32,8 @@ export function CodeGoTokenDeleteDialog({
         <DialogHeader>
           <DialogTitle>Delete token</DialogTitle>
           <DialogDescription>
-            Confirm permanent deletion of this token and its associated local tool access.
+            Confirm permanent deletion of this token and its associated local
+            tool access.
           </DialogDescription>
         </DialogHeader>
         <div className="px-6 py-5 text-sm text-muted-foreground">
@@ -45,7 +46,11 @@ export function CodeGoTokenDeleteDialog({
             Cancel
           </Button>
           <Button variant="destructive" onClick={onConfirm} disabled={deleting}>
-            {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete token"}
+            {deleting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              "Delete token"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

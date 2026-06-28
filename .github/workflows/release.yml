@@ -787,7 +787,7 @@ jobs:
           EOF
 
       - name: Reload release consumers
-        if: steps.deploy-config.outputs.enabled == 'true' && secrets.CODEGO_RELEASE_POST_DEPLOY_RELOAD_COMMAND != ''
+        if: steps.deploy-config.outputs.enabled == 'true' && env.CODEGO_RELEASE_POST_DEPLOY_RELOAD_COMMAND != ''
         shell: bash
         env:
           CODEGO_RELEASE_DEPLOY_HOST: ${{ secrets.CODEGO_RELEASE_DEPLOY_HOST }}

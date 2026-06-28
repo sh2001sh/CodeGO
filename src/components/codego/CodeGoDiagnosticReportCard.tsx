@@ -105,7 +105,10 @@ export function CodeGoDiagnosticReportCard({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="codego-diagnostic-preview" className="text-sm font-medium">
+              <Label
+                htmlFor="codego-diagnostic-preview"
+                className="text-sm font-medium"
+              >
                 Sanitized report preview
               </Label>
               <Textarea
@@ -117,7 +120,10 @@ export function CodeGoDiagnosticReportCard({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="codego-diagnostic-note" className="text-sm font-medium">
+              <Label
+                htmlFor="codego-diagnostic-note"
+                className="text-sm font-medium"
+              >
                 Optional note
               </Label>
               <Textarea
@@ -133,7 +139,9 @@ export function CodeGoDiagnosticReportCard({
               <Checkbox
                 id="codego-diagnostic-consent"
                 checked={consentChecked}
-                onCheckedChange={(checked) => setConsentChecked(checked === true)}
+                onCheckedChange={(checked) =>
+                  setConsentChecked(checked === true)
+                }
               />
               <div className="space-y-1">
                 <Label

@@ -7,6 +7,10 @@ use crate::error::AppError;
 use crate::provider::Provider;
 use serde::{Deserialize, Serialize};
 
+fn decode_sort_index(raw: Option<i64>) -> Option<usize> {
+    raw.and_then(|value| usize::try_from(value).ok())
+}
+
 /// 故障转移队列条目（简化版，用于前端展示）
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -37,7 +41,7 @@ impl Database {
                 Ok(FailoverQueueItem {
                     provider_id: row.get(0)?,
                     provider_name: row.get(1)?,
-                    sort_index: row.get(2)?,
+                    sort_index: decode_sort_index(row.get::<_, Option<i64>>(2)?),
                     provider_notes: row.get(3)?,
                 })
             })

@@ -200,9 +200,9 @@ export function CodeGoToolConfigPanel({ enabled }: CodeGoToolConfigPanelProps) {
                           ? "Conflict detected"
                           : tone === "ready"
                             ? "codego active"
-                          : tone === "detected"
-                            ? "Config detected"
-                            : "Not configured"}
+                            : tone === "detected"
+                              ? "Config detected"
+                              : "Not configured"}
                       </Badge>
                       {status.hasBackup && (
                         <Badge variant="outline">Backup ready</Badge>

@@ -52,15 +52,18 @@ export function CodeGoDesktopAuthView({
   const setupSteps = [
     {
       title: "Approve in browser",
-      detail: "Keep account passwords on the website and issue a revocable desktop session.",
+      detail:
+        "Keep account passwords on the website and issue a revocable desktop session.",
     },
     {
       title: "Store local secrets safely",
-      detail: "Desktop tokens and session data stay tied to secure local storage.",
+      detail:
+        "Desktop tokens and session data stay tied to secure local storage.",
     },
     {
       title: "Work from one control surface",
-      detail: "Quota, logs, tool routing, and token rotation stay in the same workflow.",
+      detail:
+        "Quota, logs, tool routing, and token rotation stay in the same workflow.",
     },
   ];
 
@@ -129,7 +132,9 @@ export function CodeGoDesktopAuthView({
           </div>
 
           <div className="bg-[linear-gradient(180deg,rgba(255,255,255,0.52),rgba(255,255,255,0.18))] px-6 py-6 dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01))]">
-            <div className="text-sm font-semibold text-foreground">Setup flow</div>
+            <div className="text-sm font-semibold text-foreground">
+              Setup flow
+            </div>
             <div className="mt-4 grid gap-3">
               {setupSummary.map(([label, value]) => (
                 <div key={label} className="codego-panel px-4 py-3">
@@ -185,7 +190,9 @@ export function CodeGoDesktopAuthView({
             <div className="flex items-start gap-2 rounded-[16px] border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-600">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
               <span>
-                {authError || authQueryError || "Failed to read local auth state"}
+                {authError ||
+                  authQueryError ||
+                  "Failed to read local auth state"}
               </span>
             </div>
           )}
@@ -194,7 +201,9 @@ export function CodeGoDesktopAuthView({
             <div className="codego-panel px-4 py-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="text-sm font-medium">Enter this code in your browser</div>
+                  <div className="text-sm font-medium">
+                    Enter this code in your browser
+                  </div>
                   <div className="mt-2 font-mono text-2xl font-semibold tracking-[0.2em]">
                     {authSession.userCode}
                   </div>
@@ -217,7 +226,11 @@ export function CodeGoDesktopAuthView({
                   <ExternalLink className="h-4 w-4" />
                   Open browser again
                 </Button>
-                <Button variant="ghost" className="h-9 gap-2" onClick={onCancelSession}>
+                <Button
+                  variant="ghost"
+                  className="h-9 gap-2"
+                  onClick={onCancelSession}
+                >
                   Cancel
                 </Button>
               </div>
