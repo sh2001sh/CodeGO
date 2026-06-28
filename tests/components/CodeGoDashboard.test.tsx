@@ -794,7 +794,15 @@ describe("CodeGoDashboard", () => {
       expect(screen.getByText("Authorized devices")).toBeInTheDocument(),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Revoke current" }));
+    const currentDeviceAccess = await screen.findByText("Access: active");
+    const currentDeviceRow = currentDeviceAccess.closest("div.rounded-lg");
+    expect(currentDeviceRow).not.toBeNull();
+
+    fireEvent.click(
+      within(currentDeviceRow as HTMLElement).getByRole("button", {
+        name: "Revoke current",
+      }),
+    );
 
     await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
 
