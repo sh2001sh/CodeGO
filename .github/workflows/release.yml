@@ -241,12 +241,15 @@ jobs:
           cat > "$CONFIG_PATH" <<'EOF'
           {
             "bundle": {
-              "createUpdaterArtifacts": false
+              "createUpdaterArtifacts": false,
+              "macOS": {
+                "signingIdentity": "-"
+              }
             }
           }
           EOF
           echo "TAURI_BUILD_CONFIG_PATH=$CONFIG_PATH" >> "$GITHUB_ENV"
-          echo "Updater signing is disabled; tauri build will skip updater artifact generation."
+          echo "Updater signing is disabled; tauri build will skip updater artifact generation and use ad-hoc macOS signing."
 
       - name: Import Apple signing certificate
         if: runner.os == 'macOS' && steps.signing-config.outputs.apple_signing_enabled == 'true'
@@ -565,10 +568,15 @@ jobs:
 
           # 绿色版（portable）：仅可执行文件打 zip（不参与 Updater）
           $exeCandidates = if ($isArm64) {
-            @('src-tauri/target/aarch64-pc-windows-msvc/release/cc-switch.exe')
+            @(
+              'src-tauri/target/aarch64-pc-windows-msvc/release/codego.exe',
+              'src-tauri/target/aarch64-pc-windows-msvc/release/cc-switch.exe'
+            )
           } else {
             @(
+              'src-tauri/target/release/codego.exe',
               'src-tauri/target/release/cc-switch.exe',
+              'src-tauri/target/x86_64-pc-windows-msvc/release/codego.exe',
               'src-tauri/target/x86_64-pc-windows-msvc/release/cc-switch.exe'
             )
           }
