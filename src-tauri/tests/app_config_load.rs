@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use cc_switch_lib::{AppError, MultiAppConfig};
+use codego_lib::{AppError, MultiAppConfig};
 
 mod support;
 use support::{ensure_test_home, reset_test_fs, test_mutex};
@@ -10,7 +10,6 @@ fn cfg_path() -> PathBuf {
     let home = std::env::var("HOME").expect("HOME should be set by ensure_test_home");
     PathBuf::from(home).join(".cc-switch").join("config.json")
 }
-
 #[test]
 fn load_v1_config_returns_error_and_does_not_write() {
     let _guard = test_mutex().lock().expect("acquire test mutex");
@@ -101,7 +100,8 @@ fn load_valid_v2_config_succeeds() {
     let loaded = MultiAppConfig::load().expect("v2 should load successfully");
     assert_eq!(loaded.version, 2);
     assert!(loaded
-        .get_manager(&cc_switch_lib::AppType::Claude)
+        .get_manager(&codego_lib::AppType::Claude)
         .is_some());
-    assert!(loaded.get_manager(&cc_switch_lib::AppType::Codex).is_some());
+    assert!(loaded.get_manager(&codego_lib::AppType::Codex).is_some());
 }
+

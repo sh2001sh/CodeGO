@@ -1,4 +1,4 @@
-use cc_switch_lib::{
+use codego_lib::{
     get_default_cost_multiplier_test_hook, get_pricing_model_source_test_hook,
     set_default_cost_multiplier_test_hook, set_pricing_model_source_test_hook, AppError,
 };
@@ -41,7 +41,6 @@ async fn default_cost_multiplier_commands_round_trip() {
         other => panic!("expected localized error, got {other:?}"),
     }
 }
-
 // 测试使用 Mutex 进行串行化，跨 await 持锁是预期行为
 #[allow(clippy::await_holding_lock)]
 #[tokio::test]
@@ -76,3 +75,4 @@ async fn pricing_model_source_commands_round_trip() {
         other => panic!("expected localized error, got {other:?}"),
     }
 }
+

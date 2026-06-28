@@ -3,7 +3,7 @@ use std::fs;
 
 use serde_json::json;
 
-use cc_switch_lib::{
+use codego_lib::{
     get_claude_mcp_path, get_claude_mcp_status, get_claude_settings_path,
     import_default_config_test_hook, read_claude_mcp_config, update_settings, AppError,
     AppSettings, AppType, McpApps, McpServer, McpService, MultiAppConfig,
@@ -67,7 +67,6 @@ fn import_default_config_claude_persists_provider() {
         "importing default config should persist to cc-switch.db"
     );
 }
-
 #[test]
 fn import_default_config_without_live_file_returns_error() {
     use support::create_test_state;
@@ -344,7 +343,7 @@ fn set_mcp_enabled_for_codex_writes_live_config() {
         "server should have Codex app enabled after toggle"
     );
 
-    let toml_path = cc_switch_lib::get_codex_config_path();
+    let toml_path = codego_lib::get_codex_config_path();
     assert!(
         toml_path.exists(),
         "enabling server should trigger sync to ~/.codex/config.toml"
@@ -1036,3 +1035,4 @@ fn sync_all_enabled_removes_known_disabled_but_preserves_unknown_live_entries() 
         "live entries unknown to DB should be preserved"
     );
 }
+

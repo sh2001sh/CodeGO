@@ -1,6 +1,6 @@
 mod support;
 
-use cc_switch_lib::{hermes_config, update_settings, AppSettings};
+use codego_lib::{hermes_config, update_settings, AppSettings};
 
 /// 读取并回写 Hermes provider 时，Hermes v12+ 新增或未来才会出现的字段
 /// （例如 `rate_limit_delay`、`key_env`）必须透传，不能因为 UI 不感知就静默丢弃。
@@ -31,7 +31,6 @@ fn with_temp_hermes_dir<F: FnOnce(&std::path::Path)>(f: F) {
         std::panic::resume_unwind(err);
     }
 }
-
 #[test]
 fn set_provider_preserves_unknown_and_future_fields() {
     with_temp_hermes_dir(|dir| {
@@ -122,3 +121,4 @@ fn get_providers_surfaces_rate_limit_delay_and_key_env() {
         );
     });
 }
+

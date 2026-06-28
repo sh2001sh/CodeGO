@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use cc_switch_lib::{import_provider_from_deeplink, parse_deeplink_url, AppState, Database};
+use codego_lib::{import_provider_from_deeplink, parse_deeplink_url, AppState, Database};
 
 #[path = "support.rs"]
 mod support;
@@ -41,7 +41,6 @@ fn deeplink_import_claude_provider_persists_to_db() {
     assert_eq!(auth_token, request.api_key.as_deref());
     assert_eq!(base_url, request.endpoint.as_deref());
 }
-
 #[test]
 fn deeplink_import_codex_provider_builds_auth_and_config() {
     let _guard = test_mutex().lock().expect("acquire test mutex");
@@ -84,3 +83,4 @@ fn deeplink_import_codex_provider_builds_auth_and_config() {
         "config.toml content should contain model setting"
     );
 }
+

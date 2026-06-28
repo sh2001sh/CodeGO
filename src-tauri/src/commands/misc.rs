@@ -3514,6 +3514,7 @@ mod tests {
             .expect("fixture permissions should be set");
     }
 
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     #[test]
     fn test_build_exec_line() {
         assert_eq!(build_exec_line("/bin/zsh", None), "exec '/bin/zsh' -l");
@@ -3533,6 +3534,7 @@ mod tests {
         );
     }
 
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     #[test]
     fn test_build_provider_command_line_uses_user_shell_environment() {
         assert_eq!(
@@ -3557,6 +3559,7 @@ mod tests {
         );
     }
 
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     #[test]
     fn test_build_final_shell_cd_command() {
         assert_eq!(build_final_shell_cd_command("/bin/zsh", None), "");

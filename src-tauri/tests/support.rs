@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 
-use cc_switch_lib::{update_settings, AppSettings, AppState, Database, MultiAppConfig};
+use codego_lib::{update_settings, AppSettings, AppState, Database, MultiAppConfig};
 
 /// 为测试设置隔离的 HOME 目录，避免污染真实用户数据。
 pub fn ensure_test_home() -> &'static Path {
@@ -22,7 +22,6 @@ pub fn ensure_test_home() -> &'static Path {
     })
     .as_path()
 }
-
 /// 清理测试目录中生成的配置文件与缓存。
 pub fn reset_test_fs() {
     let home = ensure_test_home();
@@ -82,3 +81,4 @@ pub fn create_test_state_with_config(
     db.migrate_from_json(config)?;
     Ok(AppState::new(db))
 }
+

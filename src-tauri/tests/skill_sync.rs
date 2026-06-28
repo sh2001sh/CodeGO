@@ -1,6 +1,6 @@
 use std::fs;
 
-use cc_switch_lib::{
+use codego_lib::{
     migrate_skills_to_ssot, AppType, ImportSkillSelection, InstalledSkill, SkillApps, SkillService,
 };
 
@@ -16,7 +16,6 @@ fn write_skill(dir: &std::path::Path, name: &str) {
     )
     .expect("write SKILL.md");
 }
-
 #[cfg(unix)]
 fn symlink_dir(src: &std::path::Path, dest: &std::path::Path) {
     std::os::unix::fs::symlink(src, dest).expect("create symlink");
@@ -425,3 +424,4 @@ fn migration_snapshot_overrides_multi_source_directory_inference() {
         "migration should no longer infer OpenCode enablement from a duplicate directory alone"
     );
 }
+
