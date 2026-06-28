@@ -75,4 +75,3 @@ async fn pricing_model_source_commands_round_trip() {
         other => panic!("expected localized error, got {other:?}"),
     }
 }
-

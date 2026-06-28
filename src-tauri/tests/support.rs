@@ -81,4 +81,3 @@ pub fn create_test_state_with_config(
     db.migrate_from_json(config)?;
     Ok(AppState::new(db))
 }
-

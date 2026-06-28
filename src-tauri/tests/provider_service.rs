@@ -690,8 +690,8 @@ wire_api = "responses"
         "disabling takeover should restore without replacing OAuth auth.json"
     );
 
-    let restored_config = std::fs::read_to_string(codego_lib::get_codex_config_path())
-        .expect("read restored config");
+    let restored_config =
+        std::fs::read_to_string(codego_lib::get_codex_config_path()).expect("read restored config");
     assert!(
         restored_config.contains("https://api.deepseek.com/v1")
             && restored_config.contains("deepseek-key"),
@@ -1983,4 +1983,3 @@ fn recover_from_crash_without_backup_cleans_placeholder_instead_of_writing_it_ba
         "recovery must drop the local proxy base URL"
     );
 }
-

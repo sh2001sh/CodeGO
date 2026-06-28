@@ -614,4 +614,3 @@ fn import_refuses_live_config_under_proxy_takeover() {
         "taken-over live import must not create providers"
     );
 }
-

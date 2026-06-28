@@ -121,4 +121,3 @@ fn get_providers_surfaces_rate_limit_delay_and_key_env() {
         );
     });
 }
-

@@ -557,8 +557,7 @@ args = ["ok"]
     assert!(auth_path.exists(), "auth.json should be created");
     assert!(config_path.exists(), "config.toml should be created");
 
-    let stored_auth: serde_json::Value =
-        codego_lib::read_json_file(&auth_path).expect("read auth");
+    let stored_auth: serde_json::Value = codego_lib::read_json_file(&auth_path).expect("read auth");
     assert_eq!(stored_auth, auth, "auth.json should match input");
 
     let stored_config = std::fs::read_to_string(&config_path).expect("read config");
@@ -1234,4 +1233,3 @@ fn import_sql_accepts_cc_switch_exported_backup() {
         "imported providers should contain test-provider"
     );
 }
-

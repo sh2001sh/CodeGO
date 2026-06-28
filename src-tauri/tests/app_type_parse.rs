@@ -19,4 +19,3 @@ fn parse_unknown_app_returns_localized_error_message() {
     assert!(msg.contains("可选值") || msg.contains("Allowed"));
     assert!(msg.contains("unknown"));
 }
-
