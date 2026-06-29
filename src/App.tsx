@@ -121,6 +121,14 @@ interface SyncStatusUpdatedPayload {
   error?: string;
 }
 
+interface NavItemConfig {
+  view: View;
+  icon: typeof LayoutDashboard;
+  label: string;
+  description: string;
+  hidden?: boolean;
+}
+
 const DEFAULT_DRAG_BAR_HEIGHT = isWindows() || isLinux() ? 0 : 28; // px
 
 const STORAGE_KEY = "cc-switch-last-app";
@@ -948,6 +956,140 @@ function App() {
             defaultValue: "Focused operational view for the active workflow.",
           });
 
+  const primaryNavItems: NavItemConfig[] = [
+    {
+      view: "codego",
+      icon: LayoutDashboard,
+      label: t("codego.shell.dashboard", { defaultValue: "Dashboard" }),
+      description: t("codego.shell.nav.dashboardDesc", {
+        defaultValue: "认证状态、额度、令牌和设备管理",
+      }),
+    },
+    {
+      view: "providers",
+      icon: Wrench,
+      label: t("codego.shell.providers", { defaultValue: "Providers" }),
+      description: t("codego.shell.nav.providersDesc", {
+        defaultValue: "切换供应商并维护各个工具的当前配置",
+      }),
+    },
+    {
+      view: "settings",
+      icon: Settings,
+      label: t("settings.title"),
+      description: t("codego.shell.nav.settingsDesc", {
+        defaultValue: "语言、路由、存储和设备级设置",
+      }),
+    },
+  ];
+
+  const workspaceNavItems: NavItemConfig[] = [
+    {
+      view: "prompts",
+      icon: Book,
+      label: t("prompts.title", {
+        appName: t(`apps.${sharedFeatureApp}`),
+      }),
+      description: t("codego.shell.nav.promptsDesc", {
+        defaultValue: "管理提示词与本地工作流文档",
+      }),
+    },
+    {
+      view: "skills",
+      icon: Wrench,
+      label: t("skills.title"),
+      description: t("codego.shell.nav.skillsDesc", {
+        defaultValue: "安装、导入并同步技能资源",
+      }),
+      hidden: !hasSkillsSupport,
+    },
+    {
+      view: "mcp",
+      icon: Cpu,
+      label: t("mcp.title"),
+      description: t("codego.shell.nav.mcpDesc", {
+        defaultValue: "统一管理 MCP 服务与连接方式",
+      }),
+    },
+    {
+      view: "sessions",
+      icon: History,
+      label: t("sessionManager.title"),
+      description: t("codego.shell.nav.sessionsDesc", {
+        defaultValue: "查看和恢复多工具会话历史",
+      }),
+      hidden: !hasSessionSupport,
+    },
+    {
+      view: "agents",
+      icon: Brain,
+      label: t("agents.title"),
+      description: t("codego.shell.nav.agentsDesc", {
+        defaultValue: "集中管理代理与协作能力",
+      }),
+    },
+  ].filter((item) => !item.hidden);
+
+  const toolWorkspaceItems: NavItemConfig[] =
+    activeApp === "openclaw"
+      ? [
+          {
+            view: "workspace",
+            icon: FolderOpen,
+            label: t("workspace.title"),
+            description: t("codego.shell.nav.workspaceDesc", {
+              defaultValue: "编辑 OpenClaw 工作区文件与本地说明",
+            }),
+          },
+          {
+            view: "openclawEnv",
+            icon: KeyRound,
+            label: t("openclaw.env.title"),
+            description: t("codego.shell.nav.envDesc", {
+              defaultValue: "调整环境变量与写入结果",
+            }),
+          },
+          {
+            view: "openclawTools",
+            icon: Shield,
+            label: t("openclaw.tools.title"),
+            description: t("codego.shell.nav.toolsDescOpenclaw", {
+              defaultValue: "维护工具白名单、黑名单和权限策略",
+            }),
+          },
+          {
+            view: "openclawAgents",
+            icon: Cpu,
+            label: t("openclaw.agents.title"),
+            description: t("codego.shell.nav.agentsDefaultsDesc", {
+              defaultValue: "设置代理默认模型和目录策略",
+            }),
+          },
+        ]
+      : activeApp === "hermes"
+        ? [
+            {
+              view: "hermesMemory",
+              icon: Brain,
+              label: t("hermes.memory.title"),
+              description: t("codego.shell.nav.hermesMemoryDesc", {
+                defaultValue: "查看 Hermes 记忆与上下文管理",
+              }),
+            },
+          ]
+        : [];
+
+  const currentWorkspaceLabel =
+    currentView === "skillsDiscovery"
+      ? "skills"
+      : currentView === "openclawEnv" ||
+          currentView === "openclawTools" ||
+          currentView === "openclawAgents" ||
+          currentView === "workspace" ||
+          currentView === "hermesMemory"
+        ? currentView
+        : currentView;
+
   const renderContent = () => {
     const content = (() => {
       switch (currentView) {
@@ -1117,6 +1259,102 @@ function App() {
     );
   };
 
+  const renderMobileWorkspaceGrid = () => {
+    if (isPrimaryConsoleView) {
+      return null;
+    }
+
+    return (
+      <div className="border-b border-white/60 px-4 py-4 lg:hidden dark:border-white/10">
+        <div className="codego-workspace-grid">
+          {primaryNavItems.map((item) => {
+            const Icon = item.icon;
+            const active = currentView === item.view;
+            return (
+              <button
+                key={item.view}
+                type="button"
+                onClick={() => {
+                  if (item.view === "settings") {
+                    setSettingsDefaultTab("general");
+                  }
+                  setCurrentView(item.view);
+                }}
+                className={cn(
+                  "codego-workspace-card",
+                  active && "codego-workspace-card-active",
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  <Icon className="h-4 w-4 shrink-0 text-foreground" />
+                  <div className="text-sm font-medium text-foreground">
+                    {item.label}
+                  </div>
+                </div>
+                <div className="mt-2 text-xs leading-5 text-muted-foreground">
+                  {item.description}
+                </div>
+              </button>
+            );
+          })}
+          {workspaceNavItems.map((item) => {
+            const Icon = item.icon;
+            const active =
+              item.view === "skills"
+                ? currentWorkspaceLabel === "skills"
+                : currentView === item.view;
+            return (
+              <button
+                key={item.view}
+                type="button"
+                onClick={() => setCurrentView(item.view)}
+                className={cn(
+                  "codego-workspace-card",
+                  active && "codego-workspace-card-active",
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  <Icon className="h-4 w-4 shrink-0 text-foreground" />
+                  <div className="text-sm font-medium text-foreground">
+                    {item.label}
+                  </div>
+                </div>
+                <div className="mt-2 text-xs leading-5 text-muted-foreground">
+                  {item.description}
+                </div>
+              </button>
+            );
+          })}
+          {toolWorkspaceItems.map((item) => {
+            const Icon = item.icon;
+            const active = currentView === item.view;
+            return (
+              <button
+                key={item.view}
+                type="button"
+                onClick={() => setCurrentView(item.view)}
+                className={cn(
+                  "codego-workspace-card",
+                  active && "codego-workspace-card-active",
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  <Icon className="h-4 w-4 shrink-0 text-foreground" />
+                  <div className="text-sm font-medium text-foreground">
+                    {item.label}
+                  </div>
+                </div>
+                <div className="mt-2 text-xs leading-5 text-muted-foreground">
+                  {item.description}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div
       className="flex h-screen flex-col overflow-hidden bg-background text-foreground selection:bg-primary/30"
@@ -1202,7 +1440,7 @@ function App() {
         <div className="codego-shell flex h-full min-h-0 overflow-hidden">
           <aside
             className={cn(
-              "codego-sidebar-surface w-[292px] shrink-0 px-4 py-4 lg:flex lg:flex-col",
+              "codego-sidebar-surface w-[324px] shrink-0 px-4 py-4 lg:flex lg:flex-col",
               currentView === "codego" ? "hidden xl:flex" : "hidden lg:flex",
             )}
           >
@@ -1253,130 +1491,123 @@ function App() {
               </div>
             </div>
 
-            <div className="mt-5 space-y-2">
-              <button
-                type="button"
-                onClick={() => setCurrentView("codego")}
-                className={cn(
-                  "codego-nav-item w-full",
-                  currentView === "codego" && "codego-nav-item-active",
-                )}
-              >
-                <LayoutDashboard className="h-4 w-4 shrink-0" />
-                <span>
-                  {t("codego.shell.dashboard", {
-                    defaultValue: "Dashboard",
-                  })}
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setCurrentView("providers")}
-                className={cn(
-                  "codego-nav-item w-full",
-                  currentView === "providers" && "codego-nav-item-active",
-                )}
-              >
-                <Wrench className="h-4 w-4 shrink-0" />
-                <span>
-                  {t("codego.shell.providers", {
-                    defaultValue: "Providers",
-                  })}
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setSettingsDefaultTab("general");
-                  setCurrentView("settings");
-                }}
-                className={cn(
-                  "codego-nav-item w-full",
-                  currentView === "settings" && "codego-nav-item-active",
-                )}
-              >
-                <Settings className="h-4 w-4 shrink-0" />
-                <span>{t("settings.title")}</span>
-              </button>
+            <div className="mt-5">
+              <div className="codego-subnav-label">
+                {t("codego.shell.controlCenter", {
+                  defaultValue: "Control center",
+                })}
+              </div>
+              <div className="mt-2 space-y-2">
+                {primaryNavItems.map((item) => {
+                  const Icon = item.icon;
+                  const active = currentView === item.view;
+                  return (
+                    <button
+                      key={item.view}
+                      type="button"
+                      onClick={() => {
+                        if (item.view === "settings") {
+                          setSettingsDefaultTab("general");
+                        }
+                        setCurrentView(item.view);
+                      }}
+                      className={cn(
+                        "codego-nav-item w-full items-start",
+                        active && "codego-nav-item-active",
+                      )}
+                    >
+                      <Icon className="mt-0.5 h-4 w-4 shrink-0" />
+                      <span className="min-w-0">
+                        <span className="block text-sm font-medium text-foreground">
+                          {item.label}
+                        </span>
+                        <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                          {item.description}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="mt-6">
-              <div className="codego-kicker px-3">
+              <div className="codego-subnav-label">
                 {t("codego.shell.workspace", {
                   defaultValue: "Workspace",
                 })}
               </div>
-              <div className="mt-2 grid gap-2">
-                <button
-                  type="button"
-                  onClick={() => setCurrentView("prompts")}
-                  className={cn(
-                    "codego-nav-item py-2.5",
-                    currentView === "prompts" && "codego-nav-item-active",
-                  )}
-                >
-                  <Book className="h-4 w-4 shrink-0" />
-                  <span>
-                    {t("prompts.title", {
-                      appName: t(`apps.${sharedFeatureApp}`),
-                    })}
-                  </span>
-                </button>
-                {hasSkillsSupport && (
-                  <button
-                    type="button"
-                    onClick={() => setCurrentView("skills")}
-                    className={cn(
-                      "codego-nav-item py-2.5",
-                      (currentView === "skills" ||
-                        currentView === "skillsDiscovery") &&
-                        "codego-nav-item-active",
-                    )}
-                  >
-                    <Wrench className="h-4 w-4 shrink-0" />
-                    <span>{t("skills.title")}</span>
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setCurrentView("mcp")}
-                  className={cn(
-                    "codego-nav-item py-2.5",
-                    currentView === "mcp" && "codego-nav-item-active",
-                  )}
-                >
-                  <McpIcon size={16} />
-                  <span>{t("mcp.title")}</span>
-                </button>
-                {hasSessionSupport && (
-                  <button
-                    type="button"
-                    onClick={() => setCurrentView("sessions")}
-                    className={cn(
-                      "codego-nav-item py-2.5",
-                      currentView === "sessions" && "codego-nav-item-active",
-                    )}
-                  >
-                    <History className="h-4 w-4 shrink-0" />
-                    <span>{t("sessionManager.title")}</span>
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setCurrentView("agents")}
-                  className={cn(
-                    "codego-nav-item py-2.5",
-                    currentView === "agents" && "codego-nav-item-active",
-                  )}
-                >
-                  <Cpu className="h-4 w-4 shrink-0" />
-                  <span>{t("agents.title")}</span>
-                </button>
+              <div className="mt-2 space-y-2">
+                {workspaceNavItems.map((item) => {
+                  const Icon = item.icon;
+                  const active =
+                    item.view === "skills"
+                      ? currentWorkspaceLabel === "skills"
+                      : currentView === item.view;
+                  return (
+                    <button
+                      key={item.view}
+                      type="button"
+                      onClick={() => setCurrentView(item.view)}
+                      className={cn(
+                        "codego-nav-item w-full items-start",
+                        active && "codego-nav-item-active",
+                      )}
+                    >
+                      <Icon className="mt-0.5 h-4 w-4 shrink-0" />
+                      <span className="min-w-0">
+                        <span className="block text-sm font-medium text-foreground">
+                          {item.label}
+                        </span>
+                        <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                          {item.description}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
+            {toolWorkspaceItems.length > 0 && (
+              <div className="mt-6">
+                <div className="codego-subnav-label">
+                  {t("codego.shell.currentToolWorkspace", {
+                    defaultValue: "Tool workspace",
+                  })}
+                </div>
+                <div className="mt-2 space-y-2">
+                  {toolWorkspaceItems.map((item) => {
+                    const Icon = item.icon;
+                    const active = currentView === item.view;
+                    return (
+                      <button
+                        key={item.view}
+                        type="button"
+                        onClick={() => setCurrentView(item.view)}
+                        className={cn(
+                          "codego-nav-item w-full items-start",
+                          active && "codego-nav-item-active",
+                        )}
+                      >
+                        <Icon className="mt-0.5 h-4 w-4 shrink-0" />
+                        <span className="min-w-0">
+                          <span className="block text-sm font-medium text-foreground">
+                            {item.label}
+                          </span>
+                          <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                            {item.description}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="mt-6">
-              <div className="codego-kicker px-3">
+              <div className="codego-subnav-label">
                 {t("codego.shell.activeApp", {
                   defaultValue: "Active app",
                 })}
@@ -1439,6 +1670,21 @@ function App() {
                   <div className="h-8 w-8" />
                 )}
               </div>
+              {toolWorkspaceItems.length > 0 && (
+                <div className="codego-panel p-4">
+                  <div className="text-sm font-medium text-foreground">
+                    {t("codego.shell.currentToolWorkspace", {
+                      defaultValue: "Tool workspace",
+                    })}
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    {t("codego.shell.toolWorkspaceHint", {
+                      defaultValue:
+                        "当前应用带有额外配置面板，可在左侧导航中直接进入。",
+                    })}
+                  </p>
+                </div>
+              )}
             </div>
           </aside>
 
@@ -1826,6 +2072,8 @@ function App() {
                 </div>
               </div>
             </div>
+
+            {renderMobileWorkspaceGrid()}
 
             <main className="flex min-h-0 flex-1 flex-col overflow-y-auto animate-fade-in">
               {isOpenClawView && openclawHealthWarnings.length > 0 && (

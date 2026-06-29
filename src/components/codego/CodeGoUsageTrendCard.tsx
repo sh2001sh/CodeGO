@@ -12,6 +12,7 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCodeGoUsageTrendsQuery } from "@/lib/query";
+import { useTranslation } from "react-i18next";
 import { formatUsd } from "./codegoShared";
 
 type TrendRange = 7 | 30;
@@ -21,6 +22,7 @@ interface CodeGoUsageTrendCardProps {
 }
 
 export function CodeGoUsageTrendCard({ enabled }: CodeGoUsageTrendCardProps) {
+  const { t } = useTranslation();
   const [range, setRange] = useState<TrendRange>(7);
   const trendQuery = useCodeGoUsageTrendsQuery(range, enabled);
 
@@ -45,9 +47,14 @@ export function CodeGoUsageTrendCard({ enabled }: CodeGoUsageTrendCardProps) {
     <Card className="border-border/70 bg-card/90">
       <CardHeader className="flex flex-row items-center justify-between gap-4">
         <div>
-          <CardTitle className="text-base">Usage trends</CardTitle>
+          <CardTitle className="text-base">
+            {t("codego.trends.title", "Usage trends")}
+          </CardTitle>
           <p className="mt-1 text-sm text-muted-foreground">
-            Rolling usage across the last {range} days.
+            {t("codego.trends.description", {
+              range,
+              defaultValue: `Rolling usage across the last ${range} days.`,
+            })}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -67,19 +74,25 @@ export function CodeGoUsageTrendCard({ enabled }: CodeGoUsageTrendCardProps) {
       <CardContent className="space-y-4">
         <div className="flex flex-wrap items-center gap-6">
           <div>
-            <div className="text-xs text-muted-foreground">Quota used</div>
+            <div className="text-xs text-muted-foreground">
+              {t("codego.trends.quotaUsed", "Quota used")}
+            </div>
             <div className="text-lg font-semibold">
               {formatUsd(totalQuotaUsd)}
             </div>
           </div>
           <div>
-            <div className="text-xs text-muted-foreground">Requests</div>
+            <div className="text-xs text-muted-foreground">
+              {t("codego.trends.requests", "Requests")}
+            </div>
             <div className="text-lg font-semibold">
               {chartData.reduce((sum, item) => sum + item.requests, 0)}
             </div>
           </div>
           <div>
-            <div className="text-xs text-muted-foreground">Tokens</div>
+            <div className="text-xs text-muted-foreground">
+              {t("codego.trends.tokens", "Tokens")}
+            </div>
             <div className="text-lg font-semibold">
               {chartData.reduce((sum, item) => sum + item.token_used, 0)}
             </div>
@@ -147,7 +160,7 @@ export function CodeGoUsageTrendCard({ enabled }: CodeGoUsageTrendCardProps) {
                 />
                 <Tooltip
                   formatter={(value: number, name: string) => {
-                    if (name === "Quota") {
+                    if (name === t("codego.trends.chartQuota", "Quota")) {
                       return [formatUsd(value), name];
                     }
                     return [value, name];
@@ -157,7 +170,7 @@ export function CodeGoUsageTrendCard({ enabled }: CodeGoUsageTrendCardProps) {
                   yAxisId="requests"
                   type="monotone"
                   dataKey="requests"
-                  name="Requests"
+                  name={t("codego.trends.requests", "Requests")}
                   stroke="#3b82f6"
                   fill="url(#codegoRequests)"
                   strokeWidth={2}
@@ -166,7 +179,7 @@ export function CodeGoUsageTrendCard({ enabled }: CodeGoUsageTrendCardProps) {
                   yAxisId="usd"
                   type="monotone"
                   dataKey="quota_usd"
-                  name="Quota"
+                  name={t("codego.trends.chartQuota", "Quota")}
                   stroke="#f97316"
                   fill="url(#codegoQuotaUsd)"
                   strokeWidth={2}
@@ -175,7 +188,7 @@ export function CodeGoUsageTrendCard({ enabled }: CodeGoUsageTrendCardProps) {
             </ResponsiveContainer>
           ) : (
             <div className="flex h-full items-center justify-center rounded-lg border border-border bg-muted/20 text-sm text-muted-foreground">
-              No recent trend data yet.
+              {t("codego.trends.empty", "No recent trend data yet.")}
             </div>
           )}
         </div>

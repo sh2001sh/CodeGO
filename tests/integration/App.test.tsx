@@ -476,10 +476,10 @@ describe("App integration with MSW", () => {
     renderApp(App);
 
     await waitFor(() =>
-      expect(screen.getByRole("tab", { name: "Tokens" })).toBeInTheDocument(),
+      expect(screen.getByRole("button", { name: /Tokens/ })).toBeInTheDocument(),
     );
 
-    fireEvent.mouseDown(screen.getByRole("tab", { name: "Tokens" }));
+    fireEvent.click(screen.getByRole("button", { name: /Tokens/ }));
 
     await waitFor(() =>
       expect(screen.getByText("Token management")).toBeInTheDocument(),
@@ -516,7 +516,7 @@ describe("App integration with MSW", () => {
       expect(navigator.clipboard.writeText).toHaveBeenCalled(),
     );
 
-    fireEvent.mouseDown(screen.getByRole("tab", { name: "Logs" }));
+    fireEvent.click(screen.getByRole("button", { name: /Logs/ }));
 
     await waitFor(() =>
       expect(screen.getByText("Usage logs")).toBeInTheDocument(),

@@ -27,6 +27,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useTranslation } from "react-i18next";
 import { normalizeCodeGoBrand, type ToolType } from "./codegoShared";
 
 const TOOL_ORDER: ToolType[] = [
@@ -50,6 +51,7 @@ interface CodeGoToolConfigPanelProps {
 }
 
 export function CodeGoToolConfigPanel({ enabled }: CodeGoToolConfigPanelProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [previewTool, setPreviewTool] = useState<ToolType | null>(null);
 
@@ -84,7 +86,11 @@ export function CodeGoToolConfigPanel({ enabled }: CodeGoToolConfigPanelProps) {
     },
     onError: (error) => {
       toast.error(
-        extractErrorMessage(error) || "Failed to apply the codego tool config",
+        extractErrorMessage(error) ||
+          t(
+            "codego.tools.applyFailed",
+            "Failed to apply the codego tool config",
+          ),
       );
     },
   });
@@ -106,7 +112,10 @@ export function CodeGoToolConfigPanel({ enabled }: CodeGoToolConfigPanelProps) {
     onError: (error) => {
       toast.error(
         extractErrorMessage(error) ||
-          "Failed to restore the previous tool config",
+          t(
+            "codego.tools.restoreFailed",
+            "Failed to restore the previous tool config",
+          ),
       );
     },
   });
@@ -145,7 +154,9 @@ export function CodeGoToolConfigPanel({ enabled }: CodeGoToolConfigPanelProps) {
       <Card className="border-border/70 bg-card/90">
         <CardHeader className="flex flex-row items-center justify-between gap-4">
           <div>
-            <CardTitle className="text-base">Tool configuration</CardTitle>
+            <CardTitle className="text-base">
+              {t("codego.tools.title", "Tool configuration")}
+            </CardTitle>
           </div>
           <Button
             variant="outline"
@@ -158,7 +169,7 @@ export function CodeGoToolConfigPanel({ enabled }: CodeGoToolConfigPanelProps) {
             ) : (
               <RefreshCw className="h-4 w-4" />
             )}
-            Refresh
+            {t("common.refresh", "Refresh")}
           </Button>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -197,15 +208,17 @@ export function CodeGoToolConfigPanel({ enabled }: CodeGoToolConfigPanelProps) {
                         }
                       >
                         {tone === "conflict"
-                          ? "Conflict detected"
+                          ? t("codego.tools.conflictDetected", "Conflict detected")
                           : tone === "ready"
-                            ? "codego active"
+                            ? t("codego.tools.active", "codego active")
                             : tone === "detected"
-                              ? "Config detected"
-                              : "Not configured"}
+                              ? t("codego.tools.configDetected", "Config detected")
+                              : t("codego.tools.notConfigured", "Not configured")}
                       </Badge>
                       {status.hasBackup && (
-                        <Badge variant="outline">Backup ready</Badge>
+                        <Badge variant="outline">
+                          {t("codego.tools.backupReady", "Backup ready")}
+                        </Badge>
                       )}
                     </div>
                     <div className="text-xs text-muted-foreground">
@@ -213,8 +226,14 @@ export function CodeGoToolConfigPanel({ enabled }: CodeGoToolConfigPanelProps) {
                     </div>
                     <div className="text-sm text-muted-foreground">
                       {status.currentProviderName
-                        ? `Current provider: ${status.currentProviderName}`
-                        : "No provider selected in codego"}
+                        ? t("codego.tools.currentProvider", {
+                            name: status.currentProviderName,
+                            defaultValue: `Current provider: ${status.currentProviderName}`,
+                          })
+                        : t(
+                            "codego.tools.noProviderSelected",
+                            "No provider selected in codego",
+                          )}
                     </div>
                     {status.conflictReason && (
                       <div className="rounded-md border border-rose-500/20 bg-rose-500/5 px-3 py-2 text-xs text-rose-700">
@@ -224,13 +243,13 @@ export function CodeGoToolConfigPanel({ enabled }: CodeGoToolConfigPanelProps) {
                     <div className="space-y-1 text-xs text-muted-foreground">
                       <div>
                         <span className="font-medium text-foreground">
-                          After apply:
+                          {t("codego.tools.afterApply", "After apply")}:
                         </span>{" "}
                         {status.restartHint}
                       </div>
                       <div>
                         <span className="font-medium text-foreground">
-                          Verify:
+                          {t("codego.tools.verify", "Verify")}:
                         </span>{" "}
                         {status.verifyHint}
                       </div>
@@ -244,7 +263,7 @@ export function CodeGoToolConfigPanel({ enabled }: CodeGoToolConfigPanelProps) {
                       onClick={() => setPreviewTool(status.tool as ToolType)}
                     >
                       <ClipboardCheck className="h-4 w-4" />
-                      Preview
+                      {t("codego.tools.preview", "Preview")}
                     </Button>
                     <Button
                       variant="outline"
@@ -254,7 +273,7 @@ export function CodeGoToolConfigPanel({ enabled }: CodeGoToolConfigPanelProps) {
                       }
                     >
                       <FolderOpen className="h-4 w-4" />
-                      Folder
+                      {t("codego.tools.folder", "Folder")}
                     </Button>
                     <Button
                       variant="outline"
@@ -269,7 +288,7 @@ export function CodeGoToolConfigPanel({ enabled }: CodeGoToolConfigPanelProps) {
                       ) : (
                         <RotateCcw className="h-4 w-4" />
                       )}
-                      Restore
+                      {t("codego.tools.restore", "Restore")}
                     </Button>
                     <Button
                       variant="outline"
@@ -284,7 +303,7 @@ export function CodeGoToolConfigPanel({ enabled }: CodeGoToolConfigPanelProps) {
                       ) : (
                         <Wrench className="h-4 w-4" />
                       )}
-                      Test
+                      {t("codego.tools.test", "Test")}
                     </Button>
                     <Button
                       className="h-8 gap-2"
@@ -298,7 +317,7 @@ export function CodeGoToolConfigPanel({ enabled }: CodeGoToolConfigPanelProps) {
                       ) : (
                         <CheckCircle2 className="h-4 w-4" />
                       )}
-                      Apply
+                      {t("codego.tools.apply", "Apply")}
                     </Button>
                   </div>
                 </div>
@@ -309,10 +328,15 @@ export function CodeGoToolConfigPanel({ enabled }: CodeGoToolConfigPanelProps) {
           {statusQuery.error && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Tool status failed</AlertTitle>
+              <AlertTitle>
+                {t("codego.tools.statusFailed", "Tool status failed")}
+              </AlertTitle>
               <AlertDescription>
                 {extractErrorMessage(statusQuery.error) ||
-                  "Failed to inspect local tool configuration."}
+                  t(
+                    "codego.tools.inspectFailed",
+                    "Failed to inspect local tool configuration.",
+                  )}
               </AlertDescription>
             </Alert>
           )}
@@ -328,27 +352,35 @@ export function CodeGoToolConfigPanel({ enabled }: CodeGoToolConfigPanelProps) {
         <DialogContent className="max-w-5xl">
           <DialogHeader>
             <DialogTitle>
-              {previewQuery.data?.label || "Tool"} codego preview
+              {previewQuery.data?.label || t("codego.tools.tool", "Tool")}{" "}
+              {t("codego.tools.previewDialogTitle", "codego preview")}
             </DialogTitle>
             <DialogDescription>
-              Review the current local config and the codego version before
-              applying changes.
+              {t(
+                "codego.tools.previewDialogDescription",
+                "Review the current local config and the codego version before applying changes.",
+              )}
             </DialogDescription>
           </DialogHeader>
 
           {previewQuery.error ? (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Preview failed</AlertTitle>
+              <AlertTitle>
+                {t("codego.tools.previewFailed", "Preview failed")}
+              </AlertTitle>
               <AlertDescription>
                 {extractErrorMessage(previewQuery.error) ||
-                  "Failed to build the preview."}
+                  t(
+                    "codego.tools.previewBuildFailed",
+                    "Failed to build the preview.",
+                  )}
               </AlertDescription>
             </Alert>
           ) : previewQuery.isLoading ? (
             <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Loading preview
+              {t("codego.tools.loadingPreview", "Loading preview")}
             </div>
           ) : previewQuery.data ? (
             <div className="space-y-4">
@@ -364,14 +396,14 @@ export function CodeGoToolConfigPanel({ enabled }: CodeGoToolConfigPanelProps) {
                   }
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
-                  Endpoint
+                  {t("codego.tools.endpoint", "Endpoint")}
                 </Button>
               </div>
 
               <div className="grid gap-4 lg:grid-cols-2">
                 <div className="space-y-2">
                   <div className="text-sm font-medium">
-                    Current local config
+                    {t("codego.tools.currentLocalConfig", "Current local config")}
                   </div>
                   <ScrollArea className="h-80 rounded-lg border border-border bg-muted/20">
                     <pre className="p-4 text-xs leading-5 text-foreground whitespace-pre-wrap break-all">
@@ -380,7 +412,9 @@ export function CodeGoToolConfigPanel({ enabled }: CodeGoToolConfigPanelProps) {
                   </ScrollArea>
                 </div>
                 <div className="space-y-2">
-                  <div className="text-sm font-medium">codego config</div>
+                  <div className="text-sm font-medium">
+                    {t("codego.tools.codegoConfig", "codego config")}
+                  </div>
                   <ScrollArea className="h-80 rounded-lg border border-border bg-muted/20">
                     <pre className="p-4 text-xs leading-5 text-foreground whitespace-pre-wrap break-all">
                       {previewQuery.data.nextPreview}
@@ -393,7 +427,7 @@ export function CodeGoToolConfigPanel({ enabled }: CodeGoToolConfigPanelProps) {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setPreviewTool(null)}>
-              Close
+              {t("common.close", "Close")}
             </Button>
           </DialogFooter>
         </DialogContent>

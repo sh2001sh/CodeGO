@@ -12,6 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useTranslation } from "react-i18next";
 
 export interface CodeGoTokenFormState {
   id?: number;
@@ -44,43 +45,58 @@ export function CodeGoTokenFormDialog({
   onChange,
   onSubmit,
 }: CodeGoTokenFormDialogProps) {
+  const { t } = useTranslation();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>
-            {formState.id ? "Edit token" : "Create token"}
+            {formState.id
+              ? t("codego.tokens.editTitle", "Edit token")
+              : t("codego.tokens.createTitle", "Create token")}
           </DialogTitle>
           <DialogDescription>
-            Configure the token name, expiry, quota, and optional model
-            restrictions before saving it to your codego account.
+            {t(
+              "codego.tokens.formDescription",
+              "Configure the token name, expiry, quota, and optional model restrictions before saving it to your codego account.",
+            )}
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 px-6 py-5 sm:grid-cols-2">
           <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="codego-token-name">Name</Label>
+            <Label htmlFor="codego-token-name">
+              {t("codego.tokens.name", "Name")}
+            </Label>
             <Input
               id="codego-token-name"
               value={formState.name}
               onChange={(event) =>
                 onChange((value) => ({ ...value, name: event.target.value }))
               }
-              placeholder="codego codex workstation"
+              placeholder={t(
+                "codego.tokens.namePlaceholder",
+                "codego codex workstation",
+              )}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="codego-token-group">Group</Label>
+            <Label htmlFor="codego-token-group">
+              {t("codego.tokens.group", "Group")}
+            </Label>
             <Input
               id="codego-token-group"
               value={formState.group}
               onChange={(event) =>
                 onChange((value) => ({ ...value, group: event.target.value }))
               }
-              placeholder="default"
+              placeholder={t("codego.tokens.groupPlaceholder", "default")}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="codego-token-expiry">Expires at</Label>
+            <Label htmlFor="codego-token-expiry">
+              {t("codego.tokens.expiresAt", "Expires at")}
+            </Label>
             <Input
               id="codego-token-expiry"
               type="datetime-local"
@@ -94,7 +110,9 @@ export function CodeGoTokenFormDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="codego-token-quota">Remaining quota</Label>
+            <Label htmlFor="codego-token-quota">
+              {t("codego.tokens.remainingQuota", "Remaining quota")}
+            </Label>
             <Input
               id="codego-token-quota"
               value={formState.remain_quota}
@@ -106,7 +124,7 @@ export function CodeGoTokenFormDialog({
               }
               disabled={formState.unlimited_quota}
               inputMode="numeric"
-              placeholder="0"
+              placeholder={t("codego.tokens.zeroPlaceholder", "0")}
             />
           </div>
           <div className="flex items-center gap-2 pt-7">
@@ -120,7 +138,9 @@ export function CodeGoTokenFormDialog({
                 }))
               }
             />
-            <Label htmlFor="codego-token-unlimited">Unlimited quota</Label>
+            <Label htmlFor="codego-token-unlimited">
+              {t("codego.tokens.unlimitedQuota", "Unlimited quota")}
+            </Label>
           </div>
           <div className="flex items-center gap-2 sm:col-span-2">
             <Checkbox
@@ -134,11 +154,16 @@ export function CodeGoTokenFormDialog({
               }
             />
             <Label htmlFor="codego-token-model-limits-enabled">
-              Restrict available models
+              {t(
+                "codego.tokens.restrictModels",
+                "Restrict available models",
+              )}
             </Label>
           </div>
           <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="codego-token-model-limits">Model limits</Label>
+            <Label htmlFor="codego-token-model-limits">
+              {t("codego.tokens.modelLimits", "Model limits")}
+            </Label>
             <Textarea
               id="codego-token-model-limits"
               value={formState.model_limits}
@@ -149,31 +174,38 @@ export function CodeGoTokenFormDialog({
                 }))
               }
               disabled={!formState.model_limits_enabled}
-              placeholder="gpt-5.5,claude-sonnet-4"
+              placeholder={t(
+                "codego.tokens.modelLimitsPlaceholder",
+                "gpt-5.5,claude-sonnet-4",
+              )}
               className="min-h-[96px]"
             />
             <p className="text-xs text-muted-foreground">
-              Use the same comma-separated model format as the website token
-              settings.
+              {t(
+                "codego.tokens.modelLimitsHint",
+                "Use the same comma-separated model format as the website token settings.",
+              )}
             </p>
           </div>
         </div>
         <DialogFooter>
           <div className="mr-auto flex items-start gap-2 text-xs text-muted-foreground">
             <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
-            Full keys remain masked in the list and are only fetched when you
-            explicitly copy one.
+            {t(
+              "codego.tokens.maskedHint",
+              "Full keys remain masked in the list and are only fetched when you explicitly copy one.",
+            )}
           </div>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t("common.cancel", "Cancel")}
           </Button>
           <Button onClick={onSubmit} disabled={saving}>
             {saving ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : formState.id ? (
-              "Save token"
+              t("codego.tokens.saveToken", "Save token")
             ) : (
-              "Create token"
+              t("codego.tokens.createToken", "Create token")
             )}
           </Button>
         </DialogFooter>

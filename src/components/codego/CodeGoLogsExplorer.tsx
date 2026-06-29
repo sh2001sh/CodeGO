@@ -33,6 +33,7 @@ import type {
   CodeGoUsageLogItem,
   CodeGoUsageLogsQuery,
 } from "@/lib/api/codego";
+import { useTranslation } from "react-i18next";
 import { formatDateTime } from "./codegoShared";
 
 type LogTypeFilter = "all" | "1" | "2" | "3";
@@ -53,20 +54,26 @@ function toTimestamp(value: string, endOfWindow = false) {
   return Math.floor(date.getTime() / 1000);
 }
 
-function typeLabel(type?: number) {
+function typeLabel(type: number | undefined, t: (key: string, fallback: string) => string) {
   switch (type) {
     case 1:
-      return "Completion";
+      return t("codego.logs.types.completion", "Completion");
     case 2:
-      return "Embedding";
+      return t("codego.logs.types.embedding", "Embedding");
     case 3:
-      return "Moderation";
+      return t("codego.logs.types.moderation", "Moderation");
     default:
-      return type ? `Type ${type}` : "Unknown";
+      return type
+        ? t("codego.logs.types.generic", `Type ${type}`).replace(
+            "{{type}}",
+            String(type),
+          )
+        : t("common.unknown", "Unknown");
   }
 }
 
 export function CodeGoLogsExplorer({ enabled }: CodeGoLogsExplorerProps) {
+  const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const [tokenName, setTokenName] = useState("");
   const [modelName, setModelName] = useState("");
@@ -120,10 +127,14 @@ export function CodeGoLogsExplorer({ enabled }: CodeGoLogsExplorerProps) {
       <Card className="border-border/70 bg-card/90">
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div className="space-y-1">
-            <CardTitle className="text-base">Usage logs</CardTitle>
+            <CardTitle className="text-base">
+              {t("codego.logs.title", "Usage logs")}
+            </CardTitle>
             <p className="text-sm text-muted-foreground">
-              Filter by model, token, request, and time range before drilling
-              into the individual request record.
+              {t(
+                "codego.logs.description",
+                "Filter by model, token, request, and time range before drilling into the individual request record.",
+              )}
             </p>
           </div>
           <Button
@@ -132,13 +143,15 @@ export function CodeGoLogsExplorer({ enabled }: CodeGoLogsExplorerProps) {
             onClick={() => void logsQuery.refetch()}
           >
             <RefreshCw className="h-4 w-4" />
-            Refresh
+            {t("common.refresh", "Refresh")}
           </Button>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
             <div className="space-y-2">
-              <Label htmlFor="codego-log-model">Model</Label>
+              <Label htmlFor="codego-log-model">
+                {t("codego.logs.model", "Model")}
+              </Label>
               <Input
                 id="codego-log-model"
                 value={modelName}
@@ -146,11 +159,13 @@ export function CodeGoLogsExplorer({ enabled }: CodeGoLogsExplorerProps) {
                   setPage(1);
                   setModelName(event.target.value);
                 }}
-                placeholder="gpt-5.5"
+                placeholder={t("codego.logs.modelPlaceholder", "gpt-5.5")}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="codego-log-token">Token</Label>
+              <Label htmlFor="codego-log-token">
+                {t("codego.logs.token", "Token")}
+              </Label>
               <Input
                 id="codego-log-token"
                 value={tokenName}
@@ -158,11 +173,16 @@ export function CodeGoLogsExplorer({ enabled }: CodeGoLogsExplorerProps) {
                   setPage(1);
                   setTokenName(event.target.value);
                 }}
-                placeholder="Desktop token"
+                placeholder={t(
+                  "codego.logs.tokenPlaceholder",
+                  "Desktop token",
+                )}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="codego-log-request">Request ID</Label>
+              <Label htmlFor="codego-log-request">
+                {t("codego.logs.requestId", "Request ID")}
+              </Label>
               <Input
                 id="codego-log-request"
                 value={requestId}
@@ -170,11 +190,13 @@ export function CodeGoLogsExplorer({ enabled }: CodeGoLogsExplorerProps) {
                   setPage(1);
                   setRequestId(event.target.value);
                 }}
-                placeholder="req_..."
+                placeholder={t("codego.logs.requestIdPlaceholder", "req_...")}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="codego-log-start">Start date</Label>
+              <Label htmlFor="codego-log-start">
+                {t("codego.logs.startDate", "Start date")}
+              </Label>
               <Input
                 id="codego-log-start"
                 type="date"
@@ -186,7 +208,9 @@ export function CodeGoLogsExplorer({ enabled }: CodeGoLogsExplorerProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="codego-log-end">End date</Label>
+              <Label htmlFor="codego-log-end">
+                {t("codego.logs.endDate", "End date")}
+              </Label>
               <Input
                 id="codego-log-end"
                 type="date"
@@ -198,7 +222,9 @@ export function CodeGoLogsExplorer({ enabled }: CodeGoLogsExplorerProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="codego-log-type">Type</Label>
+              <Label htmlFor="codego-log-type">
+                {t("codego.logs.type", "Type")}
+              </Label>
               <Select
                 value={typeFilter}
                 onValueChange={(value: LogTypeFilter) => {
@@ -207,13 +233,23 @@ export function CodeGoLogsExplorer({ enabled }: CodeGoLogsExplorerProps) {
                 }}
               >
                 <SelectTrigger id="codego-log-type">
-                  <SelectValue placeholder="All types" />
+                  <SelectValue
+                    placeholder={t("codego.logs.allTypes", "All types")}
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All types</SelectItem>
-                  <SelectItem value="1">Completion</SelectItem>
-                  <SelectItem value="2">Embedding</SelectItem>
-                  <SelectItem value="3">Moderation</SelectItem>
+                  <SelectItem value="all">
+                    {t("codego.logs.allTypes", "All types")}
+                  </SelectItem>
+                  <SelectItem value="1">
+                    {t("codego.logs.types.completion", "Completion")}
+                  </SelectItem>
+                  <SelectItem value="2">
+                    {t("codego.logs.types.embedding", "Embedding")}
+                  </SelectItem>
+                  <SelectItem value="3">
+                    {t("codego.logs.types.moderation", "Moderation")}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -222,39 +258,48 @@ export function CodeGoLogsExplorer({ enabled }: CodeGoLogsExplorerProps) {
           <div className="flex items-center justify-between gap-3">
             <div className="text-sm text-muted-foreground">
               {logsPage
-                ? `${logsPage.total} matching requests`
-                : "Waiting for data"}
+                ? t("codego.logs.matching", {
+                    count: logsPage.total,
+                    defaultValue: `${logsPage.total} matching requests`,
+                  })
+                : t("codego.logs.waiting", "Waiting for data")}
             </div>
             <Button variant="outline" className="h-8" onClick={resetFilters}>
-              Reset filters
+              {t("codego.logs.resetFilters", "Reset filters")}
             </Button>
           </div>
 
           {logsQuery.isError ? (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Failed to load logs</AlertTitle>
+              <AlertTitle>
+                {t("codego.logs.loadFailedTitle", "Failed to load logs")}
+              </AlertTitle>
               <AlertDescription>
-                {errorMessage || "Unable to read usage logs from codego."}
+                {errorMessage ||
+                  t(
+                    "codego.logs.loadFailedDescription",
+                    "Unable to read usage logs from codego.",
+                  )}
               </AlertDescription>
             </Alert>
           ) : logsQuery.isLoading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Loading logs
+              {t("codego.logs.loading", "Loading logs")}
             </div>
           ) : logsPage?.items?.length ? (
             <>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Time</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Model</TableHead>
-                    <TableHead>Token</TableHead>
-                    <TableHead>Quota</TableHead>
+                    <TableHead>{t("codego.logs.time", "Time")}</TableHead>
+                    <TableHead>{t("codego.logs.type", "Type")}</TableHead>
+                    <TableHead>{t("codego.logs.model", "Model")}</TableHead>
+                    <TableHead>{t("codego.logs.token", "Token")}</TableHead>
+                    <TableHead>{t("codego.logs.quota", "Quota")}</TableHead>
                     <TableHead className="w-[120px] text-right">
-                      Detail
+                      {t("codego.logs.detail", "Detail")}
                     </TableHead>
                   </TableRow>
                 </TableHeader>
@@ -262,7 +307,7 @@ export function CodeGoLogsExplorer({ enabled }: CodeGoLogsExplorerProps) {
                   {logsPage.items.map((item) => (
                     <TableRow key={`${item.id}-${item.created_at}`}>
                       <TableCell>{formatDateTime(item.created_at)}</TableCell>
-                      <TableCell>{typeLabel(item.type)}</TableCell>
+                      <TableCell>{typeLabel(item.type, t)}</TableCell>
                       <TableCell>{item.model_name || "-"}</TableCell>
                       <TableCell>{item.token_name || "-"}</TableCell>
                       <TableCell>{item.quota ?? 0}</TableCell>
@@ -274,7 +319,7 @@ export function CodeGoLogsExplorer({ enabled }: CodeGoLogsExplorerProps) {
                             className="h-8 gap-1.5"
                             onClick={() => setSelectedLog(item)}
                           >
-                            Inspect
+                            {t("codego.logs.inspect", "Inspect")}
                             <ChevronRight className="h-3.5 w-3.5" />
                           </Button>
                         </div>
@@ -286,7 +331,11 @@ export function CodeGoLogsExplorer({ enabled }: CodeGoLogsExplorerProps) {
 
               <div className="flex items-center justify-between gap-3">
                 <div className="text-sm text-muted-foreground">
-                  Page {page} of {totalPages}
+                  {t("codego.logs.pagination", {
+                    page,
+                    total: totalPages,
+                    defaultValue: `Page ${page} of ${totalPages}`,
+                  })}
                 </div>
                 <div className="flex gap-2">
                   <Button
@@ -295,7 +344,7 @@ export function CodeGoLogsExplorer({ enabled }: CodeGoLogsExplorerProps) {
                     disabled={page <= 1}
                     onClick={() => setPage((value) => Math.max(1, value - 1))}
                   >
-                    Previous
+                    {t("codego.logs.previous", "Previous")}
                   </Button>
                   <Button
                     variant="outline"
@@ -303,14 +352,17 @@ export function CodeGoLogsExplorer({ enabled }: CodeGoLogsExplorerProps) {
                     disabled={page >= totalPages}
                     onClick={() => setPage((value) => value + 1)}
                   >
-                    Next
+                    {t("codego.logs.next", "Next")}
                   </Button>
                 </div>
               </div>
             </>
           ) : (
             <div className="rounded-lg border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
-              No requests matched the current filters.
+              {t(
+                "codego.logs.empty",
+                "No requests matched the current filters.",
+              )}
             </div>
           )}
         </CardContent>
@@ -322,51 +374,65 @@ export function CodeGoLogsExplorer({ enabled }: CodeGoLogsExplorerProps) {
       >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Request detail</DialogTitle>
+            <DialogTitle>{t("codego.logs.requestDetail", "Request detail")}</DialogTitle>
             <DialogDescription>
-              Review the selected request record, including identifiers, token
-              usage, and the recorded content summary.
+              {t(
+                "codego.logs.requestDetailDescription",
+                "Review the selected request record, including identifiers, token usage, and the recorded content summary.",
+              )}
             </DialogDescription>
           </DialogHeader>
           {selectedLog ? (
             <div className="grid gap-4 px-6 py-5 sm:grid-cols-2">
               <div>
-                <div className="text-xs text-muted-foreground">Created</div>
+                <div className="text-xs text-muted-foreground">
+                  {t("codego.logs.created", "Created")}
+                </div>
                 <div className="mt-1 text-sm">
                   {formatDateTime(selectedLog.created_at)}
                 </div>
               </div>
               <div>
-                <div className="text-xs text-muted-foreground">Type</div>
+                <div className="text-xs text-muted-foreground">
+                  {t("codego.logs.type", "Type")}
+                </div>
                 <div className="mt-1 text-sm">
-                  {typeLabel(selectedLog.type)}
+                  {typeLabel(selectedLog.type, t)}
                 </div>
               </div>
               <div>
-                <div className="text-xs text-muted-foreground">Model</div>
+                <div className="text-xs text-muted-foreground">
+                  {t("codego.logs.model", "Model")}
+                </div>
                 <div className="mt-1 text-sm">
                   {selectedLog.model_name || "-"}
                 </div>
               </div>
               <div>
-                <div className="text-xs text-muted-foreground">Token</div>
+                <div className="text-xs text-muted-foreground">
+                  {t("codego.logs.token", "Token")}
+                </div>
                 <div className="mt-1 text-sm">
                   {selectedLog.token_name || "-"}
                 </div>
               </div>
               <div>
-                <div className="text-xs text-muted-foreground">Quota</div>
+                <div className="text-xs text-muted-foreground">
+                  {t("codego.logs.quota", "Quota")}
+                </div>
                 <div className="mt-1 text-sm">{selectedLog.quota ?? 0}</div>
               </div>
               <div>
-                <div className="text-xs text-muted-foreground">Latency</div>
+                <div className="text-xs text-muted-foreground">
+                  {t("codego.logs.latency", "Latency")}
+                </div>
                 <div className="mt-1 text-sm">
                   {selectedLog.use_time ? `${selectedLog.use_time} ms` : "-"}
                 </div>
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">
-                  Prompt tokens
+                  {t("codego.logs.promptTokens", "Prompt tokens")}
                 </div>
                 <div className="mt-1 text-sm">
                   {selectedLog.prompt_tokens ?? "-"}
@@ -374,28 +440,32 @@ export function CodeGoLogsExplorer({ enabled }: CodeGoLogsExplorerProps) {
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">
-                  Completion tokens
+                  {t("codego.logs.completionTokens", "Completion tokens")}
                 </div>
                 <div className="mt-1 text-sm">
                   {selectedLog.completion_tokens ?? "-"}
                 </div>
               </div>
               <div className="sm:col-span-2">
-                <div className="text-xs text-muted-foreground">Request ID</div>
+                <div className="text-xs text-muted-foreground">
+                  {t("codego.logs.requestId", "Request ID")}
+                </div>
                 <div className="mt-1 break-all font-mono text-xs">
                   {selectedLog.request_id || "-"}
                 </div>
               </div>
               <div className="sm:col-span-2">
                 <div className="text-xs text-muted-foreground">
-                  Upstream request ID
+                  {t("codego.logs.upstreamRequestId", "Upstream request ID")}
                 </div>
                 <div className="mt-1 break-all font-mono text-xs">
                   {selectedLog.upstream_request_id || "-"}
                 </div>
               </div>
               <div className="sm:col-span-2">
-                <div className="text-xs text-muted-foreground">Content</div>
+                <div className="text-xs text-muted-foreground">
+                  {t("codego.logs.content", "Content")}
+                </div>
                 <div className="mt-1 rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
                   {selectedLog.content || "-"}
                 </div>
@@ -404,7 +474,7 @@ export function CodeGoLogsExplorer({ enabled }: CodeGoLogsExplorerProps) {
           ) : null}
           <DialogFooter>
             <Button variant="outline" onClick={() => setSelectedLog(null)}>
-              Close
+              {t("common.close", "Close")}
             </Button>
           </DialogFooter>
         </DialogContent>

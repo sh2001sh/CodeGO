@@ -94,10 +94,10 @@ export function CodeGoDesktopAuthView({
   ] as const;
 
   return (
-    <section className="grid gap-5 xl:grid-cols-[1.08fr_0.92fr]">
+    <section className="grid gap-5 xl:grid-cols-[1.02fr_0.98fr]">
       <div className="codego-shell overflow-hidden">
         <div className="grid lg:grid-cols-[1.08fr_0.92fr]">
-          <div className="codego-grid border-b border-white/50 bg-[linear-gradient(135deg,rgba(255,255,255,0.9),rgba(255,248,239,0.92),rgba(242,247,255,0.9))] px-6 py-6 dark:border-white/10 dark:bg-[linear-gradient(135deg,rgba(255,255,255,0.03),rgba(240,103,56,0.06),rgba(70,127,242,0.08))] lg:border-b-0 lg:border-r">
+          <div className="codego-grid border-b border-white/50 px-6 py-6 dark:border-white/10 lg:border-b-0 lg:border-r">
             <div className="flex items-start gap-4">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/70 bg-white/80 dark:border-white/10 dark:bg-white/[0.06]">
                 <CodeGoMark size={40} className="h-10 w-10" />
@@ -160,7 +160,7 @@ export function CodeGoDesktopAuthView({
             </div>
           </div>
 
-          <div className="bg-[linear-gradient(180deg,rgba(255,255,255,0.52),rgba(255,255,255,0.18))] px-6 py-6 dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01))]">
+          <div className="bg-white/46 px-6 py-6 dark:bg-white/[0.015]">
             <div className="text-sm font-semibold text-foreground">
               {t("codego.auth.setupFlow", "Setup flow")}
             </div>

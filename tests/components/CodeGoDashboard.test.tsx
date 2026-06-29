@@ -321,7 +321,7 @@ describe("CodeGoDashboard", () => {
         screen.getByRole("heading", { name: "Demo User" }),
       ).toBeInTheDocument(),
     );
-    expect(screen.getByText("Diagnostics")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Diagnostics/ }));
 
     await waitFor(() =>
       expect(screen.getByText("Crash report captured")).toBeInTheDocument(),
@@ -489,9 +489,14 @@ describe("CodeGoDashboard", () => {
     expect(screen.getByText("Last 7 days")).toBeInTheDocument();
     expect(screen.getByText("$14.25")).toBeInTheDocument();
     expect(screen.getAllByText("Last request").length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole("button", { name: /Devices/ }));
+
+    await waitFor(() =>
+      expect(screen.getByText("Authorized devices")).toBeInTheDocument(),
+    );
     expect(screen.getByText("Authorized devices")).toBeInTheDocument();
-    expect(screen.getAllByText("codego desktop").length).toBeGreaterThan(0);
-    expect(screen.getByText("MacBook Pro")).toBeInTheDocument();
+    expect(screen.getAllByText(/codego desktop/i).length).toBeGreaterThan(0);
   });
 
   it("renders the service maintenance state when the backend marks maintenance", async () => {
@@ -701,6 +706,12 @@ describe("CodeGoDashboard", () => {
     renderDashboard();
 
     await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { name: "Demo User" }),
+      ).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Devices/ }));
+    await waitFor(() =>
       expect(screen.getByText("Authorized devices")).toBeInTheDocument(),
     );
 
@@ -772,6 +783,12 @@ describe("CodeGoDashboard", () => {
     renderDashboard();
 
     await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { name: "Demo User" }),
+      ).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Devices/ }));
+    await waitFor(() =>
       expect(screen.getByText("Authorized devices")).toBeInTheDocument(),
     );
 
@@ -820,6 +837,12 @@ describe("CodeGoDashboard", () => {
 
     renderDashboard();
 
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { name: "Demo User" }),
+      ).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Devices/ }));
     await waitFor(() =>
       expect(screen.getByText("Authorized devices")).toBeInTheDocument(),
     );

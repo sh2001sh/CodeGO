@@ -1,18 +1,22 @@
 import {
+  Activity,
   CheckCircle2,
+  FileClock,
   Info,
+  KeyRound,
+  Laptop,
   Loader2,
   LogOut,
   RefreshCw,
   ShieldAlert,
-  WandSparkles,
+  Wrench,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { CodeGoAccountSummary, CodeGoAuthState } from "@/lib/api/codego";
 import { useTranslation } from "react-i18next";
+import { cn } from "@/lib/utils";
 import { CodeGoAuthorizedDevicesCard } from "./CodeGoAuthorizedDevicesCard";
 import { CodeGoDiagnosticReportCard } from "./CodeGoDiagnosticReportCard";
 import { CodeGoDesktopTokenCard } from "./CodeGoDesktopTokenCard";
@@ -42,6 +46,14 @@ interface CodeGoAuthenticatedOverviewProps {
   onEnsureToken: () => void;
   onOpenTopUp: () => void;
 }
+
+type ConsoleSection =
+  | "overview"
+  | "tools"
+  | "tokens"
+  | "logs"
+  | "devices"
+  | "diagnostics";
 
 export function CodeGoAuthenticatedOverview({
   activeTab,
@@ -99,12 +111,241 @@ export function CodeGoAuthenticatedOverview({
     ],
   ] as const;
 
+  const navItems: Array<{
+    id: ConsoleSection;
+    icon: typeof Activity;
+    label: string;
+    description: string;
+  }> = [
+    {
+      id: "overview",
+      icon: Activity,
+      label: t("codego.console.nav.overview", "Overview"),
+      description: t(
+        "codego.console.nav.overviewDesc",
+        "额度、最近请求和服务状态",
+      ),
+    },
+    {
+      id: "tools",
+      icon: Wrench,
+      label: t("codego.console.nav.tools", "Tool setup"),
+      description: t(
+        "codego.console.nav.toolsDesc",
+        "配置 Codex、Claude Code、Gemini 等工具",
+      ),
+    },
+    {
+      id: "tokens",
+      icon: KeyRound,
+      label: t("codego.console.nav.tokens", "Tokens"),
+      description: t(
+        "codego.console.nav.tokensDesc",
+        "创建、复制和应用桌面令牌",
+      ),
+    },
+    {
+      id: "logs",
+      icon: FileClock,
+      label: t("codego.console.nav.logs", "Logs"),
+      description: t(
+        "codego.console.nav.logsDesc",
+        "按模型、令牌和请求筛选日志",
+      ),
+    },
+    {
+      id: "devices",
+      icon: Laptop,
+      label: t("codego.console.nav.devices", "Devices"),
+      description: t("codego.console.nav.devicesDesc", "查看和撤销已授权设备"),
+    },
+    {
+      id: "diagnostics",
+      icon: ShieldAlert,
+      label: t("codego.console.nav.diagnostics", "Diagnostics"),
+      description: t(
+        "codego.console.nav.diagnosticsDesc",
+        "审阅脱敏崩溃报告并上报",
+      ),
+    },
+  ];
+
+  const renderServiceStatus = () => (
+    <Card className="codego-panel shadow-none">
+      <CardHeader>
+        <CardTitle className="text-base">
+          {t("codego.overview.serviceStatus", "Service status")}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div
+          className={
+            summary?.service.maintenance
+              ? "flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/5 px-4 py-3"
+              : summary?.service.status === "ok"
+                ? "flex items-start gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3"
+                : "flex items-start gap-3 rounded-2xl border border-border bg-muted/20 px-4 py-3"
+          }
+        >
+          {summary?.service.maintenance ? (
+            <ShieldAlert className="mt-0.5 h-4 w-4 text-amber-700" />
+          ) : summary?.service.status === "ok" ? (
+            <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-600" />
+          ) : (
+            <Info className="mt-0.5 h-4 w-4 text-muted-foreground" />
+          )}
+          <div className="space-y-1">
+            <div className="text-sm font-medium capitalize">
+              {summary?.service.status || "ok"}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {summary?.service.notice ||
+                t(
+                  "codego.overview.noServiceNotice",
+                  "No active service notice.",
+                )}
+            </div>
+          </div>
+        </div>
+        {summary?.service.recommended_action ? (
+          <div
+            className={
+              summary.service.maintenance
+                ? "text-sm text-amber-700 dark:text-amber-300"
+                : "text-sm text-muted-foreground"
+            }
+          >
+            {summary.service.recommended_action}
+          </div>
+        ) : null}
+        {summary?.service.affected_scopes?.length ? (
+          <div className="flex flex-wrap gap-2">
+            {summary.service.affected_scopes.map((scope) => (
+              <Badge key={scope} variant="outline">
+                {scope}
+              </Badge>
+            ))}
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+
+  const renderModelsCard = () => (
+    <Card className="codego-panel shadow-none">
+      <CardHeader>
+        <CardTitle className="text-base">
+          {t("codego.overview.availableModels", "Available models")}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-wrap gap-2">
+          {usageModels.length > 0 ? (
+            usageModels.map((model) => (
+              <Badge key={model} variant="outline">
+                {model}
+              </Badge>
+            ))
+          ) : (
+            <span className="text-sm text-muted-foreground">
+              {t(
+                "codego.overview.noModelMetadata",
+                "No model metadata available.",
+              )}
+            </span>
+          )}
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div>
+            <div className="text-xs text-muted-foreground">
+              {t("codego.overview.today", "Today")}
+            </div>
+            <div className="text-sm font-medium">
+              {formatUsd(summary?.usage.today_usd || 0)}
+            </div>
+          </div>
+          <div>
+            <div className="text-xs text-muted-foreground">
+              {t("codego.overview.last7Days", "Last 7 days")}
+            </div>
+            <div className="text-sm font-medium">
+              {formatUsd(summary?.usage.last_7_days_usd || 0)}
+            </div>
+          </div>
+          <div className="sm:col-span-2">
+            <div className="text-xs text-muted-foreground">
+              {t("codego.overview.highlights.lastRequest", "Last request")}
+            </div>
+            <div className="text-sm font-medium">
+              {formatDateTime(summary?.usage.last_request_at)}
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  const renderSection = () => {
+    switch (activeTab as ConsoleSection) {
+      case "tools":
+        return <CodeGoToolConfigPanel enabled={isAuthenticated} />;
+      case "tokens":
+        return (
+          <CodeGoTokenManager
+            enabled={isAuthenticated}
+            desktopTokenId={summary?.tokens.desktop_token?.id}
+          />
+        );
+      case "logs":
+        return <CodeGoLogsExplorer enabled={isAuthenticated} />;
+      case "devices":
+        return (
+          <CodeGoAuthorizedDevicesCard
+            enabled={isAuthenticated}
+            currentDeviceId={authState?.deviceId}
+          />
+        );
+      case "diagnostics":
+        return <CodeGoDiagnosticReportCard enabled={isAuthenticated} />;
+      case "overview":
+      default:
+        return (
+          <div className="space-y-6">
+            <div className="grid gap-6 xl:grid-cols-[1.02fr_0.98fr]">
+              <div className="space-y-6">
+                <CodeGoDesktopTokenCard
+                  summary={summary}
+                  isEnsuringToken={isEnsuringToken}
+                  onCopyToken={onCopyToken}
+                  onEnsureToken={onEnsureToken}
+                  onManageTokens={() => onActiveTabChange("tokens")}
+                  onOpenTopUp={onOpenTopUp}
+                />
+                <CodeGoRecentUsageCard
+                  summary={summary}
+                  onOpenLogs={() => onActiveTabChange("logs")}
+                />
+              </div>
+              <div className="space-y-6">
+                <CodeGoUsageTrendCard enabled={isAuthenticated} />
+                {renderServiceStatus()}
+              </div>
+            </div>
+            <div className="grid gap-6 xl:grid-cols-[0.96fr_1.04fr]">
+              {renderModelsCard()}
+              <CodeGoToolConfigPanel enabled={isAuthenticated} />
+            </div>
+          </div>
+        );
+    }
+  };
+
   return (
     <section className="flex flex-1 flex-col px-6 pb-8">
       <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6">
         <div className="codego-shell overflow-hidden">
           <div className="grid xl:grid-cols-[1.08fr_0.92fr]">
-            <div className="border-b border-white/60 bg-[linear-gradient(135deg,rgba(255,255,255,0.88),rgba(255,248,239,0.92),rgba(245,249,255,0.88))] p-6 dark:border-white/10 dark:bg-[linear-gradient(135deg,rgba(255,255,255,0.02),rgba(240,103,56,0.05),rgba(70,127,242,0.08))] xl:border-b-0 xl:border-r">
+            <div className="border-b border-white/60 p-6 dark:border-white/10 xl:border-b-0 xl:border-r">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-4">
                   <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/70 bg-white/80 dark:border-white/10 dark:bg-white/[0.05]">
@@ -166,7 +407,7 @@ export function CodeGoAuthenticatedOverview({
                   onClick={onOpenProviders}
                   className="h-9 gap-2"
                 >
-                  <WandSparkles className="h-4 w-4" />
+                  <Wrench className="h-4 w-4" />
                   {t("codego.overview.providers", "Providers")}
                 </Button>
                 <Button
@@ -185,7 +426,7 @@ export function CodeGoAuthenticatedOverview({
               </div>
             </div>
 
-            <div className="bg-[linear-gradient(180deg,rgba(255,255,255,0.5),rgba(255,255,255,0.18))] p-6 dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01))]">
+            <div className="bg-white/44 p-6 dark:bg-white/[0.015]">
               <CodeGoSecureStorageNotice
                 status={authState?.secureStorageStatus}
                 message={authState?.secureStorageMessage}
@@ -209,180 +450,39 @@ export function CodeGoAuthenticatedOverview({
           </div>
         </div>
 
-        <Tabs
-          value={activeTab}
-          onValueChange={onActiveTabChange}
-          className="flex flex-1 flex-col gap-4"
-        >
-          <TabsList className="w-fit rounded-full border border-white/70 bg-white/70 p-1 dark:border-white/10 dark:bg-white/[0.04]">
-            <TabsTrigger value="overview">
-              {t("codego.overview.tabs.overview", "Overview")}
-            </TabsTrigger>
-            <TabsTrigger value="tokens">
-              {t("codego.overview.tabs.tokens", "Tokens")}
-            </TabsTrigger>
-            <TabsTrigger value="logs">
-              {t("codego.overview.tabs.logs", "Logs")}
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview" className="space-y-6">
-            <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-              <div className="space-y-6">
-                <CodeGoDesktopTokenCard
-                  summary={summary}
-                  isEnsuringToken={isEnsuringToken}
-                  onCopyToken={onCopyToken}
-                  onEnsureToken={onEnsureToken}
-                  onManageTokens={() => onActiveTabChange("tokens")}
-                  onOpenTopUp={onOpenTopUp}
-                />
-
-                <CodeGoRecentUsageCard
-                  summary={summary}
-                  onOpenLogs={() => onActiveTabChange("logs")}
-                />
-
-                <CodeGoAuthorizedDevicesCard
-                  enabled={isAuthenticated}
-                  currentDeviceId={authState?.deviceId}
-                />
-              </div>
-
-              <div className="space-y-6">
-                <CodeGoUsageTrendCard enabled={isAuthenticated} />
-                <CodeGoToolConfigPanel enabled={isAuthenticated} />
-
-                <Card className="codego-panel shadow-none">
-                  <CardHeader>
-                    <CardTitle className="text-base">
-                      {t("codego.overview.serviceStatus", "Service status")}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div
-                      className={
-                        summary?.service.maintenance
-                          ? "flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/5 px-4 py-3"
-                          : summary?.service.status === "ok"
-                            ? "flex items-start gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3"
-                            : "flex items-start gap-3 rounded-2xl border border-border bg-muted/20 px-4 py-3"
-                      }
-                    >
-                      {summary?.service.maintenance ? (
-                        <ShieldAlert className="mt-0.5 h-4 w-4 text-amber-700" />
-                      ) : summary?.service.status === "ok" ? (
-                        <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-600" />
-                      ) : (
-                        <Info className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                      )}
-                      <div className="space-y-1">
-                        <div className="text-sm font-medium capitalize">
-                          {summary?.service.status || "ok"}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {summary?.service.notice ||
-                            t(
-                              "codego.overview.noServiceNotice",
-                              "No active service notice.",
-                            )}
-                        </div>
-                      </div>
-                    </div>
-                    {summary?.service.recommended_action ? (
-                      <div
-                        className={
-                          summary.service.maintenance
-                            ? "text-sm text-amber-700 dark:text-amber-300"
-                            : "text-sm text-muted-foreground"
-                        }
-                      >
-                        {summary.service.recommended_action}
-                      </div>
-                    ) : null}
-                    {summary?.service.affected_scopes?.length ? (
-                      <div className="flex flex-wrap gap-2">
-                        {summary.service.affected_scopes.map((scope) => (
-                          <Badge key={scope} variant="outline">
-                            {scope}
-                          </Badge>
-                        ))}
-                      </div>
-                    ) : null}
-                  </CardContent>
-                </Card>
-
-                <CodeGoDiagnosticReportCard enabled={isAuthenticated} />
-
-                <Card className="codego-panel shadow-none">
-                  <CardHeader>
-                    <CardTitle className="text-base">
-                      {t("codego.overview.availableModels", "Available models")}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-wrap gap-2">
-                      {usageModels.length > 0 ? (
-                        usageModels.map((model) => (
-                          <Badge key={model} variant="outline">
-                            {model}
-                          </Badge>
-                        ))
-                      ) : (
-                        <span className="text-sm text-muted-foreground">
-                          {t(
-                            "codego.overview.noModelMetadata",
-                            "No model metadata available.",
-                          )}
-                        </span>
-                      )}
-                    </div>
-                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                      <div>
-                        <div className="text-xs text-muted-foreground">
-                          {t("codego.overview.today", "Today")}
-                        </div>
-                        <div className="text-sm font-medium">
-                          {formatUsd(summary?.usage.today_usd || 0)}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-muted-foreground">
-                          {t("codego.overview.last7Days", "Last 7 days")}
-                        </div>
-                        <div className="text-sm font-medium">
-                          {formatUsd(summary?.usage.last_7_days_usd || 0)}
-                        </div>
-                      </div>
-                      <div className="sm:col-span-2">
-                        <div className="text-xs text-muted-foreground">
-                          {t(
-                            "codego.overview.highlights.lastRequest",
-                            "Last request",
-                          )}
-                        </div>
-                        <div className="text-sm font-medium">
-                          {formatDateTime(summary?.usage.last_request_at)}
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+        <div className="grid flex-1 gap-6 xl:grid-cols-[260px_minmax(0,1fr)]">
+          <aside className="codego-shell h-fit p-3">
+            <div className="space-y-1.5">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const active = activeTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => onActiveTabChange(item.id)}
+                    className={cn(
+                      "codego-nav-item w-full items-start px-3.5 py-3",
+                      active && "codego-nav-item-active",
+                    )}
+                  >
+                    <Icon className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium text-foreground">
+                        {item.label}
+                      </span>
+                      <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                        {item.description}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-          </TabsContent>
+          </aside>
 
-          <TabsContent value="tokens">
-            <CodeGoTokenManager
-              enabled={isAuthenticated}
-              desktopTokenId={summary?.tokens.desktop_token?.id}
-            />
-          </TabsContent>
-
-          <TabsContent value="logs">
-            <CodeGoLogsExplorer enabled={isAuthenticated} />
-          </TabsContent>
-        </Tabs>
+          <div className="min-w-0">{renderSection()}</div>
+        </div>
       </div>
     </section>
   );

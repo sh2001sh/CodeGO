@@ -1,6 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { CodeGoAccountSummary } from "@/lib/api/codego";
+import { useTranslation } from "react-i18next";
+import { formatDateTime } from "./codegoShared";
 
 interface CodeGoRecentUsageCardProps {
   summary?: CodeGoAccountSummary;
@@ -11,14 +13,18 @@ export function CodeGoRecentUsageCard({
   summary,
   onOpenLogs,
 }: CodeGoRecentUsageCardProps) {
+  const { t } = useTranslation();
+
   return (
     <Card className="codego-panel shadow-none">
       <CardHeader className="flex flex-row items-center justify-between gap-4">
         <div>
-          <CardTitle className="text-base">Recent usage</CardTitle>
+          <CardTitle className="text-base">
+            {t("codego.recentUsage.title", "Recent usage")}
+          </CardTitle>
         </div>
         <Button variant="outline" className="h-8" onClick={onOpenLogs}>
-          Open full logs
+          {t("codego.recentUsage.openLogs", "Open full logs")}
         </Button>
       </CardHeader>
       <CardContent>
@@ -31,11 +37,13 @@ export function CodeGoRecentUsageCard({
               >
                 <div className="space-y-1">
                   <div className="text-sm font-medium">
-                    {item.model_name || "Unknown model"}
+                    {item.model_name ||
+                      t("codego.recentUsage.unknownModel", "Unknown model")}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {item.token_name || "Unknown token"} ·{" "}
-                    {new Date(item.created_at * 1000).toLocaleString()}
+                    {item.token_name ||
+                      t("codego.recentUsage.unknownToken", "Unknown token")}{" "}
+                    · {formatDateTime(item.created_at)}
                   </div>
                 </div>
                 <div className="text-sm font-medium">{item.quota ?? 0}</div>
@@ -44,7 +52,7 @@ export function CodeGoRecentUsageCard({
           </div>
         ) : (
           <div className="text-sm text-muted-foreground">
-            No recent usage logs.
+            {t("codego.recentUsage.empty", "No recent usage logs.")}
           </div>
         )}
       </CardContent>

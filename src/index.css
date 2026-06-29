@@ -86,23 +86,11 @@ body {
   @apply m-0 p-0 text-sm;
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
-  background-image:
-    radial-gradient(
-      circle at 10% 12%,
-      hsl(var(--primary) / 0.14) 0%,
-      transparent 28%
-    ),
-    radial-gradient(
-      circle at 88% 10%,
-      hsl(var(--accent) / 0.12) 0%,
-      transparent 22%
-    ),
-    linear-gradient(
-      180deg,
-      hsl(var(--background)) 0%,
-      hsl(28 28% 95%) 36%,
-      hsl(217 42% 95%) 100%
-    );
+  background-image: linear-gradient(
+    180deg,
+    hsl(var(--background)) 0%,
+    hsl(30 25% 95%) 100%
+  );
   background-attachment: fixed;
 }
 
@@ -159,31 +147,27 @@ input[type="password"]::-ms-clear {
 
 @layer components {
   .codego-shell {
-    @apply rounded-[20px] border border-white/70 backdrop-blur-sm;
-    background-color: rgb(255 255 255 / 0.8);
-    box-shadow: 0 4px 8px rgb(24 32 43 / 0.08);
+    @apply rounded-2xl border border-white/70;
+    background-color: rgb(255 255 255 / 0.88);
+    box-shadow: 0 8px 24px rgb(24 32 43 / 0.06);
   }
 
   .dark .codego-shell {
     @apply border-white/10;
-    background-color: rgb(21 25 37 / 0.88);
-    box-shadow: 0 4px 8px rgb(0 0 0 / 0.22);
+    background-color: rgb(21 25 37 / 0.94);
+    box-shadow: 0 10px 28px rgb(0 0 0 / 0.2);
   }
 
   .codego-panel {
-    @apply rounded-2xl border border-white/70 backdrop-blur-sm;
-    background-color: rgb(255 255 255 / 0.72);
-    box-shadow:
-      0 1px 0 rgb(255 255 255 / 0.65) inset,
-      0 2px 6px rgb(24 32 43 / 0.05);
+    @apply rounded-2xl border border-white/70;
+    background-color: rgb(255 255 255 / 0.8);
+    box-shadow: 0 2px 10px rgb(24 32 43 / 0.04);
   }
 
   .dark .codego-panel {
     @apply border-white/10;
-    background-color: rgb(255 255 255 / 0.04);
-    box-shadow:
-      0 1px 0 rgb(255 255 255 / 0.04) inset,
-      0 2px 6px rgb(0 0 0 / 0.16);
+    background-color: rgb(255 255 255 / 0.035);
+    box-shadow: 0 2px 10px rgb(0 0 0 / 0.12);
   }
 
   .codego-kicker {
@@ -191,50 +175,43 @@ input[type="password"]::-ms-clear {
   }
 
   .codego-grid {
-    background-image:
-      linear-gradient(to right, hsl(var(--border) / 0.4) 1px, transparent 1px),
-      linear-gradient(to bottom, hsl(var(--border) / 0.4) 1px, transparent 1px);
-    background-size: 24px 24px;
+    background-image: linear-gradient(
+      180deg,
+      hsl(var(--background) / 0.1),
+      transparent
+    );
   }
 
   .codego-sidebar-surface {
     @apply border-r border-white/70 dark:border-white/10;
-    background-color: rgb(255 255 255 / 0.58);
+    background-color: rgb(249 249 250 / 0.92);
   }
 
   .dark .codego-sidebar-surface {
-    background-color: rgb(255 255 255 / 0.03);
+    background-color: rgb(255 255 255 / 0.025);
   }
 
   .codego-toolbar-surface {
     @apply border-b border-white/70 dark:border-white/10;
-    background-color: rgb(255 255 255 / 0.44);
+    background-color: rgb(255 255 255 / 0.72);
   }
 
   .dark .codego-toolbar-surface {
-    background-color: rgb(255 255 255 / 0.02);
+    background-color: rgb(255 255 255 / 0.015);
   }
 
   .codego-nav-item {
-    @apply flex items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm text-muted-foreground transition-colors hover:bg-black/[0.03] hover:text-foreground dark:hover:bg-white/[0.04];
+    @apply flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-muted-foreground transition-colors hover:bg-black/[0.035] hover:text-foreground dark:hover:bg-white/[0.04];
   }
 
   .codego-nav-item-active {
-    background-image: linear-gradient(
-      135deg,
-      hsl(var(--primary) / 0.14),
-      hsl(var(--accent) / 0.08)
-    );
-    box-shadow: inset 0 0 0 1px hsl(var(--primary) / 0.12);
+    background-color: hsl(var(--primary) / 0.1);
+    box-shadow: inset 0 0 0 1px hsl(var(--primary) / 0.16);
     color: hsl(var(--foreground));
   }
 
   .dark .codego-nav-item-active {
-    background-image: linear-gradient(
-      135deg,
-      hsl(var(--primary) / 0.18),
-      hsl(var(--accent) / 0.12)
-    );
+    background-color: hsl(var(--primary) / 0.14);
     box-shadow: inset 0 0 0 1px hsl(var(--primary) / 0.18);
   }
 
@@ -248,12 +225,34 @@ input[type="password"]::-ms-clear {
 
   .codego-metric-card {
     @apply rounded-2xl border border-white/70 p-4 dark:border-white/10;
-    background-color: rgb(255 255 255 / 0.76);
-    box-shadow: 0 2px 6px rgb(24 32 43 / 0.05);
+    background-color: rgb(255 255 255 / 0.9);
+    box-shadow: 0 1px 4px rgb(24 32 43 / 0.04);
   }
 
   .dark .codego-metric-card {
     background-color: rgb(255 255 255 / 0.04);
-    box-shadow: 0 2px 6px rgb(0 0 0 / 0.16);
+    box-shadow: 0 1px 4px rgb(0 0 0 / 0.14);
+  }
+
+  .codego-subnav-label {
+    @apply px-3 text-[11px] font-medium text-muted-foreground;
+  }
+
+  .codego-workspace-grid {
+    @apply grid gap-3 sm:grid-cols-2 xl:grid-cols-3;
+  }
+
+  .codego-workspace-card {
+    @apply rounded-2xl border border-white/70 p-4 text-left transition-colors hover:border-primary/25 hover:bg-white dark:border-white/10 dark:hover:bg-white/[0.05];
+    background-color: rgb(255 255 255 / 0.82);
+  }
+
+  .dark .codego-workspace-card {
+    background-color: rgb(255 255 255 / 0.03);
+  }
+
+  .codego-workspace-card-active {
+    @apply border-primary/30;
+    background-color: hsl(var(--primary) / 0.08);
   }
 }

@@ -17,6 +17,7 @@ import {
   Smartphone,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { formatDateTime } from "./codegoShared";
 
 interface CodeGoAuthorizedDevicesCardProps {
@@ -74,6 +75,7 @@ export function CodeGoAuthorizedDevicesCard({
   enabled,
   currentDeviceId,
 }: CodeGoAuthorizedDevicesCardProps) {
+  const { t } = useTranslation();
   const devicesQuery = useCodeGoAuthorizedDevicesQuery(enabled);
   const revokeDeviceMutation = useCodeGoRevokeAuthorizedDeviceMutation();
   const [pendingDevice, setPendingDevice] =
@@ -96,14 +98,24 @@ export function CodeGoAuthorizedDevicesCard({
       await revokeDeviceMutation.mutateAsync(pendingDevice.id);
       toast.success(
         isCurrent
-          ? "Current device access revoked"
-          : `${pendingDevice.deviceName} access revoked`,
+          ? t(
+              "codego.devices.currentRevoked",
+              "Current device access revoked",
+            )
+          : t("codego.devices.deviceRevoked", {
+              name: pendingDevice.deviceName,
+              defaultValue: "{{name}} access revoked",
+            }),
         { closeButton: true },
       );
       setPendingDevice(null);
     } catch (error) {
       toast.error(
-        extractErrorMessage(error) || "Failed to revoke device access",
+        extractErrorMessage(error) ||
+          t(
+            "codego.devices.revokeFailed",
+            "Failed to revoke device access",
+          ),
       );
     }
   };
@@ -113,22 +125,32 @@ export function CodeGoAuthorizedDevicesCard({
       <Card className="border-border/70 bg-card/90">
         <CardHeader className="flex flex-row items-center justify-between gap-3">
           <div>
-            <CardTitle className="text-base">Authorized devices</CardTitle>
+            <CardTitle className="text-base">
+              {t("codego.devices.title", "Authorized devices")}
+            </CardTitle>
           </div>
-          <Badge variant="outline">{activeCount} active</Badge>
+          <Badge variant="outline">
+            {t("codego.devices.activeCount", {
+              count: activeCount,
+              defaultValue: `${activeCount} active`,
+            })}
+          </Badge>
         </CardHeader>
         <CardContent className="space-y-4">
           {devicesQuery.isLoading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Loading device access
+              {t("codego.devices.loading", "Loading device access")}
             </div>
           ) : null}
 
           {devicesQuery.error ? (
             <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-600">
               {extractErrorMessage(devicesQuery.error) ||
-                "Failed to load device access"}
+                t(
+                  "codego.devices.loadFailed",
+                  "Failed to load device access",
+                )}
             </div>
           ) : null}
 
@@ -136,7 +158,10 @@ export function CodeGoAuthorizedDevicesCard({
           !devicesQuery.error &&
           devices.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-4 text-sm text-muted-foreground">
-              No authorized devices found for this account.
+              {t(
+                "codego.devices.empty",
+                "No authorized devices found for this account.",
+              )}
             </div>
           ) : null}
 
@@ -164,23 +189,44 @@ export function CodeGoAuthorizedDevicesCard({
                           </div>
                           <Badge variant={deviceStatusTone(device, isCurrent)}>
                             {isCurrent
-                              ? "Current device"
+                              ? t(
+                                  "codego.devices.currentDevice",
+                                  "Current device",
+                                )
                               : device.status || "active"}
                           </Badge>
                           {device.revokedAt > 0 ? (
-                            <Badge variant="destructive">Revoked</Badge>
+                            <Badge variant="destructive">
+                              {t("codego.devices.revoked", "Revoked")}
+                            </Badge>
                           ) : null}
                         </div>
 
                         <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
-                          <div>Platform: {device.platform || "-"}</div>
-                          <div>Version: {device.appVersion || "-"}</div>
-                          <div>Created: {formatDateTime(device.createdAt)}</div>
                           <div>
-                            Last used: {formatDateTime(device.lastUsedAt)}
+                            {t("codego.devices.platform", "Platform")}:{" "}
+                            {device.platform || "-"}
                           </div>
-                          <div>Expires: {formatDateTime(device.expiresAt)}</div>
-                          <div>Access: {deviceAccessLabel(device)}</div>
+                          <div>
+                            {t("codego.devices.version", "Version")}:{" "}
+                            {device.appVersion || "-"}
+                          </div>
+                          <div>
+                            {t("codego.devices.created", "Created")}:{" "}
+                            {formatDateTime(device.createdAt)}
+                          </div>
+                          <div>
+                            {t("codego.devices.lastUsed", "Last used")}:{" "}
+                            {formatDateTime(device.lastUsedAt)}
+                          </div>
+                          <div>
+                            {t("codego.devices.expires", "Expires")}:{" "}
+                            {formatDateTime(device.expiresAt)}
+                          </div>
+                          <div>
+                            {t("codego.devices.access", "Access")}:{" "}
+                            {deviceAccessLabel(device)}
+                          </div>
                         </div>
                       </div>
 
@@ -201,7 +247,9 @@ export function CodeGoAuthorizedDevicesCard({
                         ) : (
                           <ShieldCheck className="h-4 w-4" />
                         )}
-                        {isCurrent ? "Revoke current" : "Revoke access"}
+                        {isCurrent
+                          ? t("codego.devices.revokeCurrent", "Revoke current")
+                          : t("codego.devices.revokeAccess", "Revoke access")}
                       </Button>
                     </div>
                   </div>
@@ -216,18 +264,33 @@ export function CodeGoAuthorizedDevicesCard({
         isOpen={pendingDevice != null}
         title={
           pendingDevice?.id === currentDeviceId
-            ? "Revoke current device"
-            : "Revoke device access"
+            ? t("codego.devices.revokeCurrentTitle", "Revoke current device")
+            : t("codego.devices.revokeAccessTitle", "Revoke device access")
         }
         message={
           pendingDevice?.id === currentDeviceId
-            ? `Revoke ${pendingDevice?.deviceName || "this device"} now? This desktop will be disconnected immediately and must be authorized again before it can use codego.`
-            : `Revoke ${pendingDevice?.deviceName || "this device"}? That desktop will lose access to codego until it is authorized again.`
+            ? t("codego.devices.revokeCurrentMessage", {
+                name:
+                  pendingDevice?.deviceName ||
+                  t("codego.devices.thisDevice", "this device"),
+                defaultValue:
+                  "Revoke {{name}} now? This desktop will be disconnected immediately and must be authorized again before it can use codego.",
+              })
+            : t("codego.devices.revokeAccessMessage", {
+                name:
+                  pendingDevice?.deviceName ||
+                  t("codego.devices.thisDevice", "this device"),
+                defaultValue:
+                  "Revoke {{name}}? That desktop will lose access to codego until it is authorized again.",
+              })
         }
         confirmText={
           pendingDevice?.id === currentDeviceId
-            ? "Revoke current device"
-            : "Revoke access"
+            ? t(
+                "codego.devices.revokeCurrentConfirm",
+                "Revoke current device",
+              )
+            : t("codego.devices.revokeAccess", "Revoke access")
         }
         onConfirm={() => void handleRevoke()}
         onCancel={() => {

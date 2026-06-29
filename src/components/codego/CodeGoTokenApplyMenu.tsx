@@ -17,6 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useTranslation } from "react-i18next";
 import { normalizeCodeGoBrand } from "./codegoShared";
 
 type ToolType =
@@ -63,6 +64,7 @@ function buildSuccessMessage(
 
 /** Apply a selected codego token to one local CLI tool. */
 export function CodeGoTokenApplyMenu({ token }: CodeGoTokenApplyMenuProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [applyingTool, setApplyingTool] = useState<ToolType | null>(null);
 
@@ -75,7 +77,10 @@ export function CodeGoTokenApplyMenu({ token }: CodeGoTokenApplyMenuProps) {
         closeButton: true,
       });
     } catch (error) {
-      toast.error(extractErrorMessage(error) || "Failed to apply token config");
+      toast.error(
+        extractErrorMessage(error) ||
+          t("codego.tokens.applyFailed", "Failed to apply token config"),
+      );
     } finally {
       setApplyingTool(null);
     }
@@ -95,11 +100,13 @@ export function CodeGoTokenApplyMenu({ token }: CodeGoTokenApplyMenuProps) {
           ) : (
             <Sparkles className="h-3.5 w-3.5" />
           )}
-          Apply to
+          {t("codego.tokens.applyTo", "Apply to")}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuLabel>Apply token config</DropdownMenuLabel>
+        <DropdownMenuLabel>
+          {t("codego.tokens.applyConfig", "Apply token config")}
+        </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {APPLY_TARGETS.map(({ tool, label }) => (
           <DropdownMenuItem
