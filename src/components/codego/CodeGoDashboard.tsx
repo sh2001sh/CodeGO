@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { codegoApi, settingsApi } from "@/lib/api";
 import { copySensitiveText } from "@/lib/clipboard";
 import {
+  codegoKeys,
   useCodeGoAuthQuery,
   useCodeGoPollAuthSessionMutation,
   useCodeGoLogoutMutation,
@@ -26,6 +28,7 @@ export function CodeGoDashboard({
   onOpenProviders,
 }: CodeGoDashboardProps) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const authQuery = useCodeGoAuthQuery();
   const startAuthMutation = useCodeGoStartAuthSessionMutation();
   const pollAuthMutation = useCodeGoPollAuthSessionMutation();
@@ -150,6 +153,14 @@ export function CodeGoDashboard({
             sessionId: session.sessionId,
           });
           if (result.authenticated) {
+            queryClient.setQueryData(codegoKeys.auth(), (current) => ({
+              ...(current ?? {}),
+              authenticated: true,
+              serverAddress: result.serverAddress || serverAddress,
+              userId: result.userId,
+              deviceId: result.deviceId,
+              lastUsername: result.lastUsername,
+            }));
             setSessionAuthenticated(true);
             stopAuthPolling();
             setAuthSession(null);

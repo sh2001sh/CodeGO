@@ -239,6 +239,40 @@ describe("CodeGoDashboard", () => {
     ).toBeInTheDocument();
   });
 
+  it("switches to the authenticated overview immediately after browser approval succeeds", async () => {
+    setCodeGoAuthState({
+      authenticated: false,
+      serverAddress: "https://shu26.cfd",
+      lastUsername: "",
+    });
+
+    renderDashboard();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Authorize in browser" }),
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("Enter this code in your browser"),
+      ).toBeInTheDocument(),
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { name: "demo-user" }),
+      ).toBeInTheDocument(),
+    );
+
+    expect(
+      screen.queryByText("Enter this code in your browser"),
+    ).not.toBeInTheDocument();
+    expect(toastSuccessMock).toHaveBeenCalledWith(
+      "codego account connected",
+      expect.objectContaining({ closeButton: true }),
+    );
+  });
+
   it("renders diagnostics in the authenticated dashboard and requires consent before submitting", async () => {
     setCodeGoAuthState({
       authenticated: true,
