@@ -380,13 +380,18 @@ jobs:
             fi
           done
 
-          if [ -z "$TAR_GZ" ]; then
-            echo "❌ No macOS .tar.gz updater artifact found" >&2
-            exit 1
-          fi
           if [ -z "$APP_PATH" ]; then
             echo "❌ No .app found" >&2
             exit 1
+          fi
+
+          if [ "${{ steps.signing-config.outputs.tauri_signing_enabled }}" = "true" ]; then
+            if [ -z "$TAR_GZ" ]; then
+              echo "❌ No macOS .tar.gz updater artifact found while updater signing is enabled" >&2
+              exit 1
+            fi
+          else
+            echo "Tauri updater signing is disabled; skipping macOS updater .tar.gz artifact collection."
           fi
 
           if [ "${{ steps.signing-config.outputs.apple_signing_enabled }}" = "true" ]; then
@@ -397,11 +402,13 @@ jobs:
             echo "Apple signing secrets are unavailable; skipping .app stapling."
           fi
 
-          # 1) Collect .tar.gz (updater artifact)
-          NEW_TAR_GZ="CodeGo_${VERSION}_universal.app.tar.gz"
-          cp "$TAR_GZ" "release-assets/$NEW_TAR_GZ"
-          [ -f "$TAR_GZ.sig" ] && cp "$TAR_GZ.sig" "release-assets/$NEW_TAR_GZ.sig" || echo ".sig for macOS not found yet"
-          echo "macOS updater artifact copied: $NEW_TAR_GZ"
+          # 1) Collect .tar.gz updater artifact only when Tauri signing is enabled.
+          if [ "${{ steps.signing-config.outputs.tauri_signing_enabled }}" = "true" ]; then
+            NEW_TAR_GZ="CodeGo_${VERSION}_universal.app.tar.gz"
+            cp "$TAR_GZ" "release-assets/$NEW_TAR_GZ"
+            [ -f "$TAR_GZ.sig" ] && cp "$TAR_GZ.sig" "release-assets/$NEW_TAR_GZ.sig" || echo ".sig for macOS not found yet"
+            echo "macOS updater artifact copied: $NEW_TAR_GZ"
+          fi
 
           # 2) Collect .app as zip
           NEW_ZIP="CodeGo_${VERSION}_universal.zip"
