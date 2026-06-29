@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { codegoApi, settingsApi } from "@/lib/api";
 import { copySensitiveText } from "@/lib/clipboard";
 import {
@@ -24,6 +25,7 @@ export function CodeGoDashboard({
   onOpenSettings,
   onOpenProviders,
 }: CodeGoDashboardProps) {
+  const { t } = useTranslation();
   const authQuery = useCodeGoAuthQuery();
   const startAuthMutation = useCodeGoStartAuthSessionMutation();
   const pollAuthMutation = useCodeGoPollAuthSessionMutation();
@@ -88,7 +90,10 @@ export function CodeGoDashboard({
     } catch (error) {
       setAuthError(
         extractErrorMessage(error) ||
-          "Failed to open browser for authorization",
+          t(
+            "codego.auth.openBrowserFailed",
+            "Failed to open browser for authorization",
+          ),
       );
     }
   };
@@ -115,7 +120,12 @@ export function CodeGoDashboard({
       const pollOnce = async () => {
         if (!authExpireRef.current || Date.now() >= authExpireRef.current) {
           stopAuthPolling();
-          setAuthError("Authorization session expired. Start again.");
+          setAuthError(
+            t(
+              "codego.auth.sessionExpired",
+              "Authorization session expired. Start again.",
+            ),
+          );
           return;
         }
         try {
@@ -127,7 +137,12 @@ export function CodeGoDashboard({
             stopAuthPolling();
             setAuthSession(null);
             setAuthError(null);
-            toast.success("codego account connected", { closeButton: true });
+            toast.success(
+              t("codego.dashboard.connected", "codego account connected"),
+              {
+                closeButton: true,
+              },
+            );
             return;
           }
 
@@ -135,7 +150,10 @@ export function CodeGoDashboard({
             stopAuthPolling();
             setAuthSession(null);
             setAuthError(
-              "Authorization was rejected from the website. Start again.",
+              t(
+                "codego.auth.sessionRejected",
+                "Authorization was rejected from the website. Start again.",
+              ),
             );
             return;
           }
@@ -143,12 +161,20 @@ export function CodeGoDashboard({
           if (result.status === "expired") {
             stopAuthPolling();
             setAuthSession(null);
-            setAuthError("Authorization session expired. Start again.");
+            setAuthError(
+              t(
+                "codego.auth.sessionExpired",
+                "Authorization session expired. Start again.",
+              ),
+            );
           }
         } catch (error) {
           const message =
             extractErrorMessage(error) ||
-            "Failed to verify desktop authorization";
+            t(
+              "codego.auth.verifyFailed",
+              "Failed to verify desktop authorization",
+            );
           if (!message.toLowerCase().includes("pending")) {
             stopAuthPolling();
             setAuthError(message);
@@ -163,7 +189,8 @@ export function CodeGoDashboard({
       );
     } catch (error) {
       setAuthError(
-        extractErrorMessage(error) || "Failed to start codego authorization",
+        extractErrorMessage(error) ||
+          t("codego.auth.startFailed", "Failed to start codego authorization"),
       );
     }
   };
@@ -171,10 +198,17 @@ export function CodeGoDashboard({
   const handleLogout = async () => {
     try {
       await logoutMutation.mutateAsync();
-      toast.success("codego account disconnected", { closeButton: true });
+      toast.success(
+        t("codego.dashboard.disconnected", "codego account disconnected"),
+        { closeButton: true },
+      );
     } catch (error) {
       toast.error(
-        extractErrorMessage(error) || "Failed to disconnect codego account",
+        extractErrorMessage(error) ||
+          t(
+            "codego.dashboard.disconnectFailed",
+            "Failed to disconnect codego account",
+          ),
       );
     }
   };
@@ -194,9 +228,14 @@ export function CodeGoDashboard({
     try {
       const result = await ensureDesktopToken();
       await copySensitiveText(result.full_key);
-      toast.success("Desktop token copied", { closeButton: true });
+      toast.success(t("codego.dashboard.tokenCopied", "Desktop token copied"), {
+        closeButton: true,
+      });
     } catch (error) {
-      toast.error(extractErrorMessage(error) || "Failed to copy token");
+      toast.error(
+        extractErrorMessage(error) ||
+          t("codego.dashboard.copyTokenFailed", "Failed to copy token"),
+      );
     }
   };
 
@@ -205,7 +244,10 @@ export function CodeGoDashboard({
     try {
       await settingsApi.openExternal(summary.actions.topup_link);
     } catch (error) {
-      toast.error(extractErrorMessage(error) || "Failed to open top-up page");
+      toast.error(
+        extractErrorMessage(error) ||
+          t("codego.dashboard.openTopUpFailed", "Failed to open top-up page"),
+      );
     }
   };
 
@@ -220,7 +262,10 @@ export function CodeGoDashboard({
             <div>
               <div className="codego-kicker">codego desktop</div>
               <div className="text-base font-semibold text-foreground">
-                Browser approval and local tool control
+                {t(
+                  "codego.dashboard.browserApprovalTitle",
+                  "Browser approval and local tool control",
+                )}
               </div>
             </div>
           </div>

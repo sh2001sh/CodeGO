@@ -235,9 +235,7 @@ describe("CodeGoDashboard", () => {
       ).toBeInTheDocument(),
     );
     expect(
-      screen.getByText(
-        "Secure credential storage is unavailable on this device.",
-      ),
+      screen.getByText(/temporarily keep the desktop session in local settings/i),
     ).toBeInTheDocument();
   });
 
@@ -545,9 +543,7 @@ describe("CodeGoDashboard", () => {
 
     expect(screen.getByText("Secure storage unavailable")).toBeInTheDocument();
     expect(
-      screen.getByText(
-        "Secure credential storage is unavailable on this device.",
-      ),
+      screen.getByText(/temporarily keep the desktop session in local settings/i),
     ).toBeInTheDocument();
   });
 

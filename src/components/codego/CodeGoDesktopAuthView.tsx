@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { CodeGoAuthState } from "@/lib/api/codego";
+import { useTranslation } from "react-i18next";
 import { CodeGoSecureStorageNotice } from "./CodeGoSecureStorageNotice";
 import { CodeGoMark } from "./CodeGoMark";
 
@@ -49,28 +50,47 @@ export function CodeGoDesktopAuthView({
   onOpenExternal,
   onCancelSession,
 }: CodeGoDesktopAuthViewProps) {
+  const { t } = useTranslation();
   const setupSteps = [
     {
-      title: "Approve in browser",
-      detail:
+      title: t("codego.auth.steps.approve.title", "Approve in browser"),
+      detail: t(
+        "codego.auth.steps.approve.detail",
         "Keep account passwords on the website and issue a revocable desktop session.",
+      ),
     },
     {
-      title: "Store local secrets safely",
-      detail:
-        "Desktop tokens and session data stay tied to secure local storage.",
+      title: t("codego.auth.steps.store.title", "Store local secrets safely"),
+      detail: t(
+        "codego.auth.steps.store.detail",
+        "Desktop tokens and session data stay tied to secure local storage when available.",
+      ),
     },
     {
-      title: "Work from one control surface",
-      detail:
+      title: t(
+        "codego.auth.steps.control.title",
+        "Work from one control surface",
+      ),
+      detail: t(
+        "codego.auth.steps.control.detail",
         "Quota, logs, tool routing, and token rotation stay in the same workflow.",
+      ),
     },
   ];
 
   const setupSummary = [
-    ["Server", serverAddress || "https://shu26.cfd"],
-    ["Device", deviceName || "codego desktop"],
-    ["Session model", "Browser approval + local token"],
+    [
+      t("codego.auth.summary.server", "Server"),
+      serverAddress || "https://shu26.cfd",
+    ],
+    [t("codego.auth.summary.device", "Device"), deviceName || "codego desktop"],
+    [
+      t("codego.auth.summary.sessionModel", "Session model"),
+      t(
+        "codego.auth.summary.sessionModelValue",
+        "Browser approval + local token",
+      ),
+    ],
   ] as const;
 
   return (
@@ -85,11 +105,16 @@ export function CodeGoDesktopAuthView({
               <div className="min-w-0 space-y-3">
                 <Badge className="codego-chip-warm">codego desktop</Badge>
                 <h1 className="max-w-2xl text-3xl font-semibold tracking-tight text-balance text-foreground">
-                  Approve this desktop from the website, then keep control here.
+                  {t(
+                    "codego.auth.heroTitle",
+                    "Approve this desktop from the website, then keep control here.",
+                  )}
                 </h1>
                 <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-                  The browser handles account approval. Desktop stays focused on
-                  local tokens, quota visibility, logs, and routing changes.
+                  {t(
+                    "codego.auth.heroDescription",
+                    "The browser handles account approval. Desktop stays focused on local tokens, quota visibility, logs, and routing changes.",
+                  )}
                 </p>
               </div>
             </div>
@@ -118,7 +143,7 @@ export function CodeGoDesktopAuthView({
                 ) : (
                   <Rocket className="h-4 w-4" />
                 )}
-                Authorize in browser
+                {t("codego.auth.authorizeButton", "Authorize in browser")}
               </Button>
               <Button
                 variant="outline"
@@ -126,14 +151,14 @@ export function CodeGoDesktopAuthView({
                 className="h-10 gap-2"
               >
                 <ExternalLink className="h-4 w-4" />
-                Settings
+                {t("common.settings", "Settings")}
               </Button>
             </div>
           </div>
 
           <div className="bg-[linear-gradient(180deg,rgba(255,255,255,0.52),rgba(255,255,255,0.18))] px-6 py-6 dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01))]">
             <div className="text-sm font-semibold text-foreground">
-              Setup flow
+              {t("codego.auth.setupFlow", "Setup flow")}
             </div>
             <div className="mt-4 grid gap-3">
               {setupSummary.map(([label, value]) => (
@@ -146,8 +171,10 @@ export function CodeGoDesktopAuthView({
               ))}
             </div>
             <div className="mt-4 rounded-2xl border border-orange-500/12 bg-orange-500/[0.06] px-4 py-3 text-sm leading-6 text-muted-foreground dark:border-orange-400/18 dark:bg-orange-400/[0.08]">
-              Start the session in the browser first. The desktop app will keep
-              polling until approval succeeds, expires, or gets revoked.
+              {t(
+                "codego.auth.setupHint",
+                "Start the session in the browser first. The desktop app will keep polling until approval succeeds, expires, or gets revoked.",
+              )}
             </div>
           </div>
         </div>
@@ -155,9 +182,14 @@ export function CodeGoDesktopAuthView({
 
       <Card className="codego-shell shadow-none">
         <CardHeader className="space-y-1 border-b border-white/60 pb-4 dark:border-white/10">
-          <CardTitle className="text-base">Session setup</CardTitle>
+          <CardTitle className="text-base">
+            {t("codego.auth.sessionSetupTitle", "Session setup")}
+          </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Connect the desktop app to the account and device you want to use.
+            {t(
+              "codego.auth.sessionSetupDescription",
+              "Connect the desktop app to the account and device you want to use.",
+            )}
           </p>
         </CardHeader>
         <CardContent className="space-y-4 p-6">
@@ -167,7 +199,9 @@ export function CodeGoDesktopAuthView({
           />
 
           <div className="space-y-2">
-            <Label htmlFor="codego-server">Server</Label>
+            <Label htmlFor="codego-server">
+              {t("codego.auth.server", "Server")}
+            </Label>
             <Input
               id="codego-server"
               value={serverAddress}
@@ -177,12 +211,17 @@ export function CodeGoDesktopAuthView({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="codego-device-name">Device name</Label>
+            <Label htmlFor="codego-device-name">
+              {t("codego.auth.deviceName", "Device name")}
+            </Label>
             <Input
               id="codego-device-name"
               value={deviceName}
               onChange={(event) => onDeviceNameChange(event.target.value)}
-              placeholder="My workstation"
+              placeholder={t(
+                "codego.auth.deviceNamePlaceholder",
+                "My workstation",
+              )}
             />
           </div>
 
@@ -192,7 +231,10 @@ export function CodeGoDesktopAuthView({
               <span>
                 {authError ||
                   authQueryError ||
-                  "Failed to read local auth state"}
+                  t(
+                    "codego.auth.readStateFailed",
+                    "Failed to read local auth state",
+                  )}
               </span>
             </div>
           )}
@@ -202,19 +244,30 @@ export function CodeGoDesktopAuthView({
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="text-sm font-medium">
-                    Enter this code in your browser
+                    {t(
+                      "codego.auth.enterCodeTitle",
+                      "Enter this code in your browser",
+                    )}
                   </div>
                   <div className="mt-2 font-mono text-2xl font-semibold tracking-[0.2em]">
                     {authSession.userCode}
                   </div>
                   <div className="mt-2 text-xs text-muted-foreground">
-                    The code has already been copied. Approval expires in about{" "}
-                    {Math.max(Math.round(authSession.expiresIn / 60), 1)} min.
+                    {t(
+                      "codego.auth.codeCopiedHint",
+                      "The code has already been copied. Approval expires in about {{minutes}} min.",
+                      {
+                        minutes: Math.max(
+                          Math.round(authSession.expiresIn / 60),
+                          1,
+                        ),
+                      },
+                    )}
                   </div>
                 </div>
                 <Badge className="codego-chip-cool gap-1.5">
                   <Loader2 className="h-3 w-3 animate-spin" />
-                  Waiting
+                  {t("codego.auth.waiting", "Waiting")}
                 </Badge>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
@@ -224,14 +277,14 @@ export function CodeGoDesktopAuthView({
                   onClick={() => onOpenExternal(authSession.verificationUri)}
                 >
                   <ExternalLink className="h-4 w-4" />
-                  Open browser again
+                  {t("codego.auth.openBrowserAgain", "Open browser again")}
                 </Button>
                 <Button
                   variant="ghost"
                   className="h-9 gap-2"
                   onClick={onCancelSession}
                 >
-                  Cancel
+                  {t("common.cancel", "Cancel")}
                 </Button>
               </div>
             </div>

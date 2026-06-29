@@ -10,6 +10,9 @@ const CODEGO_TOKEN_ACCOUNT: &str = "access-token";
 struct TestCodeGoAuthStore {
     override_active: bool,
     token: Option<String>,
+    load_error: Option<String>,
+    save_error: Option<String>,
+    clear_error: Option<String>,
 }
 
 #[cfg(test)]
@@ -25,6 +28,24 @@ pub(crate) fn set_test_codego_auth_token(token: Option<String>) {
         .unwrap_or_else(|error| error.into_inner());
     store.override_active = true;
     store.token = token;
+    store.load_error = None;
+    store.save_error = None;
+    store.clear_error = None;
+}
+
+#[cfg(test)]
+pub(crate) fn set_test_codego_auth_failures(
+    load_error: Option<String>,
+    save_error: Option<String>,
+    clear_error: Option<String>,
+) {
+    let mut store = test_codego_auth_store()
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    store.override_active = true;
+    store.load_error = load_error;
+    store.save_error = save_error;
+    store.clear_error = clear_error;
 }
 
 fn codego_token_entry() -> Result<Entry, String> {
@@ -47,6 +68,9 @@ pub fn load_codego_auth() -> Result<Option<String>, String> {
             .lock()
             .unwrap_or_else(|error| error.into_inner());
         if store.override_active {
+            if let Some(error) = &store.load_error {
+                return Err(error.clone());
+            }
             return Ok(store.token.clone());
         }
     }
@@ -66,6 +90,9 @@ pub fn save_codego_auth(access_token: &str) -> Result<(), String> {
             .lock()
             .unwrap_or_else(|error| error.into_inner());
         if store.override_active {
+            if let Some(error) = &store.save_error {
+                return Err(error.clone());
+            }
             store.token = Some(access_token.to_string());
             return Ok(());
         }
@@ -84,6 +111,9 @@ pub fn clear_codego_auth() -> Result<(), String> {
             .lock()
             .unwrap_or_else(|error| error.into_inner());
         if store.override_active {
+            if let Some(error) = &store.clear_error {
+                return Err(error.clone());
+            }
             store.token = None;
             return Ok(());
         }

@@ -252,9 +252,13 @@ pub struct CodeGoAuthSessionStateRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CodeGoAuthSessionStartResponse {
+    #[serde(alias = "sessionId")]
     pub session_id: String,
+    #[serde(alias = "userCode")]
     pub user_code: String,
+    #[serde(alias = "verificationUri")]
     pub verification_uri: String,
+    #[serde(alias = "expiresIn")]
     pub expires_in: i64,
     pub interval: i64,
 }
@@ -264,10 +268,15 @@ pub struct CodeGoAuthSessionStartResponse {
 pub struct CodeGoAuthSessionPollResponse {
     pub status: String,
     pub authenticated: bool,
+    #[serde(alias = "accessToken")]
     pub access_token: Option<String>,
+    #[serde(alias = "userId")]
     pub user_id: Option<i64>,
+    #[serde(alias = "deviceId")]
     pub device_id: Option<i64>,
+    #[serde(alias = "serverAddress")]
     pub server_address: Option<String>,
+    #[serde(alias = "lastUsername")]
     pub last_username: Option<String>,
 }
 
@@ -403,7 +412,7 @@ fn resolve_codego_secure_storage_notice(
         return (
             CodeGoSecureStorageStatus::Unavailable,
             Some(
-                "Secure credential storage is unavailable on this device. Code Go cannot safely persist a browser-approved desktop session until Keychain/Credential Manager/Secret Service is working again.".to_string(),
+                "Secure credential storage is unavailable on this device. Code Go will keep the desktop session in local settings until Keychain/Credential Manager/Secret Service is working again.".to_string(),
             ),
         );
     }
@@ -449,13 +458,16 @@ fn persist_auth_state(
     settings.codego_device_id = Some(device_id);
     settings.codego_last_username = Some(last_username);
     settings.codego_last_seen_quota_usd = None;
-    settings.codego_access_token = None;
+    settings.codego_access_token = Some(access_token.clone());
     update_settings(settings).map_err(|e| e.to_string())?;
     if let Err(error) = save_codego_auth(&access_token) {
-        if let Err(rollback_error) = update_settings(previous_settings) {
-            log::warn!("回滚 Code Go 登录设置失败: {rollback_error}");
-        }
-        return Err(error);
+        log::warn!("保存 Code Go 安全凭据失败，将退回本地设置存储: {error}");
+        return Ok(());
+    }
+    let mut sanitized_settings = get_settings();
+    sanitized_settings.codego_access_token = None;
+    if let Err(error) = update_settings(sanitized_settings) {
+        log::warn!("清理 Code Go 回退 token 失败: {error}");
     }
     Ok(())
 }
@@ -2347,8 +2359,9 @@ mod tests {
         codego_balance_usd_from_summary, codego_get_tool_config_preview, codego_provider_id,
         codego_tray_snapshot, detect_tool_conflict_reason, ensure_tool_config_safe_to_write,
         extract_live_endpoint, has_live_credential, load_auth_state, load_tool_backup,
-        probe_response_matches_tool, resolve_codego_secure_storage_notice, restore_live_snapshot,
-        save_tool_backup, should_send_low_balance_notification, summary_topup_url,
+        persist_auth_state, probe_response_matches_tool, resolve_codego_secure_storage_notice,
+        restore_live_snapshot, save_tool_backup, should_send_low_balance_notification,
+        summary_topup_url, CodeGoAuthSessionPollResponse, CodeGoAuthSessionStartResponse,
         CodeGoSavedToolBackup, CodeGoSecureStorageStatus, CodeGoSummarySideEffectSink,
         CodeGoTokenToolConfigPayload, BASE64_STANDARD,
     };
@@ -2483,7 +2496,7 @@ mod tests {
         assert_eq!(status, CodeGoSecureStorageStatus::Unavailable);
         assert!(message
             .as_deref()
-            .is_some_and(|value| value.contains("cannot safely persist")));
+            .is_some_and(|value| value.contains("local settings")));
     }
 
     #[test]
@@ -2513,6 +2526,99 @@ mod tests {
             crate::secure_store::load_codego_auth().expect("load migrated secure token"),
             Some("legacy-token".to_string())
         );
+    }
+
+    #[test]
+    #[serial]
+    fn persist_auth_state_falls_back_to_plaintext_when_secure_store_save_fails() {
+        let _guard = settings_test_guard();
+        let _env = TempSettingsEnv::new();
+        crate::secure_store::set_test_codego_auth_failures(
+            None,
+            Some("secure store offline".to_string()),
+            None,
+        );
+
+        persist_auth_state(
+            "https://shu26.cfd".to_string(),
+            "fallback-token".to_string(),
+            9,
+            12,
+            "demo-user".to_string(),
+        )
+        .expect("persist auth state with fallback");
+
+        let settings = get_settings();
+        assert_eq!(
+            settings.codego_server_address.as_deref(),
+            Some("https://shu26.cfd")
+        );
+        assert_eq!(settings.codego_user_id, Some(9));
+        assert_eq!(settings.codego_device_id, Some(12));
+        assert_eq!(settings.codego_last_username.as_deref(), Some("demo-user"));
+        assert_eq!(
+            settings.codego_access_token.as_deref(),
+            Some("fallback-token")
+        );
+
+        let auth = load_auth_state();
+        assert!(auth.authenticated);
+        assert_eq!(
+            auth.secure_storage_status,
+            CodeGoSecureStorageStatus::Unavailable
+        );
+        assert_eq!(auth.access_token.as_deref(), Some("fallback-token"));
+    }
+
+    #[test]
+    fn codego_auth_session_responses_accept_camel_and_snake_case() {
+        let snake_start: CodeGoAuthSessionStartResponse = serde_json::from_value(json!({
+            "session_id": "sess_snake",
+            "user_code": "ABCD-EFGH",
+            "verification_uri": "https://shu26.cfd/auth",
+            "expires_in": 600,
+            "interval": 5
+        }))
+        .expect("decode snake_case start response");
+        assert_eq!(snake_start.session_id, "sess_snake");
+        assert_eq!(snake_start.user_code, "ABCD-EFGH");
+
+        let camel_start: CodeGoAuthSessionStartResponse = serde_json::from_value(json!({
+            "sessionId": "sessCamel",
+            "userCode": "WXYZ-1234",
+            "verificationUri": "https://shu26.cfd/auth",
+            "expiresIn": 900,
+            "interval": 3
+        }))
+        .expect("decode camelCase start response");
+        assert_eq!(camel_start.session_id, "sessCamel");
+        assert_eq!(camel_start.expires_in, 900);
+
+        let snake_poll: CodeGoAuthSessionPollResponse = serde_json::from_value(json!({
+            "status": "approved",
+            "authenticated": true,
+            "access_token": "token",
+            "user_id": 1,
+            "device_id": 2,
+            "server_address": "https://shu26.cfd",
+            "last_username": "demo"
+        }))
+        .expect("decode snake_case poll response");
+        assert_eq!(snake_poll.access_token.as_deref(), Some("token"));
+        assert_eq!(snake_poll.user_id, Some(1));
+
+        let camel_poll: CodeGoAuthSessionPollResponse = serde_json::from_value(json!({
+            "status": "approved",
+            "authenticated": true,
+            "accessToken": "token2",
+            "userId": 3,
+            "deviceId": 4,
+            "serverAddress": "https://shu26.cfd",
+            "lastUsername": "demo2"
+        }))
+        .expect("decode camelCase poll response");
+        assert_eq!(camel_poll.access_token.as_deref(), Some("token2"));
+        assert_eq!(camel_poll.device_id, Some(4));
     }
 
     #[test]

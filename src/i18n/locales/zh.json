@@ -2901,5 +2901,91 @@
     "expiredHint": "请运行 {{tool}} 命令刷新登录",
     "queryFailed": "查询失败",
     "refresh": "刷新"
+  },
+  "codego": {
+    "secureStorage": {
+      "title": "安全存储不可用",
+      "unavailableBody": "当前设备的安全凭据存储不可用。Code Go 会先把桌面授权会话临时保存在本地设置中，待 Keychain、凭据管理器或 Secret Service 恢复后再切回安全存储。"
+    },
+    "auth": {
+      "heroTitle": "先在网站批准这台桌面设备，再在这里继续控制。",
+      "heroDescription": "浏览器负责账号授权，桌面端专注于本地令牌、额度可见性、日志查看和路由切换。",
+      "authorizeButton": "在浏览器中授权",
+      "setupFlow": "接入流程",
+      "setupHint": "请先在浏览器中完成会话授权。桌面应用会持续轮询，直到授权成功、过期或被拒绝。",
+      "sessionSetupTitle": "会话设置",
+      "sessionSetupDescription": "将桌面应用连接到你要使用的账号和设备。",
+      "server": "服务器",
+      "deviceName": "设备名称",
+      "deviceNamePlaceholder": "我的工作站",
+      "readStateFailed": "读取本地授权状态失败",
+      "enterCodeTitle": "在浏览器中输入此验证码",
+      "codeCopiedHint": "验证码已复制。授权大约会在 {{minutes}} 分钟后过期。",
+      "waiting": "等待中",
+      "openBrowserAgain": "重新打开浏览器",
+      "openBrowserFailed": "打开浏览器进行授权失败",
+      "sessionExpired": "授权会话已过期，请重新开始。",
+      "sessionRejected": "网站端已拒绝这次授权，请重新开始。",
+      "verifyFailed": "校验桌面授权失败",
+      "startFailed": "启动 Code Go 授权失败",
+      "summary": {
+        "server": "服务器",
+        "device": "设备",
+        "sessionModel": "会话模型",
+        "sessionModelValue": "浏览器批准 + 本地令牌"
+      },
+      "steps": {
+        "approve": {
+          "title": "在浏览器中批准",
+          "detail": "账号密码只留在网站侧，并签发可撤销的桌面会话。"
+        },
+        "store": {
+          "title": "安全保存本地密钥",
+          "detail": "桌面令牌和会话数据优先绑定到本机安全存储。"
+        },
+        "control": {
+          "title": "统一控制台",
+          "detail": "额度、日志、工具路由和令牌轮换都在同一工作流里完成。"
+        }
+      }
+    },
+    "dashboard": {
+      "connected": "Code Go 账号已连接",
+      "disconnected": "Code Go 账号已断开",
+      "disconnectFailed": "断开 Code Go 账号失败",
+      "tokenCopied": "桌面令牌已复制",
+      "copyTokenFailed": "复制令牌失败",
+      "openTopUpFailed": "打开充值页面失败",
+      "browserApprovalTitle": "浏览器授权与本地工具控制"
+    },
+    "overview": {
+      "heroDescription": "浏览器批准后的桌面访问、令牌轮换、额度检查与日志可见性都集中在这里。",
+      "sessionLive": "会话在线",
+      "providers": "供应商",
+      "disconnect": "断开连接",
+      "serviceStatus": "服务状态",
+      "noServiceNotice": "当前没有服务公告。",
+      "availableModels": "可用模型",
+      "noModelMetadata": "暂无模型元数据。",
+      "today": "今日",
+      "last7Days": "最近 7 天",
+      "tabs": {
+        "overview": "概览",
+        "tokens": "令牌",
+        "logs": "日志"
+      },
+      "metrics": {
+        "generalQuota": "通用额度",
+        "claudeQuota": "Claude 额度",
+        "used": "已使用",
+        "requests": "请求数"
+      },
+      "highlights": {
+        "connectedServer": "已连接服务器",
+        "desktopToken": "桌面令牌",
+        "desktopTokenEmpty": "前往“令牌”页创建或刷新",
+        "lastRequest": "最后请求"
+      }
+    }
   }
 }

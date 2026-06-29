@@ -2901,5 +2901,91 @@
     "expiredHint": "Run the {{tool}} command to refresh your login",
     "queryFailed": "Query failed",
     "refresh": "Refresh"
+  },
+  "codego": {
+    "secureStorage": {
+      "title": "Secure storage unavailable",
+      "unavailableBody": "Secure credential storage is unavailable on this device. Code Go will temporarily keep the desktop session in local settings until Keychain, Credential Manager, or Secret Service starts working again."
+    },
+    "auth": {
+      "heroTitle": "Approve this desktop on the website, then keep control here.",
+      "heroDescription": "The browser handles account approval. The desktop app stays focused on local tokens, quota visibility, logs, and routing changes.",
+      "authorizeButton": "Authorize in browser",
+      "setupFlow": "Setup flow",
+      "setupHint": "Start the session in the browser first. The desktop app will keep polling until approval succeeds, expires, or gets rejected.",
+      "sessionSetupTitle": "Session setup",
+      "sessionSetupDescription": "Connect the desktop app to the account and device you want to use.",
+      "server": "Server",
+      "deviceName": "Device name",
+      "deviceNamePlaceholder": "My workstation",
+      "readStateFailed": "Failed to read local auth state",
+      "enterCodeTitle": "Enter this code in your browser",
+      "codeCopiedHint": "The code has already been copied. Approval expires in about {{minutes}} min.",
+      "waiting": "Waiting",
+      "openBrowserAgain": "Open browser again",
+      "openBrowserFailed": "Failed to open browser for authorization",
+      "sessionExpired": "Authorization session expired. Start again.",
+      "sessionRejected": "Authorization was rejected from the website. Start again.",
+      "verifyFailed": "Failed to verify desktop authorization",
+      "startFailed": "Failed to start Code Go authorization",
+      "summary": {
+        "server": "Server",
+        "device": "Device",
+        "sessionModel": "Session model",
+        "sessionModelValue": "Browser approval + local token"
+      },
+      "steps": {
+        "approve": {
+          "title": "Approve in browser",
+          "detail": "Keep account passwords on the website and issue a revocable desktop session."
+        },
+        "store": {
+          "title": "Store local secrets safely",
+          "detail": "Desktop tokens and session data stay tied to secure local storage when available."
+        },
+        "control": {
+          "title": "Work from one control surface",
+          "detail": "Quota, logs, tool routing, and token rotation stay in the same workflow."
+        }
+      }
+    },
+    "dashboard": {
+      "connected": "Code Go account connected",
+      "disconnected": "Code Go account disconnected",
+      "disconnectFailed": "Failed to disconnect Code Go account",
+      "tokenCopied": "Desktop token copied",
+      "copyTokenFailed": "Failed to copy token",
+      "openTopUpFailed": "Failed to open top-up page",
+      "browserApprovalTitle": "Browser approval and local tool control"
+    },
+    "overview": {
+      "heroDescription": "Browser-approved desktop access with token rotation, quota checks, and log visibility in one place.",
+      "sessionLive": "Session live",
+      "providers": "Providers",
+      "disconnect": "Disconnect",
+      "serviceStatus": "Service status",
+      "noServiceNotice": "No active service notice.",
+      "availableModels": "Available models",
+      "noModelMetadata": "No model metadata available.",
+      "today": "Today",
+      "last7Days": "Last 7 days",
+      "tabs": {
+        "overview": "Overview",
+        "tokens": "Tokens",
+        "logs": "Logs"
+      },
+      "metrics": {
+        "generalQuota": "General quota",
+        "claudeQuota": "Claude quota",
+        "used": "Used",
+        "requests": "Requests"
+      },
+      "highlights": {
+        "connectedServer": "Connected server",
+        "desktopToken": "Desktop token",
+        "desktopTokenEmpty": "Create or refresh from Tokens",
+        "lastRequest": "Last request"
+      }
+    }
   }
 }

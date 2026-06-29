@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { CodeGoAccountSummary, CodeGoAuthState } from "@/lib/api/codego";
+import { useTranslation } from "react-i18next";
 import { CodeGoAuthorizedDevicesCard } from "./CodeGoAuthorizedDevicesCard";
 import { CodeGoDiagnosticReportCard } from "./CodeGoDiagnosticReportCard";
 import { CodeGoDesktopTokenCard } from "./CodeGoDesktopTokenCard";
@@ -59,20 +60,43 @@ export function CodeGoAuthenticatedOverview({
   onEnsureToken,
   onOpenTopUp,
 }: CodeGoAuthenticatedOverviewProps) {
+  const { t } = useTranslation();
   const summaryMetrics = [
-    ["General quota", formatUsd(summary?.account.quota_usd || 0)],
-    ["Claude quota", formatUsd(summary?.account.claude_quota_usd || 0)],
-    ["Used", formatUsd(summary?.account.used_quota_usd || 0)],
-    ["Requests", String(summary?.account.request_count || 0)],
+    [
+      t("codego.overview.metrics.generalQuota", "General quota"),
+      formatUsd(summary?.account.quota_usd || 0),
+    ],
+    [
+      t("codego.overview.metrics.claudeQuota", "Claude quota"),
+      formatUsd(summary?.account.claude_quota_usd || 0),
+    ],
+    [
+      t("codego.overview.metrics.used", "Used"),
+      formatUsd(summary?.account.used_quota_usd || 0),
+    ],
+    [
+      t("codego.overview.metrics.requests", "Requests"),
+      String(summary?.account.request_count || 0),
+    ],
   ] as const;
 
   const overviewHighlights = [
-    ["Connected server", authState?.serverAddress || "https://shu26.cfd"],
     [
-      "Desktop token",
-      summary?.tokens.desktop_token?.name || "Create or refresh from Tokens",
+      t("codego.overview.highlights.connectedServer", "Connected server"),
+      authState?.serverAddress || "https://shu26.cfd",
     ],
-    ["Last request", formatDateTime(summary?.usage.last_request_at)],
+    [
+      t("codego.overview.highlights.desktopToken", "Desktop token"),
+      summary?.tokens.desktop_token?.name ||
+        t(
+          "codego.overview.highlights.desktopTokenEmpty",
+          "Create or refresh from Tokens",
+        ),
+    ],
+    [
+      t("codego.overview.highlights.lastRequest", "Last request"),
+      formatDateTime(summary?.usage.last_request_at),
+    ],
   ] as const;
 
   return (
@@ -92,7 +116,7 @@ export function CodeGoAuthenticatedOverview({
                       {summaryIsFetching ? (
                         <Badge variant="outline" className="gap-1.5">
                           <RefreshCw className="h-3 w-3 animate-spin" />
-                          Refreshing
+                          {t("common.refreshing", "Refreshing")}
                         </Badge>
                       ) : null}
                     </div>
@@ -101,13 +125,15 @@ export function CodeGoAuthenticatedOverview({
                         summary?.account.username}
                     </h1>
                     <p className="max-w-xl text-sm leading-6 text-muted-foreground">
-                      Browser-approved desktop access with token rotation, quota
-                      checks, and log visibility in one place.
+                      {t(
+                        "codego.overview.heroDescription",
+                        "Browser-approved desktop access with token rotation, quota checks, and log visibility in one place.",
+                      )}
                     </p>
                   </div>
                 </div>
                 <div className="hidden rounded-full border border-white/70 bg-white/72 px-3 py-1 text-xs text-muted-foreground dark:border-white/10 dark:bg-white/[0.04] sm:block">
-                  Session live
+                  {t("codego.overview.sessionLive", "Session live")}
                 </div>
               </div>
 
@@ -129,7 +155,7 @@ export function CodeGoAuthenticatedOverview({
                   className="h-9 gap-2"
                 >
                   <RefreshCw className="h-4 w-4" />
-                  Refresh
+                  {t("common.refresh", "Refresh")}
                 </Button>
                 <Button
                   variant="outline"
@@ -137,7 +163,7 @@ export function CodeGoAuthenticatedOverview({
                   className="h-9 gap-2"
                 >
                   <WandSparkles className="h-4 w-4" />
-                  Providers
+                  {t("codego.overview.providers", "Providers")}
                 </Button>
                 <Button
                   variant="outline"
@@ -150,7 +176,7 @@ export function CodeGoAuthenticatedOverview({
                   ) : (
                     <LogOut className="h-4 w-4" />
                   )}
-                  Disconnect
+                  {t("codego.overview.disconnect", "Disconnect")}
                 </Button>
               </div>
             </div>
@@ -185,9 +211,15 @@ export function CodeGoAuthenticatedOverview({
           className="flex flex-1 flex-col gap-4"
         >
           <TabsList className="w-fit rounded-full border border-white/70 bg-white/70 p-1 dark:border-white/10 dark:bg-white/[0.04]">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="tokens">Tokens</TabsTrigger>
-            <TabsTrigger value="logs">Logs</TabsTrigger>
+            <TabsTrigger value="overview">
+              {t("codego.overview.tabs.overview", "Overview")}
+            </TabsTrigger>
+            <TabsTrigger value="tokens">
+              {t("codego.overview.tabs.tokens", "Tokens")}
+            </TabsTrigger>
+            <TabsTrigger value="logs">
+              {t("codego.overview.tabs.logs", "Logs")}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -219,7 +251,9 @@ export function CodeGoAuthenticatedOverview({
 
                 <Card className="codego-panel shadow-none">
                   <CardHeader>
-                    <CardTitle className="text-base">Service status</CardTitle>
+                    <CardTitle className="text-base">
+                      {t("codego.overview.serviceStatus", "Service status")}
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div
@@ -244,7 +278,10 @@ export function CodeGoAuthenticatedOverview({
                         </div>
                         <div className="text-xs text-muted-foreground">
                           {summary?.service.notice ||
-                            "No active service notice."}
+                            t(
+                              "codego.overview.noServiceNotice",
+                              "No active service notice.",
+                            )}
                         </div>
                       </div>
                     </div>
@@ -276,7 +313,7 @@ export function CodeGoAuthenticatedOverview({
                 <Card className="codego-panel shadow-none">
                   <CardHeader>
                     <CardTitle className="text-base">
-                      Available models
+                      {t("codego.overview.availableModels", "Available models")}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -289,14 +326,17 @@ export function CodeGoAuthenticatedOverview({
                         ))
                       ) : (
                         <span className="text-sm text-muted-foreground">
-                          No model metadata available.
+                          {t(
+                            "codego.overview.noModelMetadata",
+                            "No model metadata available.",
+                          )}
                         </span>
                       )}
                     </div>
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
                       <div>
                         <div className="text-xs text-muted-foreground">
-                          Today
+                          {t("codego.overview.today", "Today")}
                         </div>
                         <div className="text-sm font-medium">
                           {formatUsd(summary?.usage.today_usd || 0)}
@@ -304,7 +344,7 @@ export function CodeGoAuthenticatedOverview({
                       </div>
                       <div>
                         <div className="text-xs text-muted-foreground">
-                          Last 7 days
+                          {t("codego.overview.last7Days", "Last 7 days")}
                         </div>
                         <div className="text-sm font-medium">
                           {formatUsd(summary?.usage.last_7_days_usd || 0)}
@@ -312,7 +352,10 @@ export function CodeGoAuthenticatedOverview({
                       </div>
                       <div className="sm:col-span-2">
                         <div className="text-xs text-muted-foreground">
-                          Last request
+                          {t(
+                            "codego.overview.highlights.lastRequest",
+                            "Last request",
+                          )}
                         </div>
                         <div className="text-sm font-medium">
                           {formatDateTime(summary?.usage.last_request_at)}
