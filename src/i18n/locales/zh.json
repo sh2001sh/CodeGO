@@ -2903,6 +2903,21 @@
     "refresh": "刷新"
   },
   "codego": {
+    "shell": {
+      "desktopTitle": "CodeGo 桌面控制台",
+      "desktopSubtitle": "账号、令牌、诊断与本地工具配置都集中在这里。",
+      "providersSubtitle": "切换供应商，并让各个 CLI 工作区保持一致。",
+      "workspaceSubtitle": "围绕当前工作流的专注操作视图。",
+      "desktopSurface": "桌面控制面板",
+      "desktopReady": "桌面已就绪",
+      "routeActive": "路由已接管",
+      "dashboard": "控制台",
+      "providers": "供应商",
+      "workspace": "工作区",
+      "activeApp": "当前应用",
+      "controlCenter": "控制中心",
+      "workspaceView": "工作区视图"
+    },
     "secureStorage": {
       "title": "安全存储不可用",
       "unavailableBody": "当前设备的安全凭据存储不可用。Code Go 会先把桌面授权会话临时保存在本地设置中，待 Keychain、凭据管理器或 Secret Service 恢复后再切回安全存储。"

@@ -894,7 +894,9 @@ function App() {
   const currentViewTitle = (() => {
     switch (currentView) {
       case "codego":
-        return "CodeGo desktop";
+        return t("codego.shell.desktopTitle", {
+          defaultValue: "CodeGo desktop",
+        });
       case "providers":
         return t("apps." + activeApp);
       case "settings":
@@ -927,15 +929,24 @@ function App() {
       case "hermesMemory":
         return t("hermes.memory.title");
       default:
-        return "CodeGo desktop";
+        return t("codego.shell.desktopTitle", {
+          defaultValue: "CodeGo desktop",
+        });
     }
   })();
   const currentViewSubtitle =
     currentView === "codego"
-      ? "Account, tokens, diagnostics, and local tool setup."
+      ? t("codego.shell.desktopSubtitle", {
+          defaultValue: "Account, tokens, diagnostics, and local tool setup.",
+        })
       : currentView === "providers"
-        ? "Switch providers and keep every CLI workspace aligned."
-        : "Focused operational view for the active workflow.";
+        ? t("codego.shell.providersSubtitle", {
+            defaultValue:
+              "Switch providers and keep every CLI workspace aligned.",
+          })
+        : t("codego.shell.workspaceSubtitle", {
+            defaultValue: "Focused operational view for the active workflow.",
+          });
 
   const renderContent = () => {
     const content = (() => {
@@ -1189,7 +1200,12 @@ function App() {
 
       <div className="min-h-0 flex-1 p-3 pb-4 lg:p-4">
         <div className="codego-shell flex h-full min-h-0 overflow-hidden">
-          <aside className="codego-sidebar-surface hidden w-[292px] shrink-0 px-4 py-4 lg:flex lg:flex-col">
+          <aside
+            className={cn(
+              "codego-sidebar-surface w-[292px] shrink-0 px-4 py-4 lg:flex lg:flex-col",
+              currentView === "codego" ? "hidden xl:flex" : "hidden lg:flex",
+            )}
+          >
             <div className="codego-panel p-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/70 bg-white/82 dark:border-white/10 dark:bg-white/[0.05]">
@@ -1205,7 +1221,9 @@ function App() {
                     codego
                   </a>
                   <div className="mt-1 text-xs text-muted-foreground">
-                    Desktop control surface
+                    {t("codego.shell.desktopSurface", {
+                      defaultValue: "Desktop control surface",
+                    })}
                   </div>
                 </div>
               </div>
@@ -1219,8 +1237,12 @@ function App() {
                   )}
                 >
                   {isProxyRunning && isCurrentAppTakeoverActive
-                    ? "route active"
-                    : "desktop ready"}
+                    ? t("codego.shell.routeActive", {
+                        defaultValue: "route active",
+                      })
+                    : t("codego.shell.desktopReady", {
+                        defaultValue: "desktop ready",
+                      })}
                 </Badge>
                 <Badge
                   variant="outline"
@@ -1241,7 +1263,11 @@ function App() {
                 )}
               >
                 <LayoutDashboard className="h-4 w-4 shrink-0" />
-                <span>Dashboard</span>
+                <span>
+                  {t("codego.shell.dashboard", {
+                    defaultValue: "Dashboard",
+                  })}
+                </span>
               </button>
               <button
                 type="button"
@@ -1252,7 +1278,11 @@ function App() {
                 )}
               >
                 <Wrench className="h-4 w-4 shrink-0" />
-                <span>Providers</span>
+                <span>
+                  {t("codego.shell.providers", {
+                    defaultValue: "Providers",
+                  })}
+                </span>
               </button>
               <button
                 type="button"
@@ -1271,7 +1301,11 @@ function App() {
             </div>
 
             <div className="mt-6">
-              <div className="codego-kicker px-3">Workspace</div>
+              <div className="codego-kicker px-3">
+                {t("codego.shell.workspace", {
+                  defaultValue: "Workspace",
+                })}
+              </div>
               <div className="mt-2 grid gap-2">
                 <button
                   type="button"
@@ -1342,7 +1376,11 @@ function App() {
             </div>
 
             <div className="mt-6">
-              <div className="codego-kicker px-3">Active app</div>
+              <div className="codego-kicker px-3">
+                {t("codego.shell.activeApp", {
+                  defaultValue: "Active app",
+                })}
+              </div>
               <div className="mt-2 codego-panel p-3">
                 <AppSwitcher
                   activeApp={activeApp}
@@ -1438,8 +1476,12 @@ function App() {
                     <div className="min-w-0">
                       <div className="codego-kicker">
                         {isPrimaryConsoleView
-                          ? "Control center"
-                          : "Workspace view"}
+                          ? t("codego.shell.controlCenter", {
+                              defaultValue: "Control center",
+                            })
+                          : t("codego.shell.workspaceView", {
+                              defaultValue: "Workspace view",
+                            })}
                       </div>
                       <h1 className="truncate text-xl font-semibold text-foreground">
                         {currentViewTitle}

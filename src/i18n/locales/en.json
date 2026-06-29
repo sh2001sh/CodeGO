@@ -2903,6 +2903,21 @@
     "refresh": "Refresh"
   },
   "codego": {
+    "shell": {
+      "desktopTitle": "CodeGo desktop",
+      "desktopSubtitle": "Account, tokens, diagnostics, and local tool setup.",
+      "providersSubtitle": "Switch providers and keep every CLI workspace aligned.",
+      "workspaceSubtitle": "Focused operational view for the active workflow.",
+      "desktopSurface": "Desktop control surface",
+      "desktopReady": "desktop ready",
+      "routeActive": "route active",
+      "dashboard": "Dashboard",
+      "providers": "Providers",
+      "workspace": "Workspace",
+      "activeApp": "Active app",
+      "controlCenter": "Control center",
+      "workspaceView": "Workspace view"
+    },
     "secureStorage": {
       "title": "Secure storage unavailable",
       "unavailableBody": "Secure credential storage is unavailable on this device. Code Go will temporarily keep the desktop session in local settings until Keychain, Credential Manager, or Secret Service starts working again."

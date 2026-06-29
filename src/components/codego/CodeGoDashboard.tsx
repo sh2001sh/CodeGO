@@ -285,13 +285,17 @@ export function CodeGoDashboard({
   if (!isAuthenticated) {
     return (
       <div className="flex flex-1 px-6 pb-8">
-        <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-5">
+        <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-5">
           <div className="flex items-center gap-3 pt-2">
             <div className="flex h-11 w-11 items-center justify-center rounded-[16px] border border-white/70 bg-white/75 shadow-sm">
               <CodeGoMark size={30} className="h-7 w-7" />
             </div>
             <div>
-              <div className="codego-kicker">codego desktop</div>
+              <div className="codego-kicker">
+                {t("codego.shell.desktopTitle", {
+                  defaultValue: "CodeGo desktop",
+                })}
+              </div>
               <div className="text-base font-semibold text-foreground">
                 {t(
                   "codego.dashboard.browserApprovalTitle",
@@ -328,7 +332,7 @@ export function CodeGoDashboard({
 
   return (
     <div className="flex flex-1 px-6 pb-8">
-      <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-5">
+      <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-5">
         <CodeGoAuthenticatedOverview
           activeTab={activeTab}
           summary={summary}

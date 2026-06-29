@@ -112,7 +112,11 @@ export function CodeGoAuthenticatedOverview({
                   </div>
                   <div className="space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
-                      <Badge className="codego-chip-warm">codego desktop</Badge>
+                      <Badge className="codego-chip-warm">
+                        {t("codego.shell.desktopTitle", {
+                          defaultValue: "CodeGo desktop",
+                        })}
+                      </Badge>
                       {summaryIsFetching ? (
                         <Badge variant="outline" className="gap-1.5">
                           <RefreshCw className="h-3 w-3 animate-spin" />

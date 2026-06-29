@@ -103,7 +103,11 @@ export function CodeGoDesktopAuthView({
                 <CodeGoMark size={40} className="h-10 w-10" />
               </div>
               <div className="min-w-0 space-y-3">
-                <Badge className="codego-chip-warm">codego desktop</Badge>
+                <Badge className="codego-chip-warm">
+                  {t("codego.shell.desktopTitle", {
+                    defaultValue: "CodeGo desktop",
+                  })}
+                </Badge>
                 <h1 className="max-w-2xl text-3xl font-semibold tracking-tight text-balance text-foreground">
                   {t(
                     "codego.auth.heroTitle",
