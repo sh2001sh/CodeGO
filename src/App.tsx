@@ -176,7 +176,7 @@ const getInitialView = (): View => {
     return saved;
   }
   const legacySaved = readStoredView(LEGACY_VIEW_STORAGE_KEY);
-  if (legacySaved === "codego") {
+  if (legacySaved) {
     return legacySaved;
   }
   return "codego";
