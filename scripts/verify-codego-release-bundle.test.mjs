@@ -23,10 +23,10 @@ async function createFixture() {
   await mkdir(assetsDir, { recursive: true });
 
   const assetContents = new Map([
-    ["CodeGo_3.16.4_x64_en-US.msi", "windows-x64"],
-    ["CodeGo_3.16.4_x64_en-US.msi.sig", "sig-win-x64\n"],
-    ["CodeGo_3.16.4_arm64_en-US.msi", "windows-arm64"],
-    ["CodeGo_3.16.4_arm64_en-US.msi.sig", "sig-win-arm64\n"],
+    ["CodeGo_3.16.4_x64_zh-CN.msi", "windows-x64"],
+    ["CodeGo_3.16.4_x64_zh-CN.msi.sig", "sig-win-x64\n"],
+    ["CodeGo_3.16.4_arm64_zh-CN.msi", "windows-arm64"],
+    ["CodeGo_3.16.4_arm64_zh-CN.msi.sig", "sig-win-arm64\n"],
     ["CodeGo_3.16.4_x64_portable.zip", "portable-x64"],
     ["CodeGo_3.16.4_arm64_portable.zip", "portable-arm64"],
     ["CodeGo_3.16.4_universal.dmg", "mac-dmg"],
@@ -107,8 +107,8 @@ describe("verify-codego-release-bundle", () => {
         "linux-aarch64",
       ],
       requiredAssetSuffixes: [
-        "_x64_en-US.msi",
-        "_arm64_en-US.msi",
+        "_x64_zh-CN.msi",
+        "_arm64_zh-CN.msi",
         ".dmg",
         ".app.tar.gz",
         "_x64.appimage",
@@ -150,7 +150,7 @@ describe("verify-codego-release-bundle", () => {
     const { manifestPath, latestPath, assetsDir, bundleOutDir } =
       await createFixture();
     await writeFile(
-      path.join(assetsDir, "CodeGo_3.16.4_x64_en-US.msi"),
+      path.join(assetsDir, "CodeGo_3.16.4_x64_zh-CN.msi"),
       "corrupted-installer",
       "utf8",
     );

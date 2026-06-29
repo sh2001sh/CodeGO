@@ -252,13 +252,13 @@ pub struct CodeGoAuthSessionStateRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CodeGoAuthSessionStartResponse {
-    #[serde(alias = "sessionId")]
+    #[serde(alias = "session_id")]
     pub session_id: String,
-    #[serde(alias = "userCode")]
+    #[serde(alias = "user_code")]
     pub user_code: String,
-    #[serde(alias = "verificationUri")]
+    #[serde(alias = "verification_uri")]
     pub verification_uri: String,
-    #[serde(alias = "expiresIn")]
+    #[serde(alias = "expires_in")]
     pub expires_in: i64,
     pub interval: i64,
 }
@@ -268,15 +268,15 @@ pub struct CodeGoAuthSessionStartResponse {
 pub struct CodeGoAuthSessionPollResponse {
     pub status: String,
     pub authenticated: bool,
-    #[serde(alias = "accessToken")]
+    #[serde(alias = "access_token")]
     pub access_token: Option<String>,
-    #[serde(alias = "userId")]
+    #[serde(alias = "user_id")]
     pub user_id: Option<i64>,
-    #[serde(alias = "deviceId")]
+    #[serde(alias = "device_id")]
     pub device_id: Option<i64>,
-    #[serde(alias = "serverAddress")]
+    #[serde(alias = "server_address")]
     pub server_address: Option<String>,
-    #[serde(alias = "lastUsername")]
+    #[serde(alias = "last_username")]
     pub last_username: Option<String>,
 }
 
@@ -364,6 +364,7 @@ pub(crate) fn build_url(server_address: &str, path: &str) -> String {
 pub(crate) fn load_auth_state() -> CodeGoAuthState {
     let settings = get_settings();
     let mut secure_storage_operational = true;
+    let legacy_token = settings.codego_access_token.clone();
     let access_token = match load_codego_auth() {
         Ok(token) => token,
         Err(error) => {
@@ -374,11 +375,13 @@ pub(crate) fn load_auth_state() -> CodeGoAuthState {
     };
     let effective_access_token = if let Some(token) = access_token {
         Some(token)
-    } else if let Some(legacy_token) = settings.codego_access_token.clone() {
-        if let Err(error) = save_codego_auth(&legacy_token) {
+    } else if let Some(legacy_token) = legacy_token {
+        if !secure_storage_operational {
+            Some(legacy_token)
+        } else if let Err(error) = save_codego_auth(&legacy_token) {
             log::warn!("迁移旧版 Code Go token 到安全存储失败: {error}");
             secure_storage_operational = false;
-            None
+            Some(legacy_token)
         } else {
             let mut migrated_settings = settings.clone();
             migrated_settings.codego_access_token = None;

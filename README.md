@@ -299,7 +299,7 @@ For detailed guides on every feature, check out the **[User Manual](docs/user-ma
 
 ### Windows Users
 
-Download the latest `CodeGo_{version}_x64_en-US.msi` installer or `CodeGo_{version}_x64_portable.zip` portable build from the [codego download page](https://shu26.cfd/download).
+Download the latest `CodeGo_{version}_x64_zh-CN.msi` installer or `CodeGo_{version}_x64_portable.zip` portable build from the [codego download page](https://shu26.cfd/download).
 
 ### macOS Users
 

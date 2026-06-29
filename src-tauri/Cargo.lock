@@ -859,7 +859,7 @@ dependencies = [
 
 [[package]]
 name = "codego"
-version = "3.16.7"
+version = "3.16.8"
 dependencies = [
  "anyhow",
  "arboard",

@@ -46,7 +46,7 @@ async function createFixtureServer() {
       return;
     }
     if (
-      url === "/downloads/codego/CodeGo_3.16.4_x64_en-US.msi" ||
+      url === "/downloads/codego/CodeGo_3.16.4_x64_zh-CN.msi" ||
       url === "/downloads/codego/CodeGo_3.16.4_universal.dmg" ||
       url === "/downloads/codego/CodeGo_3.16.4_universal.app.tar.gz"
     ) {
@@ -77,8 +77,8 @@ async function createFixtureServer() {
 
   releaseBody.assets = [
     {
-      name: "CodeGo_3.16.4_x64_en-US.msi",
-      browser_download_url: `${baseURL}/downloads/codego/CodeGo_3.16.4_x64_en-US.msi`,
+      name: "CodeGo_3.16.4_x64_zh-CN.msi",
+      browser_download_url: `${baseURL}/downloads/codego/CodeGo_3.16.4_x64_zh-CN.msi`,
     },
     {
       name: "CodeGo_3.16.4_universal.dmg",
@@ -92,7 +92,7 @@ async function createFixtureServer() {
   releaseBody.platforms = {
     "windows-x86_64": {
       signature: "sig-win",
-      url: `${baseURL}/downloads/codego/CodeGo_3.16.4_x64_en-US.msi`,
+      url: `${baseURL}/downloads/codego/CodeGo_3.16.4_x64_zh-CN.msi`,
     },
     "darwin-aarch64": {
       signature: "sig-mac",

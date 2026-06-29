@@ -42,7 +42,7 @@ const PLATFORM_DEFINITIONS = [
     id: "windows-x64",
     label: "Windows x64",
     artifactRules: [
-      { suffix: "_x64_en-US.msi", role: "installer" },
+      { suffix: "_x64_zh-CN.msi", role: "installer" },
       { suffix: "_x64_portable.zip", role: "portable" },
     ],
     updaterTargets: ["windows-x86_64"],
@@ -51,7 +51,7 @@ const PLATFORM_DEFINITIONS = [
     id: "windows-arm64",
     label: "Windows ARM64",
     artifactRules: [
-      { suffix: "_arm64_en-US.msi", role: "installer" },
+      { suffix: "_arm64_zh-CN.msi", role: "installer" },
       { suffix: "_arm64_portable.zip", role: "portable" },
     ],
     updaterTargets: ["windows-aarch64"],
@@ -227,7 +227,7 @@ export function deriveAcceptancePlatforms(release) {
     return {
       id: definition.id,
       label: definition.label,
-      install_artifacts: sortByName(installArtifacts, (item) => item.name),
+      install_artifacts: installArtifacts,
       updater_targets: sortByName(updaterTargets, (item) => item.target),
       scenarios: createScenarioTemplate(),
     };

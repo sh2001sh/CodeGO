@@ -144,6 +144,8 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         run: |
           set -euo pipefail
 
@@ -153,6 +155,27 @@ jobs:
           else
             echo "tauri_signing_enabled=false" >> "$GITHUB_OUTPUT"
             echo "Tauri updater signing secret is missing; unsigned release artifacts will be published."
+          fi
+
+          if [ "${RUNNER_OS}" = "Windows" ]; then
+            missing=()
+            for key in \
+              WINDOWS_CERTIFICATE \
+              WINDOWS_CERTIFICATE_PASSWORD; do
+              if [ -z "${!key:-}" ]; then
+                missing+=("$key")
+              fi
+            done
+
+            if [ "${#missing[@]}" -gt 0 ]; then
+              echo "windows_signing_enabled=false" >> "$GITHUB_OUTPUT"
+              echo "Windows Authenticode signing secrets are missing: ${missing[*]}"
+            else
+              echo "windows_signing_enabled=true" >> "$GITHUB_OUTPUT"
+              echo "Windows Authenticode signing is enabled for this runner."
+            fi
+          else
+            echo "windows_signing_enabled=false" >> "$GITHUB_OUTPUT"
           fi
 
           if [ "${RUNNER_OS}" != "macOS" ]; then
@@ -293,6 +316,48 @@ jobs:
           # Cleanup certificate file
           rm -f "$CERT_PATH"
 
+      - name: Import Windows signing certificate
+        if: runner.os == 'Windows' && steps.signing-config.outputs.windows_signing_enabled == 'true'
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $certPath = Join-Path $env:RUNNER_TEMP 'codego-signing.pfx'
+          [System.IO.File]::WriteAllBytes(
+            $certPath,
+            [System.Convert]::FromBase64String($env:WINDOWS_CERTIFICATE)
+          )
+
+          $password = ConvertTo-SecureString $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
+          $cert = Import-PfxCertificate -FilePath $certPath -Password $password -CertStoreLocation 'Cert:\CurrentUser\My'
+          if ($null -eq $cert) {
+            throw 'Failed to import Windows signing certificate'
+          }
+
+          $thumbprint = $cert.Thumbprint
+          if ([string]::IsNullOrWhiteSpace($thumbprint)) {
+            throw 'Imported Windows signing certificate has no thumbprint'
+          }
+
+          $signtool = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin' -Recurse -Filter 'signtool.exe' -ErrorAction SilentlyContinue |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1 -ExpandProperty FullName
+          if ([string]::IsNullOrWhiteSpace($signtool)) {
+            $signtool = (Get-Command 'signtool.exe' -ErrorAction SilentlyContinue).Source
+          }
+          if ([string]::IsNullOrWhiteSpace($signtool)) {
+            throw 'signtool.exe not found on runner'
+          }
+
+          "WINDOWS_CERTIFICATE_THUMBPRINT=$thumbprint" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "WINDOWS_SIGNTOOL_PATH=$signtool" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "WINDOWS_CERTIFICATE_FILE=$certPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "Imported Windows signing certificate: $thumbprint"
+          Write-Host "Using signtool: $signtool"
+
       - name: Build Tauri App (macOS)
         if: runner.os == 'macOS'
         shell: bash
@@ -347,6 +412,73 @@ jobs:
             $buildArgs += @()
           }
           & pnpm @buildArgs
+
+      - name: Authenticode sign Windows build outputs
+        if: runner.os == 'Windows' && steps.signing-config.outputs.windows_signing_enabled == 'true'
+        shell: pwsh
+        env:
+          WINDOWS_RELEASE_ARCH: ${{ matrix.arch || 'x86_64' }}
+          WINDOWS_TIMESTAMP_URL: ${{ secrets.WINDOWS_TIMESTAMP_URL }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $targetRoot = if ($env:WINDOWS_RELEASE_ARCH -eq 'arm64') {
+            'src-tauri/target/aarch64-pc-windows-msvc/release'
+          } else {
+            'src-tauri/target/release'
+          }
+          $timestampUrl = if ([string]::IsNullOrWhiteSpace($env:WINDOWS_TIMESTAMP_URL)) {
+            'http://timestamp.digicert.com'
+          } else {
+            $env:WINDOWS_TIMESTAMP_URL
+          }
+
+          function Invoke-CodeSign([string]$Path) {
+            if (-not (Test-Path $Path)) {
+              return
+            }
+            Write-Host "Signing $Path"
+            & $env:WINDOWS_SIGNTOOL_PATH sign `
+              /fd SHA256 `
+              /td SHA256 `
+              /tr $timestampUrl `
+              /sha1 $env:WINDOWS_CERTIFICATE_THUMBPRINT `
+              $Path
+            if ($LASTEXITCODE -ne 0) {
+              throw "signtool sign failed for $Path"
+            }
+            & $env:WINDOWS_SIGNTOOL_PATH verify /pa /v $Path
+            if ($LASTEXITCODE -ne 0) {
+              throw "signtool verify failed for $Path"
+            }
+          }
+
+          $bundleDir = Join-Path $targetRoot 'bundle'
+          $msiFiles = if (Test-Path $bundleDir) {
+            Get-ChildItem -Path $bundleDir -Recurse -Filter '*.msi' -File -ErrorAction SilentlyContinue
+          } else {
+            @()
+          }
+          foreach ($msi in $msiFiles) {
+            Invoke-CodeSign $msi.FullName
+          }
+
+          $exeCandidates = if ($env:WINDOWS_RELEASE_ARCH -eq 'arm64') {
+            @(
+              'src-tauri/target/aarch64-pc-windows-msvc/release/codego.exe',
+              'src-tauri/target/aarch64-pc-windows-msvc/release/cc-switch.exe'
+            )
+          } else {
+            @(
+              'src-tauri/target/release/codego.exe',
+              'src-tauri/target/release/cc-switch.exe',
+              'src-tauri/target/x86_64-pc-windows-msvc/release/codego.exe',
+              'src-tauri/target/x86_64-pc-windows-msvc/release/cc-switch.exe'
+            )
+          }
+          foreach ($exePath in $exeCandidates | Select-Object -Unique) {
+            Invoke-CodeSign $exePath
+          }
 
       - name: Build Tauri App (Linux)
         if: runner.os == 'Linux'
@@ -559,7 +691,7 @@ jobs:
             $msi = Get-ChildItem -Path (Join-Path $targetRoot 'bundle') -Recurse -Include *.msi -ErrorAction SilentlyContinue | Select-Object -First 1
           }
           if ($null -ne $msi) {
-            $dest = "CodeGo_${VERSION}_${assetArch}_en-US.msi"
+            $dest = "CodeGo_${VERSION}_${assetArch}_zh-CN.msi"
             Copy-Item $msi.FullName (Join-Path release-assets $dest)
             Write-Host "Installer copied: $dest"
             $sigPath = "$($msi.FullName).sig"
@@ -618,6 +750,19 @@ jobs:
             throw 'Portable ARM64 exe not found'
           } else {
             Write-Warning 'Portable exe not found'
+          }
+
+          if ('${{ steps.signing-config.outputs.windows_signing_enabled }}' -eq 'true') {
+            $signedMsi = Join-Path 'release-assets' "CodeGo_${VERSION}_${assetArch}_zh-CN.msi"
+            if (-not (Test-Path $signedMsi)) {
+              throw "Signed MSI asset missing: $signedMsi"
+            }
+            & $env:WINDOWS_SIGNTOOL_PATH verify /pa /v $signedMsi
+            if ($LASTEXITCODE -ne 0) {
+              throw "signtool verify failed for $signedMsi"
+            }
+          } else {
+            Write-Warning 'Windows Authenticode signing is disabled; installer and portable exe may trigger OS security warnings.'
           }
 
       - name: Prepare Linux Assets
@@ -698,6 +843,20 @@ jobs:
           if [ -f "$RUNNER_TEMP/build.keychain-db" ]; then
             security delete-keychain "$RUNNER_TEMP/build.keychain-db" || true
           fi
+
+      - name: Clean up Windows signing certificate
+        if: runner.os == 'Windows' && always()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          if (-not [string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_THUMBPRINT)) {
+            Get-ChildItem 'Cert:\CurrentUser\My' |
+              Where-Object { $_.Thumbprint -eq $env:WINDOWS_CERTIFICATE_THUMBPRINT } |
+              Remove-Item -Force
+          }
+          if (-not [string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_FILE) -and (Test-Path $env:WINDOWS_CERTIFICATE_FILE)) {
+            Remove-Item -Force $env:WINDOWS_CERTIFICATE_FILE
+          }
 
   publish-release:
     name: Publish GitHub Release
@@ -982,12 +1141,12 @@ jobs:
             ### Attached artifacts
 
             - macOS: `CodeGo_<version>_universal.dmg`（推荐）/ `CodeGo_<version>_universal.zip` / `CodeGo_<version>_universal.app.tar.gz`
-            - Windows: `CodeGo_<version>_x64_en-US.msi` / `CodeGo_<version>_arm64_en-US.msi` / `CodeGo_<version>_*_portable.zip`
+            - Windows: `CodeGo_<version>_x64_zh-CN.msi` / `CodeGo_<version>_arm64_zh-CN.msi` / `CodeGo_<version>_*_portable.zip`
             - Linux: `CodeGo_<version>_x64.AppImage` / `.deb` / `.rpm` and ARM64 equivalents
             - Release channel metadata: `codego-desktop-release-manifest.json` and `latest.json`
 
             ---
-            Updater signatures and macOS notarization metadata are included when the corresponding CI signing secrets are configured.
+            Updater signatures are included when Tauri signing secrets are configured. macOS artifacts are notarized when Apple Developer secrets are configured. Windows installer and portable binaries are Authenticode-signed when Windows certificate secrets are configured.
           files: release-assets/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

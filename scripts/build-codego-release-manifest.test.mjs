@@ -22,22 +22,22 @@ async function createFixture() {
   await mkdir(assetsDir, { recursive: true });
   await Promise.all([
     writeFile(
-      path.join(assetsDir, "CodeGo_3.16.4_x64_en-US.msi"),
+      path.join(assetsDir, "CodeGo_3.16.4_x64_zh-CN.msi"),
       "windows-x64",
       "utf8",
     ),
     writeFile(
-      path.join(assetsDir, "CodeGo_3.16.4_x64_en-US.msi.sig"),
+      path.join(assetsDir, "CodeGo_3.16.4_x64_zh-CN.msi.sig"),
       "sig-win-x64\n",
       "utf8",
     ),
     writeFile(
-      path.join(assetsDir, "CodeGo_3.16.4_arm64_en-US.msi"),
+      path.join(assetsDir, "CodeGo_3.16.4_arm64_zh-CN.msi"),
       "windows-arm64",
       "utf8",
     ),
     writeFile(
-      path.join(assetsDir, "CodeGo_3.16.4_arm64_en-US.msi.sig"),
+      path.join(assetsDir, "CodeGo_3.16.4_arm64_zh-CN.msi.sig"),
       "sig-win-arm64\n",
       "utf8",
     ),
@@ -125,15 +125,15 @@ describe("build-codego-release-manifest", () => {
     assert.deepEqual(
       manifest.assets.slice(0, 4).map((asset) => asset.name),
       [
-        "CodeGo_3.16.4_x64_en-US.msi",
+        "CodeGo_3.16.4_x64_zh-CN.msi",
         "CodeGo_3.16.4_x64_portable.zip",
-        "CodeGo_3.16.4_arm64_en-US.msi",
+        "CodeGo_3.16.4_arm64_zh-CN.msi",
         "CodeGo_3.16.4_universal.dmg",
       ],
     );
     assert.equal(
       manifest.assets.find(
-        (asset) => asset.name === "CodeGo_3.16.4_x64_en-US.msi",
+        (asset) => asset.name === "CodeGo_3.16.4_x64_zh-CN.msi",
       )?.digest,
       sha256("windows-x64"),
     );
@@ -145,7 +145,7 @@ describe("build-codego-release-manifest", () => {
     );
     assert.equal(
       manifest.platforms["windows-x86_64"]?.url,
-      "/downloads/codego/CodeGo_3.16.4_x64_en-US.msi",
+      "/downloads/codego/CodeGo_3.16.4_x64_zh-CN.msi",
     );
     assert.equal(
       manifest.platforms["windows-aarch64"]?.signature,

@@ -120,7 +120,7 @@ export async function runCLI(argv = process.argv.slice(2)) {
       "required-asset-suffixes": {
         type: "string",
         default:
-          ".msi,_arm64_en-US.msi,.dmg,.app.tar.gz,.AppImage,_arm64.AppImage",
+          ".msi,_arm64_zh-CN.msi,.dmg,.app.tar.gz,.AppImage,_arm64.AppImage",
       },
       "timeout-ms": {
         type: "string",

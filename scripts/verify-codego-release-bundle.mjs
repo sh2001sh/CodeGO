@@ -248,7 +248,7 @@ export async function runCLI(argv = process.argv.slice(2)) {
       "required-asset-suffixes": {
         type: "string",
         default:
-          ".msi,_arm64_en-US.msi,.dmg,.app.tar.gz,.appimage,_arm64.appimage",
+          ".msi,_arm64_zh-CN.msi,.dmg,.app.tar.gz,.appimage,_arm64.appimage",
       },
       "static-relative-dir": {
         type: "string",

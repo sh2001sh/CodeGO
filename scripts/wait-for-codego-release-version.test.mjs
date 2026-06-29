@@ -94,12 +94,12 @@ function buildReleaseBody(baseURL, version) {
     published_at: "2026-06-28T12:00:00Z",
     assets: [
       {
-        name: `CodeGo_${version}_x64_en-US.msi`,
-        browser_download_url: `${baseURL}/downloads/codego/CodeGo_${version}_x64_en-US.msi`,
+        name: `CodeGo_${version}_x64_zh-CN.msi`,
+        browser_download_url: `${baseURL}/downloads/codego/CodeGo_${version}_x64_zh-CN.msi`,
       },
       {
-        name: `CodeGo_${version}_arm64_en-US.msi`,
-        browser_download_url: `${baseURL}/downloads/codego/CodeGo_${version}_arm64_en-US.msi`,
+        name: `CodeGo_${version}_arm64_zh-CN.msi`,
+        browser_download_url: `${baseURL}/downloads/codego/CodeGo_${version}_arm64_zh-CN.msi`,
       },
       {
         name: `CodeGo_${version}_universal.dmg`,
@@ -121,11 +121,11 @@ function buildReleaseBody(baseURL, version) {
     platforms: {
       "windows-x86_64": {
         signature: `sig-win-x64-${version}`,
-        url: `${baseURL}/downloads/codego/CodeGo_${version}_x64_en-US.msi`,
+        url: `${baseURL}/downloads/codego/CodeGo_${version}_x64_zh-CN.msi`,
       },
       "windows-aarch64": {
         signature: `sig-win-arm64-${version}`,
-        url: `${baseURL}/downloads/codego/CodeGo_${version}_arm64_en-US.msi`,
+        url: `${baseURL}/downloads/codego/CodeGo_${version}_arm64_zh-CN.msi`,
       },
       "darwin-aarch64": {
         signature: `sig-mac-${version}`,
@@ -169,7 +169,7 @@ describe("wait-for-codego-release-version", () => {
       ],
       requiredAssetSuffixes: [
         ".msi",
-        "_arm64_en-US.msi",
+        "_arm64_zh-CN.msi",
         ".dmg",
         ".app.tar.gz",
         "_x64.AppImage",

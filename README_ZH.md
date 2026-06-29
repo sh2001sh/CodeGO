@@ -302,7 +302,7 @@ CodeGo macOS 版本已通过 Apple 代码签名和公证，可直接下载安装
 
 ### Windows 用户
 
-从 [codego 下载页](https://shu26.cfd/download) 下载最新版本的 `CodeGo_{版本号}_x64_en-US.msi` 安装包或 `CodeGo_{版本号}_x64_portable.zip` 便携版。
+从 [codego 下载页](https://shu26.cfd/download) 下载最新版本的 `CodeGo_{版本号}_x64_zh-CN.msi` 安装包或 `CodeGo_{版本号}_x64_portable.zip` 便携版。
 
 ### macOS 用户
 

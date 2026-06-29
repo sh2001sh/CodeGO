@@ -25,10 +25,10 @@ async function createFixture() {
   await mkdir(assetsDir, { recursive: true });
 
   const assetContents = new Map([
-    ["CodeGo_3.16.4_x64_en-US.msi", "windows-x64"],
-    ["CodeGo_3.16.4_x64_en-US.msi.sig", "sig-win-x64\n"],
-    ["CodeGo_3.16.4_arm64_en-US.msi", "windows-arm64"],
-    ["CodeGo_3.16.4_arm64_en-US.msi.sig", "sig-win-arm64\n"],
+    ["CodeGo_3.16.4_x64_zh-CN.msi", "windows-x64"],
+    ["CodeGo_3.16.4_x64_zh-CN.msi.sig", "sig-win-x64\n"],
+    ["CodeGo_3.16.4_arm64_zh-CN.msi", "windows-arm64"],
+    ["CodeGo_3.16.4_arm64_zh-CN.msi.sig", "sig-win-arm64\n"],
     ["CodeGo_3.16.4_x64_portable.zip", "portable-x64"],
     ["CodeGo_3.16.4_arm64_portable.zip", "portable-arm64"],
     ["CodeGo_3.16.4_universal.dmg", "mac-dmg"],

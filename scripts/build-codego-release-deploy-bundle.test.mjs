@@ -29,12 +29,12 @@ async function createFixture() {
 
   await Promise.all([
     writeFile(
-      path.join(assetsDir, "CodeGo_3.16.4_x64_en-US.msi"),
+      path.join(assetsDir, "CodeGo_3.16.4_x64_zh-CN.msi"),
       "installer",
       "utf8",
     ),
     writeFile(
-      path.join(assetsDir, "CodeGo_3.16.4_x64_en-US.msi.sig"),
+      path.join(assetsDir, "CodeGo_3.16.4_x64_zh-CN.msi.sig"),
       "sig-installer",
       "utf8",
     ),
@@ -89,8 +89,8 @@ describe("build-codego-release-deploy-bundle", () => {
     );
     assert.deepEqual(staticFiles.sort(), [
       "CodeGo_3.16.4_universal.dmg",
-      "CodeGo_3.16.4_x64_en-US.msi",
-      "CodeGo_3.16.4_x64_en-US.msi.sig",
+      "CodeGo_3.16.4_x64_zh-CN.msi",
+      "CodeGo_3.16.4_x64_zh-CN.msi.sig",
       "note.txt",
     ]);
 
