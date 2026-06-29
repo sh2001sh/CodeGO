@@ -833,6 +833,13 @@ pub fn update_settings(mut new_settings: AppSettings) -> Result<(), AppError> {
     Ok(())
 }
 
+pub(crate) fn mutate_settings_internal<F>(mutator: F) -> Result<(), AppError>
+where
+    F: FnOnce(&mut AppSettings),
+{
+    mutate_settings(mutator)
+}
+
 pub fn set_codego_last_seen_quota_usd(value: Option<f64>) -> Result<(), AppError> {
     mutate_settings(|settings| {
         settings.codego_last_seen_quota_usd = value.filter(|v| v.is_finite() && *v >= 0.0);

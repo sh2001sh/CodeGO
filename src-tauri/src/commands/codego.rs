@@ -23,7 +23,9 @@ use crate::provider::Provider;
 use crate::secure_store::{clear_codego_auth, load_codego_auth, save_codego_auth};
 use crate::services::provider::provider_exists_in_live_config;
 use crate::services::ProviderService;
-use crate::settings::{get_settings, set_codego_last_seen_quota_usd, update_settings};
+use crate::settings::{
+    get_settings, mutate_settings_internal, set_codego_last_seen_quota_usd, update_settings,
+};
 use crate::store::AppState;
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
@@ -454,15 +456,15 @@ fn persist_auth_state(
     device_id: i64,
     last_username: String,
 ) -> Result<(), String> {
-    let previous_settings = get_settings();
-    let mut settings = previous_settings.clone();
-    settings.codego_server_address = Some(server_address);
-    settings.codego_user_id = Some(user_id);
-    settings.codego_device_id = Some(device_id);
-    settings.codego_last_username = Some(last_username);
-    settings.codego_last_seen_quota_usd = None;
-    settings.codego_access_token = Some(access_token.clone());
-    update_settings(settings).map_err(|e| e.to_string())?;
+    mutate_settings_internal(|settings| {
+        settings.codego_server_address = Some(server_address.clone());
+        settings.codego_user_id = Some(user_id);
+        settings.codego_device_id = Some(device_id);
+        settings.codego_last_username = Some(last_username.clone());
+        settings.codego_last_seen_quota_usd = None;
+        settings.codego_access_token = Some(access_token.clone());
+    })
+    .map_err(|e| e.to_string())?;
     if let Err(error) = save_codego_auth(&access_token) {
         log::warn!("保存 Code Go 安全凭据失败，将退回本地设置存储: {error}");
         return Ok(());
