@@ -31,7 +31,9 @@ export function CodeGoDashboard({
   const pollAuthMutation = useCodeGoPollAuthSessionMutation();
   const logoutMutation = useCodeGoLogoutMutation();
   const settingsQuery = useSettingsQuery();
-  const isAuthenticated = Boolean(authQuery.data?.authenticated);
+  const [sessionAuthenticated, setSessionAuthenticated] = useState(false);
+  const isAuthenticated =
+    sessionAuthenticated || Boolean(authQuery.data?.authenticated);
   const autoRefreshEnabled =
     settingsQuery.data?.codegoAutoRefreshEnabled ?? true;
   const summaryQuery = useCodeGoSummaryQuery(
@@ -71,6 +73,20 @@ export function CodeGoDashboard({
       setServerAddress(authQuery.data.serverAddress);
     }
   }, [authQuery.data?.serverAddress]);
+
+  useEffect(() => {
+    if (authQuery.data?.authenticated) {
+      setSessionAuthenticated(true);
+      stopAuthPolling();
+      setAuthSession(null);
+      setAuthError(null);
+      return;
+    }
+
+    if (!authQuery.isFetching) {
+      setSessionAuthenticated(false);
+    }
+  }, [authQuery.data?.authenticated, authQuery.isFetching]);
 
   useEffect(() => {
     return () => {
@@ -134,6 +150,7 @@ export function CodeGoDashboard({
             sessionId: session.sessionId,
           });
           if (result.authenticated) {
+            setSessionAuthenticated(true);
             stopAuthPolling();
             setAuthSession(null);
             setAuthError(null);
@@ -198,6 +215,9 @@ export function CodeGoDashboard({
   const handleLogout = async () => {
     try {
       await logoutMutation.mutateAsync();
+      setSessionAuthenticated(false);
+      setAuthSession(null);
+      setAuthError(null);
       toast.success(
         t("codego.dashboard.disconnected", "codego account disconnected"),
         { closeButton: true },

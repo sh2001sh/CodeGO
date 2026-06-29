@@ -47,8 +47,7 @@ async function createFixtureServer() {
     }
     if (
       url === "/downloads/codego/CodeGo_3.16.4_x64_zh-CN.msi" ||
-      url === "/downloads/codego/CodeGo_3.16.4_universal.dmg" ||
-      url === "/downloads/codego/CodeGo_3.16.4_universal.app.tar.gz"
+      url === "/downloads/codego/CodeGo_3.16.4_x64.AppImage"
     ) {
       response.writeHead(200, { "Content-Type": "application/octet-stream" });
       if (request.method !== "HEAD") {
@@ -81,12 +80,8 @@ async function createFixtureServer() {
       browser_download_url: `${baseURL}/downloads/codego/CodeGo_3.16.4_x64_zh-CN.msi`,
     },
     {
-      name: "CodeGo_3.16.4_universal.dmg",
-      browser_download_url: `${baseURL}/downloads/codego/CodeGo_3.16.4_universal.dmg`,
-    },
-    {
-      name: "CodeGo_3.16.4_universal.app.tar.gz",
-      browser_download_url: `${baseURL}/downloads/codego/CodeGo_3.16.4_universal.app.tar.gz`,
+      name: "CodeGo_3.16.4_x64.AppImage",
+      browser_download_url: `${baseURL}/downloads/codego/CodeGo_3.16.4_x64.AppImage`,
     },
   ];
   releaseBody.platforms = {
@@ -94,13 +89,9 @@ async function createFixtureServer() {
       signature: "sig-win",
       url: `${baseURL}/downloads/codego/CodeGo_3.16.4_x64_zh-CN.msi`,
     },
-    "darwin-aarch64": {
-      signature: "sig-mac",
-      url: `${baseURL}/downloads/codego/CodeGo_3.16.4_universal.app.tar.gz`,
-    },
-    "darwin-x86_64": {
-      signature: "sig-mac",
-      url: `${baseURL}/downloads/codego/CodeGo_3.16.4_universal.app.tar.gz`,
+    "linux-x86_64": {
+      signature: "sig-linux",
+      url: `${baseURL}/downloads/codego/CodeGo_3.16.4_x64.AppImage`,
     },
   };
   latestBody.platforms = releaseBody.platforms;
@@ -116,12 +107,8 @@ describe("verify-codego-release-channel", () => {
       releaseURL: `${baseURL}/api/desktop/release/latest`,
       latestURL: `${baseURL}/api/desktop/release/latest.json`,
       expectedVersion: "3.16.4",
-      requiredPlatformTargets: [
-        "windows-x86_64",
-        "darwin-aarch64",
-        "darwin-x86_64",
-      ],
-      requiredAssetSuffixes: [".msi", ".dmg", ".app.tar.gz"],
+      requiredPlatformTargets: ["windows-x86_64", "linux-x86_64"],
+      requiredAssetSuffixes: [".msi", ".AppImage"],
     });
 
     assert.equal(result.release.version, "3.16.4");

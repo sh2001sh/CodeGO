@@ -27,22 +27,11 @@ async function createFixture() {
   const assetContents = new Map([
     ["CodeGo_3.16.4_x64_zh-CN.msi", "windows-x64"],
     ["CodeGo_3.16.4_x64_zh-CN.msi.sig", "sig-win-x64\n"],
-    ["CodeGo_3.16.4_arm64_zh-CN.msi", "windows-arm64"],
-    ["CodeGo_3.16.4_arm64_zh-CN.msi.sig", "sig-win-arm64\n"],
     ["CodeGo_3.16.4_x64_portable.zip", "portable-x64"],
-    ["CodeGo_3.16.4_arm64_portable.zip", "portable-arm64"],
-    ["CodeGo_3.16.4_universal.dmg", "mac-dmg"],
-    ["CodeGo_3.16.4_universal.zip", "mac-zip"],
-    ["CodeGo_3.16.4_universal.app.tar.gz", "mac-updater"],
-    ["CodeGo_3.16.4_universal.app.tar.gz.sig", "sig-mac\n"],
     ["CodeGo_3.16.4_x64.AppImage", "linux-x64"],
     ["CodeGo_3.16.4_x64.AppImage.sig", "sig-linux-x64\n"],
-    ["CodeGo_3.16.4_arm64.AppImage", "linux-arm64"],
-    ["CodeGo_3.16.4_arm64.AppImage.sig", "sig-linux-arm64\n"],
     ["CodeGo_3.16.4_x64.deb", "linux-deb"],
-    ["CodeGo_3.16.4_arm64.deb", "linux-deb-arm"],
     ["CodeGo_3.16.4_x64.rpm", "linux-rpm"],
-    ["CodeGo_3.16.4_arm64.rpm", "linux-rpm-arm"],
   ]);
 
   await Promise.all(
@@ -128,8 +117,8 @@ describe("verify-codego-release-acceptance-record", () => {
       expectedVersion: "3.16.4",
     });
 
-    assert.equal(result.platformCount, 5);
-    assert.equal(result.scenarioCount, 20);
+    assert.equal(result.platformCount, 2);
+    assert.equal(result.scenarioCount, 8);
   });
 
   test("rejects a pending template when executed evidence is required", async () => {
@@ -163,7 +152,7 @@ describe("verify-codego-release-acceptance-record", () => {
       requirePassed: true,
     });
 
-    assert.equal(result.platformCount, 5);
+    assert.equal(result.platformCount, 2);
   });
 
   test("rejects metadata drift in the acceptance record", async () => {

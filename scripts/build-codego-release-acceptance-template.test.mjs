@@ -26,22 +26,11 @@ async function createFixture() {
   const assetContents = new Map([
     ["CodeGo_3.16.4_x64_zh-CN.msi", "windows-x64"],
     ["CodeGo_3.16.4_x64_zh-CN.msi.sig", "sig-win-x64\n"],
-    ["CodeGo_3.16.4_arm64_zh-CN.msi", "windows-arm64"],
-    ["CodeGo_3.16.4_arm64_zh-CN.msi.sig", "sig-win-arm64\n"],
     ["CodeGo_3.16.4_x64_portable.zip", "portable-x64"],
-    ["CodeGo_3.16.4_arm64_portable.zip", "portable-arm64"],
-    ["CodeGo_3.16.4_universal.dmg", "mac-dmg"],
-    ["CodeGo_3.16.4_universal.zip", "mac-zip"],
-    ["CodeGo_3.16.4_universal.app.tar.gz", "mac-updater"],
-    ["CodeGo_3.16.4_universal.app.tar.gz.sig", "sig-mac\n"],
     ["CodeGo_3.16.4_x64.AppImage", "linux-x64"],
     ["CodeGo_3.16.4_x64.AppImage.sig", "sig-linux-x64\n"],
-    ["CodeGo_3.16.4_arm64.AppImage", "linux-arm64"],
-    ["CodeGo_3.16.4_arm64.AppImage.sig", "sig-linux-arm64\n"],
     ["CodeGo_3.16.4_x64.deb", "linux-deb"],
-    ["CodeGo_3.16.4_arm64.deb", "linux-deb-arm"],
     ["CodeGo_3.16.4_x64.rpm", "linux-rpm"],
-    ["CodeGo_3.16.4_arm64.rpm", "linux-rpm-arm"],
   ]);
 
   await Promise.all(
@@ -100,26 +89,20 @@ describe("build-codego-release-acceptance-template", () => {
 
     assert.equal(template.release.version, "3.16.4");
     assert.equal(template.release.previous_stable_version, "3.16.3");
-    assert.equal(template.platforms.length, 5);
+    assert.equal(template.platforms.length, 2);
     assert.deepEqual(
       template.platforms.map((platform) => platform.id),
-      [
-        "windows-x64",
-        "windows-arm64",
-        "macos-universal",
-        "linux-x64",
-        "linux-arm64",
-      ],
+      ["windows-x64", "linux-x64"],
     );
     assert.equal(
       template.platforms[0].install_artifacts[0].name,
       "CodeGo_3.16.4_x64_zh-CN.msi",
     );
     assert.equal(
-      template.platforms[2].updater_targets
+      template.platforms[1].updater_targets
         .map((target) => target.target)
         .join(","),
-      "darwin-aarch64,darwin-x86_64",
+      "linux-x86_64",
     );
     assert.ok(
       template.platforms.every((platform) => platform.scenarios.length === 4),

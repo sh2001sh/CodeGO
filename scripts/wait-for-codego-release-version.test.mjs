@@ -98,24 +98,8 @@ function buildReleaseBody(baseURL, version) {
         browser_download_url: `${baseURL}/downloads/codego/CodeGo_${version}_x64_zh-CN.msi`,
       },
       {
-        name: `CodeGo_${version}_arm64_zh-CN.msi`,
-        browser_download_url: `${baseURL}/downloads/codego/CodeGo_${version}_arm64_zh-CN.msi`,
-      },
-      {
-        name: `CodeGo_${version}_universal.dmg`,
-        browser_download_url: `${baseURL}/downloads/codego/CodeGo_${version}_universal.dmg`,
-      },
-      {
-        name: `CodeGo_${version}_universal.app.tar.gz`,
-        browser_download_url: `${baseURL}/downloads/codego/CodeGo_${version}_universal.app.tar.gz`,
-      },
-      {
         name: `CodeGo_${version}_x64.AppImage`,
         browser_download_url: `${baseURL}/downloads/codego/CodeGo_${version}_x64.AppImage`,
-      },
-      {
-        name: `CodeGo_${version}_arm64.AppImage`,
-        browser_download_url: `${baseURL}/downloads/codego/CodeGo_${version}_arm64.AppImage`,
       },
     ],
     platforms: {
@@ -123,25 +107,9 @@ function buildReleaseBody(baseURL, version) {
         signature: `sig-win-x64-${version}`,
         url: `${baseURL}/downloads/codego/CodeGo_${version}_x64_zh-CN.msi`,
       },
-      "windows-aarch64": {
-        signature: `sig-win-arm64-${version}`,
-        url: `${baseURL}/downloads/codego/CodeGo_${version}_arm64_zh-CN.msi`,
-      },
-      "darwin-aarch64": {
-        signature: `sig-mac-${version}`,
-        url: `${baseURL}/downloads/codego/CodeGo_${version}_universal.app.tar.gz`,
-      },
-      "darwin-x86_64": {
-        signature: `sig-mac-${version}`,
-        url: `${baseURL}/downloads/codego/CodeGo_${version}_universal.app.tar.gz`,
-      },
       "linux-x86_64": {
         signature: `sig-linux-x64-${version}`,
         url: `${baseURL}/downloads/codego/CodeGo_${version}_x64.AppImage`,
-      },
-      "linux-aarch64": {
-        signature: `sig-linux-arm64-${version}`,
-        url: `${baseURL}/downloads/codego/CodeGo_${version}_arm64.AppImage`,
       },
     },
   };
@@ -159,22 +127,8 @@ describe("wait-for-codego-release-version", () => {
       releaseURL: `${baseURL}/api/desktop/release/latest`,
       latestURL: `${baseURL}/api/desktop/release/latest.json`,
       expectedVersion: "3.16.4",
-      requiredPlatformTargets: [
-        "windows-x86_64",
-        "windows-aarch64",
-        "darwin-aarch64",
-        "darwin-x86_64",
-        "linux-x86_64",
-        "linux-aarch64",
-      ],
-      requiredAssetSuffixes: [
-        ".msi",
-        "_arm64_zh-CN.msi",
-        ".dmg",
-        ".app.tar.gz",
-        "_x64.AppImage",
-        "_arm64.AppImage",
-      ],
+      requiredPlatformTargets: ["windows-x86_64", "linux-x86_64"],
+      requiredAssetSuffixes: [".msi", "_x64.AppImage"],
       timeoutMs: 2000,
       intervalMs: 20,
     });

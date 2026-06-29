@@ -25,22 +25,11 @@ async function createFixture() {
   const assetContents = new Map([
     ["CodeGo_3.16.4_x64_zh-CN.msi", "windows-x64"],
     ["CodeGo_3.16.4_x64_zh-CN.msi.sig", "sig-win-x64\n"],
-    ["CodeGo_3.16.4_arm64_zh-CN.msi", "windows-arm64"],
-    ["CodeGo_3.16.4_arm64_zh-CN.msi.sig", "sig-win-arm64\n"],
     ["CodeGo_3.16.4_x64_portable.zip", "portable-x64"],
-    ["CodeGo_3.16.4_arm64_portable.zip", "portable-arm64"],
-    ["CodeGo_3.16.4_universal.dmg", "mac-dmg"],
-    ["CodeGo_3.16.4_universal.zip", "mac-zip"],
-    ["CodeGo_3.16.4_universal.app.tar.gz", "mac-updater"],
-    ["CodeGo_3.16.4_universal.app.tar.gz.sig", "sig-mac\n"],
     ["CodeGo_3.16.4_x64.AppImage", "linux-x64"],
     ["CodeGo_3.16.4_x64.AppImage.sig", "sig-linux-x64\n"],
-    ["CodeGo_3.16.4_arm64.AppImage", "linux-arm64"],
-    ["CodeGo_3.16.4_arm64.AppImage.sig", "sig-linux-arm64\n"],
     ["CodeGo_3.16.4_x64.deb", "linux-deb"],
-    ["CodeGo_3.16.4_arm64.deb", "linux-deb-arm"],
     ["CodeGo_3.16.4_x64.rpm", "linux-rpm"],
-    ["CodeGo_3.16.4_arm64.rpm", "linux-rpm-arm"],
   ]);
 
   await Promise.all(
@@ -98,22 +87,8 @@ describe("verify-codego-release-bundle", () => {
       latestPath,
       bundleOutDir,
       expectedVersion: "3.16.4",
-      requiredPlatformTargets: [
-        "windows-x86_64",
-        "windows-aarch64",
-        "darwin-aarch64",
-        "darwin-x86_64",
-        "linux-x86_64",
-        "linux-aarch64",
-      ],
-      requiredAssetSuffixes: [
-        "_x64_zh-CN.msi",
-        "_arm64_zh-CN.msi",
-        ".dmg",
-        ".app.tar.gz",
-        "_x64.appimage",
-        "_arm64.appimage",
-      ],
+      requiredPlatformTargets: ["windows-x86_64", "linux-x86_64"],
+      requiredAssetSuffixes: ["_x64_zh-CN.msi", "_x64.appimage"],
     });
 
     assert.equal(result.release.version, "3.16.4");

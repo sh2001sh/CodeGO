@@ -142,7 +142,8 @@ const getInitialApp = (): AppId => {
   return "claude";
 };
 
-const VIEW_STORAGE_KEY = "cc-switch-last-view";
+const VIEW_STORAGE_KEY = "codego-last-view";
+const LEGACY_VIEW_STORAGE_KEY = "cc-switch-last-view";
 const VALID_VIEWS: View[] = [
   "codego",
   "providers",
@@ -161,10 +162,22 @@ const VALID_VIEWS: View[] = [
   "hermesMemory",
 ];
 
-const getInitialView = (): View => {
-  const saved = localStorage.getItem(VIEW_STORAGE_KEY) as View | null;
+const readStoredView = (storageKey: string): View | null => {
+  const saved = localStorage.getItem(storageKey) as View | null;
   if (saved && VALID_VIEWS.includes(saved)) {
     return saved;
+  }
+  return null;
+};
+
+const getInitialView = (): View => {
+  const saved = readStoredView(VIEW_STORAGE_KEY);
+  if (saved) {
+    return saved;
+  }
+  const legacySaved = readStoredView(LEGACY_VIEW_STORAGE_KEY);
+  if (legacySaved === "codego") {
+    return legacySaved;
   }
   return "codego";
 };
@@ -185,6 +198,7 @@ function App() {
 
   useEffect(() => {
     localStorage.setItem(VIEW_STORAGE_KEY, currentView);
+    localStorage.removeItem(LEGACY_VIEW_STORAGE_KEY);
   }, [currentView]);
 
   const { data: settingsData } = useSettingsQuery();

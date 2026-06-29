@@ -48,25 +48,6 @@ const PLATFORM_DEFINITIONS = [
     updaterTargets: ["windows-x86_64"],
   },
   {
-    id: "windows-arm64",
-    label: "Windows ARM64",
-    artifactRules: [
-      { suffix: "_arm64_zh-CN.msi", role: "installer" },
-      { suffix: "_arm64_portable.zip", role: "portable" },
-    ],
-    updaterTargets: ["windows-aarch64"],
-  },
-  {
-    id: "macos-universal",
-    label: "macOS Universal",
-    artifactRules: [
-      { suffix: "_universal.dmg", role: "installer" },
-      { suffix: "_universal.zip", role: "archive" },
-      { suffix: "_universal.app.tar.gz", role: "updater" },
-    ],
-    updaterTargets: ["darwin-aarch64", "darwin-x86_64"],
-  },
-  {
     id: "linux-x64",
     label: "Linux x64",
     artifactRules: [
@@ -75,16 +56,6 @@ const PLATFORM_DEFINITIONS = [
       { suffix: "_x64.rpm", role: "package" },
     ],
     updaterTargets: ["linux-x86_64"],
-  },
-  {
-    id: "linux-arm64",
-    label: "Linux ARM64",
-    artifactRules: [
-      { suffix: "_arm64.AppImage", role: "installer" },
-      { suffix: "_arm64.deb", role: "package" },
-      { suffix: "_arm64.rpm", role: "package" },
-    ],
-    updaterTargets: ["linux-aarch64"],
   },
 ];
 

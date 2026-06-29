@@ -32,38 +32,8 @@ async function createFixture() {
       "utf8",
     ),
     writeFile(
-      path.join(assetsDir, "CodeGo_3.16.4_arm64_zh-CN.msi"),
-      "windows-arm64",
-      "utf8",
-    ),
-    writeFile(
-      path.join(assetsDir, "CodeGo_3.16.4_arm64_zh-CN.msi.sig"),
-      "sig-win-arm64\n",
-      "utf8",
-    ),
-    writeFile(
       path.join(assetsDir, "CodeGo_3.16.4_x64_portable.zip"),
       "portable",
-      "utf8",
-    ),
-    writeFile(
-      path.join(assetsDir, "CodeGo_3.16.4_universal.dmg"),
-      "mac-dmg",
-      "utf8",
-    ),
-    writeFile(
-      path.join(assetsDir, "CodeGo_3.16.4_universal.zip"),
-      "mac-zip",
-      "utf8",
-    ),
-    writeFile(
-      path.join(assetsDir, "CodeGo_3.16.4_universal.app.tar.gz"),
-      "mac-updater",
-      "utf8",
-    ),
-    writeFile(
-      path.join(assetsDir, "CodeGo_3.16.4_universal.app.tar.gz.sig"),
-      "sig-mac\n",
       "utf8",
     ),
     writeFile(
@@ -127,8 +97,8 @@ describe("build-codego-release-manifest", () => {
       [
         "CodeGo_3.16.4_x64_zh-CN.msi",
         "CodeGo_3.16.4_x64_portable.zip",
-        "CodeGo_3.16.4_arm64_zh-CN.msi",
-        "CodeGo_3.16.4_universal.dmg",
+        "CodeGo_3.16.4_x64.AppImage",
+        "CodeGo_3.16.4_x64.deb",
       ],
     );
     assert.equal(
@@ -138,24 +108,9 @@ describe("build-codego-release-manifest", () => {
       sha256("windows-x64"),
     );
     assert.equal(
-      manifest.assets.find(
-        (asset) => asset.name === "CodeGo_3.16.4_universal.app.tar.gz",
-      )?.tauri_target,
-      "darwin-universal",
-    );
-    assert.equal(
       manifest.platforms["windows-x86_64"]?.url,
       "/downloads/codego/CodeGo_3.16.4_x64_zh-CN.msi",
     );
-    assert.equal(
-      manifest.platforms["windows-aarch64"]?.signature,
-      "sig-win-arm64",
-    );
-    assert.equal(
-      manifest.platforms["darwin-aarch64"]?.url,
-      "/downloads/codego/CodeGo_3.16.4_universal.app.tar.gz",
-    );
-    assert.equal(manifest.platforms["darwin-x86_64"]?.signature, "sig-mac");
     assert.equal(manifest.platforms["linux-x86_64"]?.signature, "sig-linux");
 
     assert.equal(latest.version, "3.16.4");

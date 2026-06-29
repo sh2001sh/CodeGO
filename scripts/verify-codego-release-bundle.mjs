@@ -242,13 +242,11 @@ export async function runCLI(argv = process.argv.slice(2)) {
       "expected-version": { type: "string" },
       "required-platforms": {
         type: "string",
-        default:
-          "windows-x86_64,windows-aarch64,darwin-aarch64,darwin-x86_64,linux-x86_64,linux-aarch64",
+        default: "windows-x86_64,linux-x86_64",
       },
       "required-asset-suffixes": {
         type: "string",
-        default:
-          ".msi,_arm64_zh-CN.msi,.dmg,.app.tar.gz,.appimage,_arm64.appimage",
+        default: ".msi,.AppImage",
       },
       "static-relative-dir": {
         type: "string",

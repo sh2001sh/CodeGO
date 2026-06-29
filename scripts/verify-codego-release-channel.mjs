@@ -137,11 +137,11 @@ export async function runCLI(argv = process.argv.slice(2)) {
       "expected-version": { type: "string" },
       "required-platforms": {
         type: "string",
-        default: "windows-x86_64,darwin-aarch64,darwin-x86_64",
+        default: "windows-x86_64,linux-x86_64",
       },
       "required-asset-suffixes": {
         type: "string",
-        default: ".msi,.dmg,.app.tar.gz",
+        default: ".msi,.AppImage",
       },
     },
     strict: true,
