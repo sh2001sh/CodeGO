@@ -1121,7 +1121,7 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           name: Code Go Desktop ${{ github.ref_name }}
-          prerelease: true
+          prerelease: false
           body: |
             ## Code Go Desktop ${{ github.ref_name }}
 
