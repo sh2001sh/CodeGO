@@ -32,6 +32,8 @@
         <!-- https://docs.microsoft.com/en-us/windows/win32/msi/reinstallmode -->
         <!-- reinstall all files; rewrite all registry entries; reinstall all shortcuts -->
         <Property Id="REINSTALLMODE" Value="amus" />
+        <!-- Avoid per-user upgrades failing while Windows Installer tries to create Config.Msi on a previous install drive. -->
+        <Property Id="DISABLEROLLBACK" Value="1" />
 
         <!-- Auto launch app after installation, useful for passive mode which usually used in updates -->
         <Property Id="AUTOLAUNCHAPP" Secure="yes" />
@@ -39,9 +41,9 @@
         <Property Id="LAUNCHAPPARGS" Secure="yes" />
 
         {{#if allow_downgrades}}
-            <MajorUpgrade Schedule="afterInstallInitialize" AllowDowngrades="yes" />
+            <MajorUpgrade Schedule="afterInstallFinalize" AllowDowngrades="yes" />
         {{else}}
-            <MajorUpgrade Schedule="afterInstallInitialize" DowngradeErrorMessage="!(loc.DowngradeErrorMessage)" AllowSameVersionUpgrades="yes" />
+            <MajorUpgrade Schedule="afterInstallFinalize" DowngradeErrorMessage="!(loc.DowngradeErrorMessage)" AllowSameVersionUpgrades="yes" />
         {{/if}}
 
         <InstallExecuteSequence>

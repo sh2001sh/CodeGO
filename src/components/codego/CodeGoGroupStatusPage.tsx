@@ -70,6 +70,17 @@ const formatWindowLabel = (hours?: number | null) => {
 const formatRate = (rate: number | null | undefined) =>
   rate == null ? "--" : `${rate.toFixed(rate >= 99.95 ? 2 : 1)}%`;
 
+const formatGroupStatusError = (error: unknown): string => {
+  const message = extractErrorMessage(error);
+  if (
+    message.includes("/api/desktop/group-status") &&
+    (message.includes("404") || message.includes("Invalid URL"))
+  ) {
+    return "网站服务尚未更新桌面分组状态接口。请等待 shu26.cfd 部署最新版 new-api 后重试。";
+  }
+  return message || "分组状态读取失败";
+};
+
 const getStatusMeta = (status?: string): StatusMeta =>
   STATUS_META[(status as CodeGoGroupAvailabilityStatus) || "unknown"] ??
   STATUS_META.unknown;
@@ -269,8 +280,7 @@ export function CodeGoGroupStatusPage() {
 
             {groupStatusQuery.isError ? (
               <div className="rounded-lg border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                {extractErrorMessage(groupStatusQuery.error) ||
-                  "分组状态读取失败"}
+                {formatGroupStatusError(groupStatusQuery.error)}
               </div>
             ) : null}
 
