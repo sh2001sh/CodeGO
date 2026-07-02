@@ -118,6 +118,33 @@ const summarizeGroups = (items: CodeGoGroupStatusItem[]) => {
   };
 };
 
+const buildFallbackGroupStatus = (
+  group: string,
+  models: string[],
+): CodeGoGroupStatusItem[] => {
+  const uniqueModels = Array.from(
+    new Set(models.map((model) => model.trim()).filter(Boolean)),
+  ).sort((left, right) => left.localeCompare(right, "en"));
+  if (uniqueModels.length === 0) return [];
+  return [
+    {
+      group,
+      status: "unknown",
+      request_count: 0,
+      models: uniqueModels.map((model) => ({
+        model,
+        status: "unknown",
+        success_rate: null,
+        sample_window: 0,
+        series_window: 0,
+        bucket_seconds: 3600,
+        request_count: 0,
+        series: [],
+      })),
+    },
+  ];
+};
+
 function ModelStatusCard({ item }: { item: CodeGoGroupModelStatusItem }) {
   const meta = getStatusMeta(item.status);
   const series = item.series ?? [];
@@ -196,9 +223,22 @@ export function CodeGoGroupStatusPage() {
   );
   const serverAddress = authQuery.data?.serverAddress || "https://shu26.cfd";
   const currentGroup = summaryQuery.data?.account.group || "default";
+  const fallbackGroups = useMemo(
+    () =>
+      buildFallbackGroupStatus(
+        currentGroup,
+        summaryQuery.data?.usage.available_models ?? [],
+      ),
+    [currentGroup, summaryQuery.data?.usage.available_models],
+  );
   const groups = useMemo(
-    () => sortGroups(groupStatusQuery.data?.data ?? []),
-    [groupStatusQuery.data?.data],
+    () =>
+      sortGroups(
+        groupStatusQuery.data?.data?.length
+          ? groupStatusQuery.data.data
+          : fallbackGroups,
+      ),
+    [fallbackGroups, groupStatusQuery.data?.data],
   );
   const summary = useMemo(() => summarizeGroups(groups), [groups]);
 
@@ -337,12 +377,12 @@ export function CodeGoGroupStatusPage() {
                 <div className="text-sm font-medium text-foreground">
                   {groupStatusQuery.isFetching
                     ? t("common.loading", "加载中...")
-                    : t("codego.groups.empty", "暂无分组模型状态")}
+                    : t("codego.groups.empty", "暂无可展示的模型状态")}
                 </div>
                 <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
                   {t(
                     "codego.groups.emptyHint",
-                    "如果网页端有数据但桌面端为空，请确认 new-api 已部署桌面分组状态接口。",
+                    "当前账号还没有可用模型，或网站暂未产生用于监测的请求样本。",
                   )}
                 </p>
               </div>

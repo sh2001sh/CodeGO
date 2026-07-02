@@ -123,11 +123,17 @@ export function CodeGoTokenManager({
     groupsQuery.data?.current || groupOptions[0]?.name || "default";
   const totalPages = useMemo(() => {
     if (!tokenPage) return 1;
-    return Math.max(
-      1,
-      Math.ceil(tokenPage.total / Math.max(tokenPage.size, 1)),
-    );
+    const total = Number.isFinite(Number(tokenPage.total))
+      ? Number(tokenPage.total)
+      : (tokenPage.items?.length ?? 0);
+    const size = Number.isFinite(Number(tokenPage.size))
+      ? Math.max(Number(tokenPage.size), 1)
+      : 10;
+    return Math.max(1, Math.ceil(total / size));
   }, [tokenPage]);
+  const tokenCount = Number.isFinite(Number(tokenPage?.total))
+    ? Number(tokenPage?.total)
+    : (tokenPage?.items?.length ?? 0);
 
   const resetDialog = () => {
     setFormState({ ...DEFAULT_FORM_STATE, group: defaultGroup });
@@ -375,8 +381,8 @@ export function CodeGoTokenManager({
                   {t("codego.tokens.pagination", {
                     page,
                     total: totalPages,
-                    count: tokenPage.total,
-                    defaultValue: `第 ${page} / ${totalPages} 页 · 共 ${tokenPage.total} 个令牌`,
+                    count: tokenCount,
+                    defaultValue: `第 ${page} / ${totalPages} 页 · 共 ${tokenCount} 个令牌`,
                   })}
                 </div>
                 <div className="flex gap-2">

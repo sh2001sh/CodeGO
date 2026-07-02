@@ -3271,15 +3271,15 @@
     },
     "groups": {
       "title": "Group status",
-      "description": "Sync website group status for token creation, key group changes, and account access checks.",
+      "description": "View model availability, recent success rate, and timeline by group.",
       "openWebsite": "Open website",
       "openFailed": "Failed to open group status",
       "current": "Current group",
       "active": "Current",
       "ratio": "Ratio",
       "models": "Models",
-      "empty": "The website group API did not return a list yet.",
-      "emptyHint": "The current account group was synced from overview. Open the website group status page if you need the full status."
+      "empty": "No model status is available yet.",
+      "emptyHint": "This account has no available models, or the website has not collected request samples for monitoring yet."
     }
   }
 }

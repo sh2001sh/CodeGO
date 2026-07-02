@@ -50,11 +50,20 @@ const CODEGO_SUPPORTED_TOOLS: [&str; 6] = [
 ];
 const CODEGO_SUMMARY_REFRESH_INTERVAL: Duration = Duration::from_secs(300);
 const MIN_CODEGO_SUMMARY_REFRESH_INTERVAL: Duration = Duration::from_secs(30);
+const CODEGO_API_KEY_PREFIX: &str = "sk-";
 
 static LAST_CODEGO_SUMMARY_REFRESH: Mutex<Option<Instant>> = Mutex::new(None);
 
 fn codego_provider_id(tool: &str) -> String {
     format!("codego-{tool}")
+}
+
+fn normalize_codego_api_key(raw: &str) -> String {
+    let key = raw.trim();
+    if key.is_empty() || key.starts_with(CODEGO_API_KEY_PREFIX) {
+        return key.to_string();
+    }
+    format!("{CODEGO_API_KEY_PREFIX}{key}")
 }
 
 fn tool_to_app_type(tool: &str) -> Result<AppType, String> {
@@ -135,13 +144,18 @@ struct CodeGoTokenToolConfigPayload {
     pub name: String,
     pub homepage: String,
     pub endpoint: String,
+    #[serde(alias = "api_key")]
     pub api_key: String,
     pub model: Option<String>,
+    #[serde(alias = "haiku_model")]
     pub haiku_model: Option<String>,
+    #[serde(alias = "sonnet_model")]
     pub sonnet_model: Option<String>,
+    #[serde(alias = "opus_model")]
     pub opus_model: Option<String>,
     pub enabled: bool,
     pub config: String,
+    #[serde(alias = "config_format")]
     pub config_format: String,
     pub icon: Option<String>,
     pub notes: Option<String>,
@@ -150,6 +164,7 @@ struct CodeGoTokenToolConfigPayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CodeGoTokenConfigResponse {
+    #[serde(alias = "server_address")]
     pub server_address: String,
     pub tools: HashMap<String, CodeGoTokenToolConfigPayload>,
 }
@@ -1149,10 +1164,6 @@ fn normalize_codego_token_page(payload: Value, query: &CodeGoPageQuery) -> Value
         return payload;
     };
 
-    if object.contains_key("items") && object.contains_key("total") {
-        return payload;
-    }
-
     let items = object
         .get("items")
         .or_else(|| object.get("list"))
@@ -1175,17 +1186,27 @@ fn normalize_codego_token_page(payload: Value, query: &CodeGoPageQuery) -> Value
 }
 
 fn normalize_codego_token_key(payload: Value) -> Value {
-    if payload.get("key").is_some() {
-        return payload;
+    if let Some(value) = payload.get("key").and_then(Value::as_str) {
+        let mut object = payload.as_object().cloned().unwrap_or_default();
+        object.insert(
+            "key".to_string(),
+            Value::String(normalize_codego_api_key(value)),
+        );
+        return Value::Object(object);
     }
 
     if let Some(value) = payload
         .get("full_key")
         .or_else(|| payload.get("token_key"))
         .or_else(|| payload.get("api_key"))
-        .cloned()
+        .and_then(Value::as_str)
     {
-        return json!({ "key": value });
+        let mut object = payload.as_object().cloned().unwrap_or_default();
+        object.insert(
+            "key".to_string(),
+            Value::String(normalize_codego_api_key(value)),
+        );
+        return Value::Object(object);
     }
 
     payload
@@ -2320,7 +2341,7 @@ fn ensure_token_request_value(value: Value) -> Result<(String, String), String> 
         .and_then(Value::as_str)
         .unwrap_or("Code Go Desktop - Default")
         .to_string();
-    Ok((full_key, token_name))
+    Ok((normalize_codego_api_key(&full_key), token_name))
 }
 
 async fn ensure_desktop_token(auth: &CodeGoAuthState) -> Result<(String, String), String> {
@@ -2507,7 +2528,7 @@ fn decode_token_config_json(payload: &CodeGoTokenToolConfigPayload) -> Result<Va
 fn build_provider_from_token_payload(
     payload: &CodeGoTokenToolConfigPayload,
 ) -> Result<Provider, String> {
-    let settings_config = match payload.tool.as_str() {
+    let mut settings_config = match payload.tool.as_str() {
         "claude" | "codex" | "opencode" | "openclaw" | "hermes" => {
             decode_token_config_json(payload)?
         }
@@ -2521,6 +2542,7 @@ fn build_provider_from_token_payload(
         }
         _ => return Err(format!("unsupported Code Go tool: {}", payload.tool)),
     };
+    apply_codego_api_key_to_token_settings(&payload.tool, &mut settings_config, &payload.api_key);
 
     let mut provider = Provider::with_id(
         codego_provider_id(&payload.tool),
@@ -2547,6 +2569,46 @@ fn build_provider_from_token_payload(
         .clone()
         .filter(|value| !value.trim().is_empty());
     Ok(provider)
+}
+
+fn apply_codego_api_key_to_token_settings(tool: &str, settings: &mut Value, api_key: &str) {
+    let full_key = normalize_codego_api_key(api_key);
+    if full_key.is_empty() {
+        return;
+    }
+    match tool {
+        "claude" => {
+            if let Some(env) = settings.get_mut("env").and_then(Value::as_object_mut) {
+                env.insert("ANTHROPIC_AUTH_TOKEN".to_string(), Value::String(full_key));
+            }
+        }
+        "gemini" => {
+            if let Some(env) = settings.get_mut("env").and_then(Value::as_object_mut) {
+                env.insert("GEMINI_API_KEY".to_string(), Value::String(full_key));
+            }
+        }
+        "codex" => {
+            if let Some(auth) = settings.get_mut("auth").and_then(Value::as_object_mut) {
+                auth.insert("OPENAI_API_KEY".to_string(), Value::String(full_key));
+            }
+        }
+        "opencode" => {
+            if let Some(options) = settings.get_mut("options").and_then(Value::as_object_mut) {
+                options.insert("apiKey".to_string(), Value::String(full_key));
+            }
+        }
+        "openclaw" => {
+            if let Some(object) = settings.as_object_mut() {
+                object.insert("apiKey".to_string(), Value::String(full_key));
+            }
+        }
+        "hermes" => {
+            if let Some(object) = settings.as_object_mut() {
+                object.insert("api_key".to_string(), Value::String(full_key));
+            }
+        }
+        _ => {}
+    }
 }
 
 fn apply_provider_for_codego_tool(
@@ -2840,12 +2902,13 @@ mod tests {
         codego_tray_snapshot, decode_codego_payload, detect_tool_conflict_reason,
         ensure_tool_config_safe_to_write, extract_live_endpoint, has_live_credential,
         load_auth_state, load_tool_backup, merge_group_status_into_summary,
-        normalize_codego_token_key, normalize_codego_token_page, page_query_value,
-        persist_auth_state, probe_response_matches_tool, resolve_codego_secure_storage_notice,
-        restore_live_snapshot, save_tool_backup, should_send_low_balance_notification,
-        summary_topup_url, CodeGoAuthSessionPollResponse, CodeGoAuthSessionStartResponse,
-        CodeGoAuthorizedDevice, CodeGoPageQuery, CodeGoSavedToolBackup, CodeGoSecureStorageStatus,
-        CodeGoSummarySideEffectSink, CodeGoTokenToolConfigPayload, BASE64_STANDARD,
+        normalize_codego_api_key, normalize_codego_token_key, normalize_codego_token_page,
+        page_query_value, persist_auth_state, probe_response_matches_tool,
+        resolve_codego_secure_storage_notice, restore_live_snapshot, save_tool_backup,
+        should_send_low_balance_notification, summary_topup_url, CodeGoAuthSessionPollResponse,
+        CodeGoAuthSessionStartResponse, CodeGoAuthorizedDevice, CodeGoPageQuery,
+        CodeGoSavedToolBackup, CodeGoSecureStorageStatus, CodeGoSummarySideEffectSink,
+        CodeGoTokenConfigResponse, CodeGoTokenToolConfigPayload, BASE64_STANDARD,
         CODEGO_AUTH_EXPIRED_MESSAGE,
     };
     use crate::app_config::AppType;
@@ -3209,12 +3272,42 @@ mod tests {
     }
 
     #[test]
+    fn normalize_codego_token_page_adds_missing_page_size() {
+        let payload = json!({
+            "items": [{
+                "id": 1,
+                "name": "desktop token"
+            }],
+            "total": 5
+        });
+        let query = CodeGoPageQuery {
+            p: Some(1),
+            page: None,
+            size: Some(10),
+            page_size: None,
+        };
+
+        let normalized = normalize_codego_token_page(payload, &query);
+
+        assert_eq!(normalized["p"], 1);
+        assert_eq!(normalized["size"], 10);
+        assert_eq!(normalized["total"], 5);
+        assert_eq!(normalized["items"][0]["name"], "desktop token");
+    }
+
+    #[test]
     fn normalize_codego_token_key_accepts_full_key_alias() {
         let normalized = normalize_codego_token_key(json!({
             "full_key": "cg_desktop_full_key"
         }));
 
-        assert_eq!(normalized["key"], "cg_desktop_full_key");
+        assert_eq!(normalized["key"], "sk-cg_desktop_full_key");
+    }
+
+    #[test]
+    fn normalize_codego_api_key_preserves_existing_prefix() {
+        assert_eq!(normalize_codego_api_key("raw-key"), "sk-raw-key");
+        assert_eq!(normalize_codego_api_key("sk-existing"), "sk-existing");
     }
 
     #[test]
@@ -3298,6 +3391,37 @@ mod tests {
         .expect("decode camelCase poll response");
         assert_eq!(camel_poll.access_token.as_deref(), Some("token2"));
         assert_eq!(camel_poll.device_id, Some(4));
+    }
+
+    #[test]
+    fn token_config_response_accepts_snake_case_api_payload() {
+        let decoded: CodeGoTokenConfigResponse = serde_json::from_value(json!({
+            "server_address": "https://shu26.cfd",
+            "tools": {
+                "codex": {
+                    "tool": "codex",
+                    "name": "CodeGo Codex",
+                    "homepage": "https://shu26.cfd",
+                    "endpoint": "https://shu26.cfd/v1",
+                    "api_key": "raw-test",
+                    "model": "gpt-5.5",
+                    "haiku_model": null,
+                    "sonnet_model": null,
+                    "opus_model": null,
+                    "enabled": true,
+                    "config": "e30=",
+                    "config_format": "json",
+                    "icon": "newapi",
+                    "notes": null
+                }
+            }
+        }))
+        .expect("token config should decode backend snake_case payload");
+
+        assert_eq!(decoded.server_address, "https://shu26.cfd");
+        let codex = decoded.tools.get("codex").expect("codex payload");
+        assert_eq!(normalize_codego_api_key(&codex.api_key), "sk-raw-test");
+        assert_eq!(codex.config_format, "json");
     }
 
     #[test]
