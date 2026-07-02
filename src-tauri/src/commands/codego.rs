@@ -2773,7 +2773,10 @@ pub async fn codego_list_authorized_devices() -> Result<Vec<CodeGoAuthorizedDevi
     let (client, server_address) = build_authed_client(&auth)?;
     match parse_response_without_auth_clear(
         client
-            .get(build_url(&server_address, "/api/desktop/authorized-devices"))
+            .get(build_url(
+                &server_address,
+                "/api/desktop/authorized-devices",
+            ))
             .send()
             .await
             .map_err(|e| format!("authorized devices request failed: {e}"))?,

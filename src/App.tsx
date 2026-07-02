@@ -129,6 +129,9 @@ interface NavItemConfig {
   hidden?: boolean;
 }
 
+const visibleNavItems = (items: NavItemConfig[]): NavItemConfig[] =>
+  items.filter((item) => !item.hidden);
+
 const DEFAULT_DRAG_BAR_HEIGHT = isWindows() || isLinux() ? 0 : 28; // px
 
 const STORAGE_KEY = "cc-switch-last-app";
@@ -983,7 +986,7 @@ function App() {
     },
   ];
 
-  const workspaceNavItems: NavItemConfig[] = [
+  const workspaceNavItems = visibleNavItems([
     {
       view: "prompts",
       icon: Book,
@@ -1028,7 +1031,7 @@ function App() {
         defaultValue: "集中管理代理与协作能力",
       }),
     },
-  ].filter((item) => !item.hidden);
+  ]);
 
   const toolWorkspaceItems: NavItemConfig[] =
     activeApp === "openclaw"
