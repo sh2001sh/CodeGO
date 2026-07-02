@@ -208,12 +208,21 @@ export function CodeGoToolConfigPanel({ enabled }: CodeGoToolConfigPanelProps) {
                         }
                       >
                         {tone === "conflict"
-                          ? t("codego.tools.conflictDetected", "Conflict detected")
+                          ? t(
+                              "codego.tools.conflictDetected",
+                              "Conflict detected",
+                            )
                           : tone === "ready"
                             ? t("codego.tools.active", "codego active")
                             : tone === "detected"
-                              ? t("codego.tools.configDetected", "Config detected")
-                              : t("codego.tools.notConfigured", "Not configured")}
+                              ? t(
+                                  "codego.tools.configDetected",
+                                  "Config detected",
+                                )
+                              : t(
+                                  "codego.tools.notConfigured",
+                                  "Not configured",
+                                )}
                       </Badge>
                       {status.hasBackup && (
                         <Badge variant="outline">
@@ -403,7 +412,10 @@ export function CodeGoToolConfigPanel({ enabled }: CodeGoToolConfigPanelProps) {
               <div className="grid gap-4 lg:grid-cols-2">
                 <div className="space-y-2">
                   <div className="text-sm font-medium">
-                    {t("codego.tools.currentLocalConfig", "Current local config")}
+                    {t(
+                      "codego.tools.currentLocalConfig",
+                      "Current local config",
+                    )}
                   </div>
                   <ScrollArea className="h-80 rounded-lg border border-border bg-muted/20">
                     <pre className="p-4 text-xs leading-5 text-foreground whitespace-pre-wrap break-all">

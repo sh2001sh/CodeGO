@@ -86,10 +86,7 @@ export function CodeGoDiagnosticReportCard({
         {previewQuery.isLoading ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            {t(
-              "codego.diagnostics.loading",
-              "Loading latest crash report",
-            )}
+            {t("codego.diagnostics.loading", "Loading latest crash report")}
           </div>
         ) : null}
 
@@ -210,10 +207,7 @@ export function CodeGoDiagnosticReportCard({
                 ) : (
                   <Send className="h-4 w-4" />
                 )}
-                {t(
-                  "codego.diagnostics.sendButton",
-                  "Send diagnostic report",
-                )}
+                {t("codego.diagnostics.sendButton", "Send diagnostic report")}
               </Button>
             </div>
           </>

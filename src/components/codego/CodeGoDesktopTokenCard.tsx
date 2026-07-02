@@ -59,10 +59,7 @@ export function CodeGoDesktopTokenCard({
               <KeyRound className="h-4 w-4 text-muted-foreground" />
               <span>
                 {desktopToken?.name ||
-                  t(
-                    "codego.tokenCard.defaultName",
-                    "codego desktop - default",
-                  )}
+                  t("codego.tokenCard.defaultName", "codego desktop - default")}
               </span>
             </div>
             <div className="mt-2 font-mono text-sm text-foreground">

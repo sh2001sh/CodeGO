@@ -54,7 +54,10 @@ function toTimestamp(value: string, endOfWindow = false) {
   return Math.floor(date.getTime() / 1000);
 }
 
-function typeLabel(type: number | undefined, t: (key: string, fallback: string) => string) {
+function typeLabel(
+  type: number | undefined,
+  t: (key: string, fallback: string) => string,
+) {
   switch (type) {
     case 1:
       return t("codego.logs.types.completion", "Completion");
@@ -173,10 +176,7 @@ export function CodeGoLogsExplorer({ enabled }: CodeGoLogsExplorerProps) {
                   setPage(1);
                   setTokenName(event.target.value);
                 }}
-                placeholder={t(
-                  "codego.logs.tokenPlaceholder",
-                  "Desktop token",
-                )}
+                placeholder={t("codego.logs.tokenPlaceholder", "Desktop token")}
               />
             </div>
             <div className="space-y-2">
@@ -374,7 +374,9 @@ export function CodeGoLogsExplorer({ enabled }: CodeGoLogsExplorerProps) {
       >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{t("codego.logs.requestDetail", "Request detail")}</DialogTitle>
+            <DialogTitle>
+              {t("codego.logs.requestDetail", "Request detail")}
+            </DialogTitle>
             <DialogDescription>
               {t(
                 "codego.logs.requestDetailDescription",

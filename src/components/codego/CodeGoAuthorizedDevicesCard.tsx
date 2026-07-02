@@ -98,10 +98,7 @@ export function CodeGoAuthorizedDevicesCard({
       await revokeDeviceMutation.mutateAsync(pendingDevice.id);
       toast.success(
         isCurrent
-          ? t(
-              "codego.devices.currentRevoked",
-              "Current device access revoked",
-            )
+          ? t("codego.devices.currentRevoked", "Current device access revoked")
           : t("codego.devices.deviceRevoked", {
               name: pendingDevice.deviceName,
               defaultValue: "{{name}} access revoked",
@@ -112,10 +109,7 @@ export function CodeGoAuthorizedDevicesCard({
     } catch (error) {
       toast.error(
         extractErrorMessage(error) ||
-          t(
-            "codego.devices.revokeFailed",
-            "Failed to revoke device access",
-          ),
+          t("codego.devices.revokeFailed", "Failed to revoke device access"),
       );
     }
   };
@@ -147,10 +141,7 @@ export function CodeGoAuthorizedDevicesCard({
           {devicesQuery.error ? (
             <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-600">
               {extractErrorMessage(devicesQuery.error) ||
-                t(
-                  "codego.devices.loadFailed",
-                  "Failed to load device access",
-                )}
+                t("codego.devices.loadFailed", "Failed to load device access")}
             </div>
           ) : null}
 
@@ -286,10 +277,7 @@ export function CodeGoAuthorizedDevicesCard({
         }
         confirmText={
           pendingDevice?.id === currentDeviceId
-            ? t(
-                "codego.devices.revokeCurrentConfirm",
-                "Revoke current device",
-              )
+            ? t("codego.devices.revokeCurrentConfirm", "Revoke current device")
             : t("codego.devices.revokeAccess", "Revoke access")
         }
         onConfirm={() => void handleRevoke()}

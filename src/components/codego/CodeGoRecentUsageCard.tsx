@@ -42,7 +42,10 @@ export function CodeGoRecentUsageCard({
                   </div>
                   <div className="text-xs text-muted-foreground">
                     {item.token_name ||
-                      t("codego.recentUsage.unknownToken", "Unknown token")}{" "}
+                      t(
+                        "codego.recentUsage.unknownToken",
+                        "Unknown token",
+                      )}{" "}
                     · {formatDateTime(item.created_at)}
                   </div>
                 </div>

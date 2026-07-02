@@ -181,10 +181,7 @@ export function CodeGoTokenFormDialog({
               }
             />
             <Label htmlFor="codego-token-model-limits-enabled">
-              {t(
-                "codego.tokens.restrictModels",
-                "Restrict available models",
-              )}
+              {t("codego.tokens.restrictModels", "Restrict available models")}
             </Label>
           </div>
           <div className="space-y-2 sm:col-span-2">

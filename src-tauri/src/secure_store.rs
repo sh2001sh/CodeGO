@@ -6,13 +6,27 @@ const CODEGO_SERVICE_NAME: &str = "cc-switch.codego";
 const CODEGO_TOKEN_ACCOUNT: &str = "access-token";
 
 #[cfg(test)]
-#[derive(Default)]
 struct TestCodeGoAuthStore {
     override_active: bool,
     token: Option<String>,
     load_error: Option<String>,
     save_error: Option<String>,
     clear_error: Option<String>,
+    save_persists_token: bool,
+}
+
+#[cfg(test)]
+impl Default for TestCodeGoAuthStore {
+    fn default() -> Self {
+        Self {
+            override_active: false,
+            token: None,
+            load_error: None,
+            save_error: None,
+            clear_error: None,
+            save_persists_token: true,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -31,6 +45,7 @@ pub(crate) fn set_test_codego_auth_token(token: Option<String>) {
     store.load_error = None;
     store.save_error = None;
     store.clear_error = None;
+    store.save_persists_token = true;
 }
 
 #[cfg(test)]
@@ -46,6 +61,16 @@ pub(crate) fn set_test_codego_auth_failures(
     store.load_error = load_error;
     store.save_error = save_error;
     store.clear_error = clear_error;
+    store.save_persists_token = true;
+}
+
+#[cfg(test)]
+pub(crate) fn set_test_codego_auth_save_persists_token(save_persists_token: bool) {
+    let mut store = test_codego_auth_store()
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    store.override_active = true;
+    store.save_persists_token = save_persists_token;
 }
 
 fn codego_token_entry() -> Result<Entry, String> {
@@ -93,7 +118,9 @@ pub fn save_codego_auth(access_token: &str) -> Result<(), String> {
             if let Some(error) = &store.save_error {
                 return Err(error.clone());
             }
-            store.token = Some(access_token.to_string());
+            if store.save_persists_token {
+                store.token = Some(access_token.to_string());
+            }
             return Ok(());
         }
     }

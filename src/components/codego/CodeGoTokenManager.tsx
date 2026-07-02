@@ -119,7 +119,8 @@ export function CodeGoTokenManager({
   const tokenPage = tokensQuery.data;
   const groupsQuery = useCodeGoGroupsQuery(enabled);
   const groupOptions = groupsQuery.data?.items ?? [];
-  const defaultGroup = groupsQuery.data?.current || groupOptions[0]?.name || "default";
+  const defaultGroup =
+    groupsQuery.data?.current || groupOptions[0]?.name || "default";
   const totalPages = useMemo(() => {
     if (!tokenPage) return 1;
     return Math.max(

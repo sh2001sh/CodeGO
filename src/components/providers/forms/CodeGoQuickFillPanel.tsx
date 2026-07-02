@@ -44,9 +44,7 @@ const TOKEN_QUERY = { p: 0, size: 100 } as const;
 const normalizeModelList = (models: string[]): string[] =>
   Array.from(
     new Set(
-      models
-        .map((model) => model.trim())
-        .filter((model) => model.length > 0),
+      models.map((model) => model.trim()).filter((model) => model.length > 0),
     ),
   );
 
@@ -137,7 +135,10 @@ export function CodeGoQuickFillPanel({
   const isAuthenticated = Boolean(authQuery.data?.authenticated);
   const summaryQuery = useCodeGoSummaryQuery(isAuthenticated, false);
   const [shouldLoadTokens, setShouldLoadTokens] = useState(false);
-  const tokensQuery = useCodeGoTokensQuery(TOKEN_QUERY, isAuthenticated && shouldLoadTokens);
+  const tokensQuery = useCodeGoTokensQuery(
+    TOKEN_QUERY,
+    isAuthenticated && shouldLoadTokens,
+  );
   const summary = summaryQuery.data;
 
   const [authSession, setAuthSession] = useState<{
@@ -217,7 +218,8 @@ export function CodeGoQuickFillPanel({
     selectedSharedModels.length,
     tool,
   ]);
-  const canApply = isAuthenticated && Boolean(selectedTokenId) && isModelSelectionReady;
+  const canApply =
+    isAuthenticated && Boolean(selectedTokenId) && isModelSelectionReady;
 
   const stopAuthPolling = () => {
     if (authTimerRef.current !== null) {
@@ -289,7 +291,10 @@ export function CodeGoQuickFillPanel({
 
   useEffect(() => {
     if (!tokenItems.length) return;
-    if (selectedTokenId && tokenItems.some((token) => String(token.id) === selectedTokenId)) {
+    if (
+      selectedTokenId &&
+      tokenItems.some((token) => String(token.id) === selectedTokenId)
+    ) {
       return;
     }
     const desktopTokenId = summary?.tokens.desktop_token?.id;
@@ -351,7 +356,9 @@ export function CodeGoQuickFillPanel({
       (tool === "opencode" || tool === "openclaw" || tool === "hermes") &&
       selectedSharedModels.length === 0
     ) {
-      setSelectedSharedModels(availableModels.slice(0, DEFAULT_MULTI_MODEL_COUNT));
+      setSelectedSharedModels(
+        availableModels.slice(0, DEFAULT_MULTI_MODEL_COUNT),
+      );
     }
   }, [
     availableModels,
@@ -678,7 +685,9 @@ export function CodeGoQuickFillPanel({
               <CodeGoMark size={20} className="h-5 w-5" />
             </div>
             <div>
-              <div className="text-sm font-semibold text-foreground">codego</div>
+              <div className="text-sm font-semibold text-foreground">
+                codego
+              </div>
               <div className="text-xs text-muted-foreground">
                 {t("providerForm.codego.panelHint", {
                   defaultValue:
@@ -780,7 +789,9 @@ export function CodeGoQuickFillPanel({
             <Button
               type="button"
               variant="outline"
-              onClick={() => void handleOpenAuthorizationUrl(authSession.verificationUri)}
+              onClick={() =>
+                void handleOpenAuthorizationUrl(authSession.verificationUri)
+              }
               className="gap-2"
             >
               <ExternalLink className="h-4 w-4" />
@@ -905,17 +916,17 @@ export function CodeGoQuickFillPanel({
                     >
                       <SelectTrigger>
                         <SelectValue
-                          placeholder={t("providerForm.codego.keySelectPlaceholder", {
-                            defaultValue: "选择一个 Key",
-                          })}
+                          placeholder={t(
+                            "providerForm.codego.keySelectPlaceholder",
+                            {
+                              defaultValue: "选择一个 Key",
+                            },
+                          )}
                         />
                       </SelectTrigger>
                       <SelectContent>
                         {tokenItems.map((token) => (
-                          <SelectItem
-                            key={token.id}
-                            value={String(token.id)}
-                          >
+                          <SelectItem key={token.id} value={String(token.id)}>
                             {tokenOptionLabel(token)}
                           </SelectItem>
                         ))}
@@ -924,7 +935,9 @@ export function CodeGoQuickFillPanel({
                     {selectedToken ? (
                       <div className="rounded-md border border-border/70 bg-background px-2.5 py-2 text-xs text-muted-foreground">
                         <div>{selectedToken.name}</div>
-                        <div className="mt-1 font-mono">{selectedToken.key}</div>
+                        <div className="mt-1 font-mono">
+                          {selectedToken.key}
+                        </div>
                       </div>
                     ) : null}
                   </div>
@@ -978,18 +991,45 @@ export function CodeGoQuickFillPanel({
                     {tool === "claude" ? (
                       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                         {[
-                          ["primary", t("providerForm.codego.primaryModelLabel", { defaultValue: "主模型" })],
-                          ["sonnet", t("providerForm.codego.sonnetModelLabel", { defaultValue: "Sonnet" })],
-                          ["opus", t("providerForm.codego.opusModelLabel", { defaultValue: "Opus" })],
-                          ["haiku", t("providerForm.codego.haikuModelLabel", { defaultValue: "Haiku" })],
-                          ["fable", t("providerForm.codego.fableModelLabel", { defaultValue: "Fable（可选）" })],
+                          [
+                            "primary",
+                            t("providerForm.codego.primaryModelLabel", {
+                              defaultValue: "主模型",
+                            }),
+                          ],
+                          [
+                            "sonnet",
+                            t("providerForm.codego.sonnetModelLabel", {
+                              defaultValue: "Sonnet",
+                            }),
+                          ],
+                          [
+                            "opus",
+                            t("providerForm.codego.opusModelLabel", {
+                              defaultValue: "Opus",
+                            }),
+                          ],
+                          [
+                            "haiku",
+                            t("providerForm.codego.haikuModelLabel", {
+                              defaultValue: "Haiku",
+                            }),
+                          ],
+                          [
+                            "fable",
+                            t("providerForm.codego.fableModelLabel", {
+                              defaultValue: "Fable（可选）",
+                            }),
+                          ],
                         ].map(([key, label]) => (
                           <div key={key} className="space-y-2">
                             <Label className="text-xs text-muted-foreground">
                               {label}
                             </Label>
                             <Select
-                              value={claudeModels[key as keyof typeof claudeModels]}
+                              value={
+                                claudeModels[key as keyof typeof claudeModels]
+                              }
                               onValueChange={(value) =>
                                 setClaudeModels((current) => ({
                                   ...current,
@@ -1003,7 +1043,9 @@ export function CodeGoQuickFillPanel({
                               <SelectContent>
                                 {key === "fable" ? (
                                   <SelectItem value="__empty__">
-                                    {t("common.notSet", { defaultValue: "不设置" })}
+                                    {t("common.notSet", {
+                                      defaultValue: "不设置",
+                                    })}
                                   </SelectItem>
                                 ) : null}
                                 {availableModels.map((model) => (
@@ -1032,9 +1074,12 @@ export function CodeGoQuickFillPanel({
                         >
                           <SelectTrigger>
                             <SelectValue
-                              placeholder={t("providerForm.codego.selectPrimaryModel", {
-                                defaultValue: "选择一个默认模型",
-                              })}
+                              placeholder={t(
+                                "providerForm.codego.selectPrimaryModel",
+                                {
+                                  defaultValue: "选择一个默认模型",
+                                },
+                              )}
                             />
                           </SelectTrigger>
                           <SelectContent>
@@ -1059,15 +1104,20 @@ export function CodeGoQuickFillPanel({
                             onValueChange={(value) => {
                               setSelectedPrimaryModel(value);
                               setSelectedCatalogModels((current) =>
-                                current.includes(value) ? current : [value, ...current],
+                                current.includes(value)
+                                  ? current
+                                  : [value, ...current],
                               );
                             }}
                           >
                             <SelectTrigger>
                               <SelectValue
-                                placeholder={t("providerForm.codego.selectPrimaryModel", {
-                                  defaultValue: "选择一个默认模型",
-                                })}
+                                placeholder={t(
+                                  "providerForm.codego.selectPrimaryModel",
+                                  {
+                                    defaultValue: "选择一个默认模型",
+                                  },
+                                )}
                               />
                             </SelectTrigger>
                             <SelectContent>
@@ -1092,7 +1142,9 @@ export function CodeGoQuickFillPanel({
                                 className="flex items-center gap-2 text-sm text-foreground"
                               >
                                 <Checkbox
-                                  checked={selectedCatalogModels.includes(model)}
+                                  checked={selectedCatalogModels.includes(
+                                    model,
+                                  )}
                                   onCheckedChange={(checked) =>
                                     toggleModel(
                                       setSelectedCatalogModels,
@@ -1101,7 +1153,9 @@ export function CodeGoQuickFillPanel({
                                     )
                                   }
                                 />
-                                <span className="font-mono text-xs">{model}</span>
+                                <span className="font-mono text-xs">
+                                  {model}
+                                </span>
                               </label>
                             ))}
                           </div>
@@ -1147,7 +1201,8 @@ export function CodeGoQuickFillPanel({
               ) : (
                 <div className="mt-3 rounded-md border border-dashed border-border/70 px-3 py-2 text-xs text-muted-foreground">
                   {t("providerForm.codego.modelsNotLoaded", {
-                    defaultValue: "请先点击“获取模型列表”，再选择要写入当前工具的模型。",
+                    defaultValue:
+                      "请先点击“获取模型列表”，再选择要写入当前工具的模型。",
                   })}
                 </div>
               )}
