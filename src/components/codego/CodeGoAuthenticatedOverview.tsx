@@ -1,11 +1,4 @@
-import {
-  CheckCircle2,
-  Info,
-  Loader2,
-  LogOut,
-  RefreshCw,
-  ShieldAlert,
-} from "lucide-react";
+import { Loader2, LogOut, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -83,67 +76,6 @@ export function CodeGoAuthenticatedOverview({
     ],
   ] as const;
 
-  const renderServiceStatus = () => (
-    <Card className="codego-panel shadow-none">
-      <CardHeader>
-        <CardTitle className="text-base">
-          {t("codego.overview.serviceStatus", "Service status")}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div
-          className={
-            summary?.service.maintenance
-              ? "flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/5 px-4 py-3"
-              : summary?.service.status === "ok"
-                ? "flex items-start gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3"
-                : "flex items-start gap-3 rounded-2xl border border-border bg-muted/20 px-4 py-3"
-          }
-        >
-          {summary?.service.maintenance ? (
-            <ShieldAlert className="mt-0.5 h-4 w-4 text-amber-700" />
-          ) : summary?.service.status === "ok" ? (
-            <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-600" />
-          ) : (
-            <Info className="mt-0.5 h-4 w-4 text-muted-foreground" />
-          )}
-          <div className="space-y-1">
-            <div className="text-sm font-medium capitalize">
-              {summary?.service.status || "ok"}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {summary?.service.notice ||
-                t(
-                  "codego.overview.noServiceNotice",
-                  "No active service notice.",
-                )}
-            </div>
-          </div>
-        </div>
-        {summary?.service.recommended_action ? (
-          <div
-            className={
-              summary.service.maintenance
-                ? "text-sm text-amber-700 dark:text-amber-300"
-                : "text-sm text-muted-foreground"
-            }
-          >
-            {summary.service.recommended_action}
-          </div>
-        ) : null}
-        {summary?.service.affected_scopes?.length ? (
-          <div className="flex flex-wrap gap-2">
-            {summary.service.affected_scopes.map((scope) => (
-              <Badge key={scope} variant="outline">
-                {scope}
-              </Badge>
-            ))}
-          </div>
-        ) : null}
-      </CardContent>
-    </Card>
-  );
-
   return (
     <section className="flex flex-1 flex-col px-6 pb-8">
       <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6">
@@ -159,13 +91,13 @@ export function CodeGoAuthenticatedOverview({
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge className="codego-chip-warm">
                         {t("codego.shell.desktopTitle", {
-                          defaultValue: "CodeGo desktop",
+                          defaultValue: "CodeGo",
                         })}
                       </Badge>
                       {summaryIsFetching ? (
                         <Badge variant="outline" className="gap-1.5">
                           <RefreshCw className="h-3 w-3 animate-spin" />
-                          {t("common.refreshing", "Refreshing")}
+                          {t("common.refreshing", "刷新中")}
                         </Badge>
                       ) : null}
                     </div>
@@ -178,13 +110,13 @@ export function CodeGoAuthenticatedOverview({
                     <p className="max-w-xl text-sm leading-6 text-muted-foreground">
                       {t(
                         "codego.overview.heroDescriptionCompact",
-                        "账号额度、桌面令牌、最近用量和服务状态集中在这里。",
+                        "账号额度、API 密钥和最近用量集中在这里。",
                       )}
                     </p>
                   </div>
                 </div>
                 <div className="hidden rounded-full border border-white/70 bg-white/72 px-3 py-1 text-xs text-muted-foreground dark:border-white/10 dark:bg-white/[0.04] sm:block">
-                  {t("codego.overview.sessionLive", "Session live")}
+                  {t("codego.overview.sessionLive", "已连接")}
                 </div>
               </div>
 
@@ -206,7 +138,7 @@ export function CodeGoAuthenticatedOverview({
                   className="h-9 gap-2"
                 >
                   <RefreshCw className="h-4 w-4" />
-                  {t("common.refresh", "Refresh")}
+                  {t("common.refresh", "刷新")}
                 </Button>
                 <Button
                   variant="outline"
@@ -219,7 +151,7 @@ export function CodeGoAuthenticatedOverview({
                   ) : (
                     <LogOut className="h-4 w-4" />
                   )}
-                  {t("codego.overview.disconnect", "Disconnect")}
+                  {t("codego.overview.disconnect", "断开连接")}
                 </Button>
               </div>
             </div>
@@ -257,7 +189,6 @@ export function CodeGoAuthenticatedOverview({
           </div>
           <div className="space-y-6">
             <CodeGoUsageTrendCard enabled={isAuthenticated} />
-            {renderServiceStatus()}
           </div>
         </div>
       </div>

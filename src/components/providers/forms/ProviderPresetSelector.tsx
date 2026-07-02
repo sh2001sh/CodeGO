@@ -135,6 +135,8 @@ interface ProviderPresetSelectorProps {
   onUniversalPresetSelect?: (preset: UniversalProviderPreset) => void;
   onManageUniversalProviders?: () => void;
   category?: ProviderCategory; // 当前选中的分类
+  customLabel?: string;
+  customHint?: string;
 }
 
 export function ProviderPresetSelector({
@@ -145,6 +147,8 @@ export function ProviderPresetSelector({
   onUniversalPresetSelect,
   onManageUniversalProviders,
   category,
+  customLabel,
+  customHint,
 }: Readonly<ProviderPresetSelectorProps>) {
   const { t } = useTranslation();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -221,9 +225,12 @@ export function ProviderPresetSelector({
           defaultValue: "💡 第三方供应商需要填写 API Key 和请求地址",
         });
       case "custom":
-        return t("providerForm.customApiKeyHint", {
-          defaultValue: "💡 自定义配置需手动填写所有必要字段",
-        });
+        return (
+          customHint ??
+          t("providerForm.customApiKeyHint", {
+            defaultValue: "💡 自定义配置需手动填写所有必要字段",
+          })
+        );
       case "omo":
         return t("providerForm.omoHint", {
           defaultValue:
@@ -282,10 +289,10 @@ export function ProviderPresetSelector({
       if (preset.theme?.backgroundColor) {
         return `${baseClass} text-white`;
       }
-      return `${baseClass} bg-blue-500 text-white dark:bg-blue-600`;
+      return `${baseClass} bg-primary text-primary-foreground`;
     }
 
-    return `${baseClass} bg-accent text-muted-foreground hover:bg-accent/80`;
+    return `${baseClass} border border-border bg-background text-muted-foreground hover:border-primary/30 hover:bg-primary/5 hover:text-foreground`;
   };
 
   const getPresetButtonStyle = (isSelected: boolean, preset: AnyPreset) => {
@@ -378,19 +385,6 @@ export function ProviderPresetSelector({
         </div>
       </div>
       <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2">
-        <button
-          type="button"
-          onClick={() => onPresetChange("custom")}
-          className={`inline-flex items-center justify-start gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors w-full ${
-            selectedPresetId === "custom"
-              ? "bg-blue-500 text-white dark:bg-blue-600"
-              : "bg-accent text-muted-foreground hover:bg-accent/80"
-          }`}
-        >
-          <span className="inline-block w-4 h-4 flex-shrink-0" aria-hidden />
-          <span className="truncate">{t("providerPreset.custom")}</span>
-        </button>
-
         {visiblePresetEntries.length === 0 && (
           <div className="col-span-full rounded-md border border-dashed border-border-default px-3 py-2 text-xs text-muted-foreground">
             {t("providerPreset.noSearchResults", {
@@ -436,6 +430,21 @@ export function ProviderPresetSelector({
             </button>
           );
         })}
+
+        <button
+          type="button"
+          onClick={() => onPresetChange("custom")}
+          className={`inline-flex items-center justify-start gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors w-full ${
+            selectedPresetId === "custom"
+              ? "bg-primary text-primary-foreground"
+              : "border border-border bg-background text-muted-foreground hover:border-primary/30 hover:bg-primary/5 hover:text-foreground"
+          }`}
+        >
+          <Settings2 className="h-4 w-4 flex-shrink-0" aria-hidden />
+          <span className="truncate">
+            {customLabel ?? t("providerPreset.custom")}
+          </span>
+        </button>
       </div>
 
       {onUniversalPresetSelect && universalProviderPresets.length > 0 && (

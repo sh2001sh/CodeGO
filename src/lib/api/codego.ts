@@ -229,6 +229,42 @@ export interface CodeGoGroupsResponse {
   items: CodeGoGroupItem[];
 }
 
+export type CodeGoGroupAvailabilityStatus =
+  | "healthy"
+  | "slow"
+  | "degraded"
+  | "unknown";
+
+export interface CodeGoGroupStatusBucket {
+  ts: number;
+  success_rate: number | null;
+  request_count: number;
+}
+
+export interface CodeGoGroupModelStatusItem {
+  model: string;
+  status: CodeGoGroupAvailabilityStatus;
+  success_rate: number | null;
+  sample_window: number;
+  series_window?: number;
+  bucket_seconds?: number;
+  request_count?: number;
+  series?: CodeGoGroupStatusBucket[];
+}
+
+export interface CodeGoGroupStatusItem {
+  group: string;
+  status: CodeGoGroupAvailabilityStatus;
+  request_count?: number;
+  models: CodeGoGroupModelStatusItem[];
+}
+
+export interface CodeGoGroupStatusResponse {
+  success?: boolean;
+  message?: string;
+  data?: CodeGoGroupStatusItem[];
+}
+
 export interface CodeGoTokenCreateInput {
   name: string;
   expired_time: number;
@@ -389,6 +425,10 @@ export const codegoApi = {
 
   async getGroups(): Promise<CodeGoGroupsResponse> {
     return invoke("codego_get_groups");
+  },
+
+  async getGroupStatus(): Promise<CodeGoGroupStatusResponse> {
+    return invoke("codego_get_group_status");
   },
 
   async ensureToken(deviceName?: string): Promise<CodeGoEnsureTokenResult> {

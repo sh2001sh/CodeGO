@@ -8,9 +8,9 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        // 主按钮：蓝底白字（对应旧版 primary）
+        // 主按钮：CodeGo 暖橙主色
         default:
-          "bg-blue-500 text-white hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700",
+          "bg-primary text-primary-foreground hover:bg-primary/90 dark:hover:bg-primary/85",
         // 危险按钮：红底白字（对应旧版 danger）
         destructive:
           "bg-red-500 text-white hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700",
@@ -26,7 +26,7 @@ const buttonVariants = cva(
         // MCP 专属按钮：祖母绿
         mcp: "bg-emerald-500 text-white hover:bg-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-700",
         // 链接按钮
-        link: "text-blue-500 underline-offset-4 hover:underline dark:text-blue-400",
+        link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
         default: "h-9 px-4 py-2",

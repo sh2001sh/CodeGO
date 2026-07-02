@@ -40,6 +40,11 @@ export function useProviderCategory({
       return;
     }
 
+    if (selectedPresetId === "codego") {
+      setCategory("aggregator");
+      return;
+    }
+
     if (!selectedPresetId) return;
 
     // 从预设 ID 提取索引

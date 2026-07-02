@@ -23,31 +23,23 @@ import type {
   CodexCatalogModel,
   CodexChatReasoning,
   ClaudeApiKeyField,
+  OpenClawModel,
+  OpenCodeModel,
 } from "@/types";
+import { type ProviderPreset } from "@/config/claudeProviderPresets";
 import {
-  providerPresets,
-  type ProviderPreset,
-} from "@/config/claudeProviderPresets";
-import {
-  codexProviderPresets,
+  generateThirdPartyConfig,
   type CodexProviderPreset,
 } from "@/config/codexProviderPresets";
+import { type GeminiProviderPreset } from "@/config/geminiProviderPresets";
+import { type OpenCodeProviderPreset } from "@/config/opencodeProviderPresets";
 import {
-  geminiProviderPresets,
-  type GeminiProviderPreset,
-} from "@/config/geminiProviderPresets";
-import {
-  opencodeProviderPresets,
-  type OpenCodeProviderPreset,
-} from "@/config/opencodeProviderPresets";
-import {
-  openclawProviderPresets,
   rebaseOpenClawSuggestedDefaults,
   type OpenClawProviderPreset,
   type OpenClawSuggestedDefaults,
 } from "@/config/openclawProviderPresets";
 import {
-  hermesProviderPresets,
+  type HermesModel,
   type HermesProviderPreset,
 } from "@/config/hermesProviderPresets";
 import { OpenCodeFormFields } from "./OpenCodeFormFields";
@@ -112,6 +104,7 @@ import {
   CODEX_DEFAULT_CONFIG,
   GEMINI_DEFAULT_CONFIG,
   OPENCODE_DEFAULT_CONFIG,
+  OPENCODE_DEFAULT_NPM,
   OPENCLAW_DEFAULT_CONFIG,
   normalizePricingSource,
 } from "./helpers/opencodeFormUtils";
@@ -119,6 +112,11 @@ import { HERMES_DEFAULT_CONFIG } from "./hooks/useHermesFormState";
 import { resolveManagedAccountId } from "@/lib/authBinding";
 import { useOpenClawLiveProviderIds } from "@/hooks/useOpenClaw";
 import { useHermesLiveProviderIds } from "@/hooks/useHermes";
+import {
+  CodeGoQuickFillPanel,
+  type CodeGoQuickFillResult,
+} from "./CodeGoQuickFillPanel";
+import type { CodeGoConfigTemplate } from "@/lib/api/codego";
 
 type PresetEntry = {
   id: string;
@@ -130,6 +128,41 @@ type PresetEntry = {
     | OpenClawProviderPreset
     | HermesProviderPreset;
 };
+
+const CODEGO_PRESET_ID = "codego";
+const CODEGO_PROVIDER_NAME = "CodeGo";
+const CODEGO_SERVER_URL = "https://shu26.cfd";
+const CODEGO_SUPPORTED_TOOLS: ReadonlySet<string> = new Set([
+  "claude",
+  "codex",
+  "gemini",
+  "opencode",
+  "openclaw",
+  "hermes",
+]);
+
+const isCodeGoSupportedTool = (
+  appId: AppId,
+): appId is CodeGoConfigTemplate["tool"] => CODEGO_SUPPORTED_TOOLS.has(appId);
+
+const codegoPresetEntry: PresetEntry = {
+  id: CODEGO_PRESET_ID,
+  preset: {
+    name: "CodeGo",
+    websiteUrl: CODEGO_SERVER_URL,
+    settingsConfig: { env: {} },
+    category: "aggregator",
+    icon: "codego",
+    iconColor: "#d96a39",
+  },
+};
+
+const toDisplayModelName = (model: string): string =>
+  model
+    .split(/[/:]/)
+    .pop()
+    ?.replace(/[-_]+/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase()) || model;
 
 const codexApiFormatFromWireApi = (
   wireApi: string | undefined,
@@ -266,8 +299,6 @@ function ProviderFormFull({
   submitLabel,
   onSubmit,
   onCancel,
-  onUniversalPresetSelect,
-  onManageUniversalProviders,
   onSubmittingChange,
   initialData,
   showButtons = true,
@@ -298,7 +329,7 @@ function ProviderFormFull({
   };
 
   const [selectedPresetId, setSelectedPresetId] = useState<string | null>(
-    initialData ? null : "custom",
+    initialData ? null : CODEGO_PRESET_ID,
   );
   const [activePreset, setActivePreset] = useState<{
     id: string;
@@ -306,7 +337,9 @@ function ProviderFormFull({
     isPartner?: boolean;
     partnerPromotionKey?: string;
     suggestedDefaults?: OpenClawSuggestedDefaults;
-  } | null>(null);
+  } | null>(
+    initialData ? null : { id: CODEGO_PRESET_ID, category: "aggregator" },
+  );
   const [isEndpointModalOpen, setIsEndpointModalOpen] = useState(false);
   const [isCodexEndpointModalOpen, setIsCodexEndpointModalOpen] =
     useState(false);
@@ -354,8 +387,10 @@ function ProviderFormFull({
   const isAnyOmoCategory = isOmoCategory || isOmoSlimCategory;
 
   useEffect(() => {
-    setSelectedPresetId(initialData ? null : "custom");
-    setActivePreset(null);
+    setSelectedPresetId(initialData ? null : CODEGO_PRESET_ID);
+    setActivePreset(
+      initialData ? null : { id: CODEGO_PRESET_ID, category: "aggregator" },
+    );
 
     if (!initialData) {
       setDraftCustomEndpoints([]);
@@ -390,8 +425,8 @@ function ProviderFormFull({
 
   const defaultValues: ProviderFormData = useMemo(
     () => ({
-      name: initialData?.name ?? "",
-      websiteUrl: initialData?.websiteUrl ?? "",
+      name: initialData?.name ?? CODEGO_PROVIDER_NAME,
+      websiteUrl: initialData?.websiteUrl ?? CODEGO_SERVER_URL,
       notes: initialData?.notes ?? "",
       settingsConfig: initialData?.settingsConfig
         ? JSON.stringify(initialData.settingsConfig, null, 2)
@@ -659,39 +694,8 @@ function ProviderFormFull({
   );
 
   const presetEntries = useMemo(() => {
-    if (appId === "codex") {
-      return codexProviderPresets.map<PresetEntry>((preset, index) => ({
-        id: `codex-${index}`,
-        preset,
-      }));
-    } else if (appId === "gemini") {
-      return geminiProviderPresets.map<PresetEntry>((preset, index) => ({
-        id: `gemini-${index}`,
-        preset,
-      }));
-    } else if (appId === "opencode") {
-      return opencodeProviderPresets.map<PresetEntry>((preset, index) => ({
-        id: `opencode-${index}`,
-        preset,
-      }));
-    } else if (appId === "openclaw") {
-      return openclawProviderPresets.map<PresetEntry>((preset, index) => ({
-        id: `openclaw-${index}`,
-        preset,
-      }));
-    } else if (appId === "hermes") {
-      return hermesProviderPresets.map<PresetEntry>((preset, index) => ({
-        id: `hermes-${index}`,
-        preset,
-      }));
-    }
-    return providerPresets
-      .filter((p) => !p.hidden)
-      .map<PresetEntry>((preset, index) => ({
-        id: `claude-${index}`,
-        preset,
-      }));
-  }, [appId]);
+    return [codegoPresetEntry];
+  }, []);
 
   const {
     templateValues,
@@ -1612,12 +1616,173 @@ function ProviderFormFull({
     codexBaseUrl,
     initialData,
   });
+  const isCodeGoManagedPreset = selectedPresetId === CODEGO_PRESET_ID;
+
+  const handleCodeGoQuickFillApply = useCallback(
+    async (result: CodeGoQuickFillResult) => {
+      form.setValue("name", CODEGO_PROVIDER_NAME);
+      form.setValue("websiteUrl", CODEGO_SERVER_URL);
+
+      if (appId === "claude") {
+        handleApiFormatChange("anthropic");
+        handleApiKeyFieldChange("ANTHROPIC_AUTH_TOKEN");
+        handleClaudeBaseUrlChange(result.template.endpoint);
+        handleApiKeyChange(result.fullKey);
+        if (result.claudeModels) {
+          handleModelChange("ANTHROPIC_MODEL", result.claudeModels.primary);
+          handleModelChange(
+            "ANTHROPIC_DEFAULT_SONNET_MODEL",
+            result.claudeModels.sonnet,
+          );
+          handleModelChange(
+            "ANTHROPIC_DEFAULT_SONNET_MODEL_NAME",
+            toDisplayModelName(result.claudeModels.sonnet),
+          );
+          handleModelChange(
+            "ANTHROPIC_DEFAULT_OPUS_MODEL",
+            result.claudeModels.opus,
+          );
+          handleModelChange(
+            "ANTHROPIC_DEFAULT_OPUS_MODEL_NAME",
+            toDisplayModelName(result.claudeModels.opus),
+          );
+          handleModelChange(
+            "ANTHROPIC_DEFAULT_HAIKU_MODEL",
+            result.claudeModels.haiku,
+          );
+          handleModelChange(
+            "ANTHROPIC_DEFAULT_HAIKU_MODEL_NAME",
+            toDisplayModelName(result.claudeModels.haiku),
+          );
+          handleModelChange(
+            "ANTHROPIC_DEFAULT_FABLE_MODEL",
+            result.claudeModels.fable ?? "",
+          );
+          handleModelChange(
+            "ANTHROPIC_DEFAULT_FABLE_MODEL_NAME",
+            result.claudeModels.fable
+              ? toDisplayModelName(result.claudeModels.fable)
+              : "",
+          );
+        }
+        return;
+      }
+
+      if (appId === "codex") {
+        const config = generateThirdPartyConfig(
+          CODEGO_PROVIDER_NAME,
+          result.template.endpoint,
+          result.primaryModel || result.selectedModels[0] || "gpt-5.5",
+        );
+        resetCodexConfig(
+          { OPENAI_API_KEY: result.fullKey },
+          config,
+          result.selectedModels.map((model) => ({ model })),
+        );
+        setLocalCodexApiFormat("openai_responses");
+        setCodexTakeoverEnabled(result.selectedModels.length > 0);
+        return;
+      }
+
+      if (appId === "gemini") {
+        handleGeminiBaseUrlChange(result.template.endpoint);
+        handleGeminiApiKeyChange(result.fullKey);
+        handleGeminiModelChange(
+          result.primaryModel || result.selectedModels[0] || "",
+        );
+        return;
+      }
+
+      if (appId === "opencode") {
+        opencodeForm.setOpencodeProviderKey("codego");
+        opencodeForm.handleOpencodeNpmChange(OPENCODE_DEFAULT_NPM);
+        opencodeForm.handleOpencodeBaseUrlChange(result.template.endpoint);
+        opencodeForm.handleOpencodeApiKeyChange(result.fullKey);
+        const models = result.selectedModels.reduce<
+          Record<string, OpenCodeModel>
+        >((accumulator, model) => {
+          accumulator[model] = { name: toDisplayModelName(model) };
+          return accumulator;
+        }, {});
+        opencodeForm.handleOpencodeModelsChange(models);
+        return;
+      }
+
+      if (appId === "openclaw") {
+        openclawForm.setOpenclawProviderKey("codego");
+        openclawForm.handleOpenclawBaseUrlChange(result.template.endpoint);
+        openclawForm.handleOpenclawApiKeyChange(result.fullKey);
+        openclawForm.handleOpenclawApiChange("openai-completions");
+        openclawForm.handleOpenclawModelsChange(
+          result.selectedModels.map<OpenClawModel>((model) => ({
+            id: model,
+            name: toDisplayModelName(model),
+          })),
+        );
+        return;
+      }
+
+      if (appId === "hermes") {
+        hermesForm.setHermesProviderKey("codego");
+        hermesForm.handleHermesBaseUrlChange(result.template.endpoint);
+        hermesForm.handleHermesApiKeyChange(result.fullKey);
+        hermesForm.handleHermesModelsChange(
+          result.selectedModels.map<HermesModel>((model) => ({
+            id: model,
+            name: toDisplayModelName(model),
+          })),
+        );
+      }
+    },
+    [
+      appId,
+      form,
+      handleApiFormatChange,
+      handleApiKeyChange,
+      handleApiKeyFieldChange,
+      handleClaudeBaseUrlChange,
+      handleGeminiApiKeyChange,
+      handleGeminiBaseUrlChange,
+      handleGeminiModelChange,
+      handleModelChange,
+      hermesForm,
+      opencodeForm,
+      openclawForm,
+      resetCodexConfig,
+    ],
+  );
 
   const handlePresetChange = (value: string) => {
     setSelectedPresetId(value);
+    if (value === CODEGO_PRESET_ID) {
+      setActivePreset({
+        id: value,
+        category: "aggregator",
+      });
+      form.reset({
+        ...defaultValues,
+        name: CODEGO_PROVIDER_NAME,
+        websiteUrl: CODEGO_SERVER_URL,
+      });
+      if (appId === "opencode") {
+        opencodeForm.setOpencodeProviderKey("codego");
+      }
+      if (appId === "openclaw") {
+        openclawForm.setOpenclawProviderKey("codego");
+      }
+      if (appId === "hermes") {
+        hermesForm.setHermesProviderKey("codego");
+      }
+      return;
+    }
+
     if (value === "custom") {
       setActivePreset(null);
-      form.reset(defaultValues);
+      form.reset({
+        ...defaultValues,
+        name: "",
+        websiteUrl: "",
+      });
 
       if (appId === "codex") {
         const template = getCodexCustomTemplate();
@@ -1818,15 +1983,29 @@ function ProviderFormFull({
           className="space-y-6 glass rounded-xl p-6 border border-white/10"
         >
           {!initialData && (
-            <ProviderPresetSelector
-              selectedPresetId={selectedPresetId}
-              presetEntries={presetEntries}
-              presetCategoryLabels={presetCategoryLabels}
-              onPresetChange={handlePresetChange}
-              onUniversalPresetSelect={onUniversalPresetSelect}
-              onManageUniversalProviders={onManageUniversalProviders}
-              category={category}
-            />
+            <>
+              <ProviderPresetSelector
+                selectedPresetId={selectedPresetId}
+                presetEntries={presetEntries}
+                presetCategoryLabels={presetCategoryLabels}
+                onPresetChange={handlePresetChange}
+                category={category}
+                customLabel={t("providerPreset.thirdParty", {
+                  defaultValue: "第三方",
+                })}
+                customHint={t("providerForm.thirdPartyManualHint", {
+                  defaultValue:
+                    "第三方配置需要手动填写 API Key、请求地址和模型。",
+                })}
+              />
+
+              {isCodeGoManagedPreset && isCodeGoSupportedTool(appId) && (
+                <CodeGoQuickFillPanel
+                  tool={appId}
+                  onApply={handleCodeGoQuickFillApply}
+                />
+              )}
+            </>
           )}
 
           <BasicFormFields

@@ -42,12 +42,7 @@ export function AddProviderDialog({
   onSubmit,
 }: AddProviderDialogProps) {
   const { t } = useTranslation();
-  // OpenCode and OpenClaw don't support universal providers
-  const showUniversalTab =
-    appId !== "opencode" &&
-    appId !== "openclaw" &&
-    appId !== "hermes" &&
-    appId !== "claude-desktop";
+  const showUniversalTab = false;
   const [activeTab, setActiveTab] = useState<"app-specific" | "universal">(
     "app-specific",
   );
@@ -322,7 +317,7 @@ export function AddProviderDialog({
   return (
     <FullScreenPanel
       isOpen={open}
-      title={t("provider.addNewProvider")}
+      title={t("provider.addNewProvider", { defaultValue: "添加 API 配置" })}
       onClose={() => onOpenChange(false)}
       footer={footer}
       contentClassName="pt-3"

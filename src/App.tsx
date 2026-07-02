@@ -945,7 +945,7 @@ function App() {
     switch (currentView) {
       case "codego":
         return t("codego.shell.desktopTitle", {
-          defaultValue: "CodeGo desktop",
+          defaultValue: "CodeGo",
         });
       case "providers":
         return t("codego.shell.providers", { defaultValue: "API 配置" });
@@ -992,7 +992,7 @@ function App() {
         return t("hermes.memory.title");
       default:
         return t("codego.shell.desktopTitle", {
-          defaultValue: "CodeGo desktop",
+          defaultValue: "CodeGo",
         });
     }
   })();
@@ -1026,15 +1026,14 @@ function App() {
                       defaultValue: "查看网站分组状态和当前账号分组。",
                     })
                   : t("codego.shell.workspaceSubtitle", {
-                      defaultValue:
-                        "Focused operational view for the active workflow.",
+                      defaultValue: "当前功能页。",
                     });
 
   const primaryNavItems: NavItemConfig[] = [
     {
       view: "codego",
       icon: LayoutDashboard,
-      label: t("codego.shell.dashboard", { defaultValue: "Dashboard" }),
+      label: t("codego.shell.dashboard", { defaultValue: "控制台" }),
       description: t("codego.shell.nav.dashboardDesc", {
         defaultValue: "账号额度、桌面令牌和服务状态",
       }),
@@ -1044,7 +1043,7 @@ function App() {
       icon: Wrench,
       label: t("codego.shell.providers", { defaultValue: "API 配置" }),
       description: t("codego.shell.nav.providersDesc", {
-        defaultValue: "选择应用并维护工具供应商",
+        defaultValue: "CodeGo 或第三方 API",
       }),
     },
     {
@@ -1084,7 +1083,7 @@ function App() {
       icon: Layers3,
       label: t("codego.groups.title", { defaultValue: "分组状态" }),
       description: t("codego.shell.nav.groupsDesc", {
-        defaultValue: "查看网站分组和当前权限",
+        defaultValue: "查看分组下模型状态",
       }),
     },
     {
@@ -1626,7 +1625,7 @@ function App() {
             <div className="mt-3">
               <div className="codego-subnav-label">
                 {t("codego.shell.controlCenter", {
-                  defaultValue: "Control center",
+                  defaultValue: "控制中心",
                 })}
               </div>
               <div className="mt-2 space-y-2">
@@ -1666,7 +1665,7 @@ function App() {
             <div className="mt-5">
               <div className="codego-subnav-label">
                 {t("codego.shell.workspace", {
-                  defaultValue: "Workspace",
+                  defaultValue: "工具",
                 })}
               </div>
               <div className="mt-2 space-y-2">

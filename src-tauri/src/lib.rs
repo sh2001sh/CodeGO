@@ -1253,6 +1253,7 @@ pub fn run() {
             commands::codego_update_token,
             commands::codego_delete_token,
             commands::codego_get_groups,
+            commands::codego_get_group_status,
             commands::codego_get_usage_logs,
             commands::codego_ensure_token,
             commands::codego_fetch_models_for_token,
