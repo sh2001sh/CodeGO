@@ -98,6 +98,9 @@ export interface CodeGoAccountSummary {
     tokens_path: string;
     logs_path: string;
   };
+  website?: {
+    group_status?: unknown;
+  };
 }
 
 export interface CodeGoUsageLogItem {
@@ -145,6 +148,11 @@ export interface CodeGoEnsureTokenResult {
   created: boolean;
   full_key: string;
   token_name: string;
+}
+
+export interface CodeGoFetchedModel {
+  id: string;
+  owned_by?: string | null;
 }
 
 export interface CodeGoConfigTemplate {
@@ -206,6 +214,19 @@ export interface CodeGoTokenPage {
   size: number;
   total: number;
   items: CodeGoToken[];
+}
+
+export interface CodeGoGroupItem {
+  name: string;
+  desc?: string;
+  ratio?: number | string;
+  current?: boolean;
+  available_models_count?: number;
+}
+
+export interface CodeGoGroupsResponse {
+  current: string;
+  items: CodeGoGroupItem[];
 }
 
 export interface CodeGoTokenCreateInput {
@@ -366,9 +387,27 @@ export const codegoApi = {
     return invoke("codego_get_token_key", { id });
   },
 
+  async getGroups(): Promise<CodeGoGroupsResponse> {
+    return invoke("codego_get_groups");
+  },
+
   async ensureToken(deviceName?: string): Promise<CodeGoEnsureTokenResult> {
     return invoke("codego_ensure_token", {
       request: { deviceName },
+    });
+  },
+
+  async fetchModelsForToken(input: {
+    tool: "codex" | "claude" | "gemini" | "opencode" | "openclaw" | "hermes";
+    endpoint: string;
+    apiKey: string;
+  }): Promise<CodeGoFetchedModel[]> {
+    return invoke("codego_fetch_models_for_token", {
+      request: {
+        tool: input.tool,
+        endpoint: input.endpoint,
+        apiKey: input.apiKey,
+      },
     });
   },
 

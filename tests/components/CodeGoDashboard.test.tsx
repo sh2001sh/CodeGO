@@ -93,13 +93,13 @@ describe("CodeGoDashboard", () => {
     renderDashboard();
 
     expect(
-      screen.getByRole("heading", {
+      await screen.findByRole("heading", {
         name: "Approve this desktop from the website, then keep control here.",
       }),
     ).toBeInTheDocument();
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Authorize in browser" }),
+      await screen.findByRole("button", { name: "Authorize in browser" }),
     );
 
     await waitFor(() =>
@@ -135,7 +135,7 @@ describe("CodeGoDashboard", () => {
     renderDashboard();
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Authorize in browser" }),
+      await screen.findByRole("button", { name: "Authorize in browser" }),
     );
 
     await waitFor(() =>
@@ -194,7 +194,7 @@ describe("CodeGoDashboard", () => {
     renderDashboard();
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Authorize in browser" }),
+      await screen.findByRole("button", { name: "Authorize in browser" }),
     );
 
     await waitFor(() =>
@@ -218,7 +218,7 @@ describe("CodeGoDashboard", () => {
     openExternalSpy.mockRestore();
   });
 
-  it("shows a secure storage warning before browser authorization when storage is unavailable", async () => {
+  it("hides the secure storage warning before browser authorization when storage is unavailable", async () => {
     setCodeGoAuthState({
       authenticated: false,
       serverAddress: "https://shu26.cfd",
@@ -231,12 +231,17 @@ describe("CodeGoDashboard", () => {
 
     await waitFor(() =>
       expect(
-        screen.getByText("Secure storage unavailable"),
+        screen.getByRole("button", { name: "Authorize in browser" }),
       ).toBeInTheDocument(),
     );
     expect(
-      screen.getByText(/temporarily keep the desktop session in local settings/i),
-    ).toBeInTheDocument();
+      screen.queryByText("Secure storage unavailable"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        /temporarily keep the desktop session in local settings/i,
+      ),
+    ).not.toBeInTheDocument();
   });
 
   it("switches to the authenticated overview immediately after browser approval succeeds", async () => {
@@ -249,7 +254,7 @@ describe("CodeGoDashboard", () => {
     renderDashboard();
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Authorize in browser" }),
+      await screen.findByRole("button", { name: "Authorize in browser" }),
     );
 
     await waitFor(() =>
@@ -321,7 +326,7 @@ describe("CodeGoDashboard", () => {
         screen.getByRole("heading", { name: "Demo User" }),
       ).toBeInTheDocument(),
     );
-    fireEvent.click(screen.getByRole("button", { name: /Diagnostics/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Diagnostics|诊断/ }));
 
     await waitFor(() =>
       expect(screen.getByText("Crash report captured")).toBeInTheDocument(),
@@ -371,7 +376,7 @@ describe("CodeGoDashboard", () => {
 
     renderDashboard();
 
-    const authButton = screen.getByRole("button", {
+    const authButton = await screen.findByRole("button", {
       name: "Authorize in browser",
     });
     fireEvent.click(authButton);
@@ -407,7 +412,7 @@ describe("CodeGoDashboard", () => {
     renderDashboard();
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Authorize in browser" }),
+      await screen.findByRole("button", { name: "Authorize in browser" }),
     );
 
     await waitFor(() =>
@@ -475,27 +480,36 @@ describe("CodeGoDashboard", () => {
     expect(screen.getByText("$18.75")).toBeInTheDocument();
     expect(screen.getByText("64")).toBeInTheDocument();
 
-    expect(screen.getByText("Service status")).toBeInTheDocument();
-    expect(screen.getByText("notice")).toBeInTheDocument();
-    expect(screen.getByText("Codex upstream is degraded")).toBeInTheDocument();
     expect(
-      screen.getByText("Use Claude or retry after the maintenance window."),
+      screen.queryByText("Account and group status"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Billing preference")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Website model plaza|打开模型广场/ }),
     ).toBeInTheDocument();
-    expect(screen.getByText("tool-config")).toBeInTheDocument();
-    expect(screen.getByText("logs")).toBeInTheDocument();
+    expect(screen.getByText("钱包")).toBeInTheDocument();
+    expect(screen.getByText("套餐")).toBeInTheDocument();
+    expect(screen.getByText("盲盒")).toBeInTheDocument();
+    expect(screen.getByText("邀请")).toBeInTheDocument();
+    expect(screen.queryByText("Token center")).not.toBeInTheDocument();
+    expect(screen.queryByText("Log center")).not.toBeInTheDocument();
 
-    expect(screen.getByText("Today")).toBeInTheDocument();
-    expect(screen.getByText("$3.14")).toBeInTheDocument();
-    expect(screen.getByText("Last 7 days")).toBeInTheDocument();
-    expect(screen.getByText("$14.25")).toBeInTheDocument();
     expect(screen.getAllByText("Last request").length).toBeGreaterThan(0);
 
-    fireEvent.click(screen.getByRole("button", { name: /Devices/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Devices|设备/ }));
 
     await waitFor(() =>
-      expect(screen.getByText("Authorized devices")).toBeInTheDocument(),
+      expect(
+        screen.getByRole("heading", {
+          name: /Authorized devices|已授权设备/,
+        }),
+      ).toBeInTheDocument(),
     );
-    expect(screen.getByText("Authorized devices")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        name: /Authorized devices|已授权设备/,
+      }),
+    ).toBeInTheDocument();
     expect(screen.getAllByText(/codego desktop/i).length).toBeGreaterThan(0);
   });
 
@@ -548,18 +562,19 @@ describe("CodeGoDashboard", () => {
       ).toBeInTheDocument(),
     );
 
-    expect(screen.getByText("maintenance")).toBeInTheDocument();
     expect(
-      screen.getByText("Scheduled maintenance is running"),
-    ).toBeInTheDocument();
+      screen.queryByText("Account and group status"),
+    ).not.toBeInTheDocument();
     expect(
-      screen.getByText(
-        "Wait for maintenance to finish before applying new tool configs.",
-      ),
+      screen.getByRole("button", { name: /Website model plaza|打开模型广场/ }),
     ).toBeInTheDocument();
+    expect(screen.getByText("钱包")).toBeInTheDocument();
+    expect(screen.getByText("套餐")).toBeInTheDocument();
+    expect(screen.getByText("盲盒")).toBeInTheDocument();
+    expect(screen.getByText("邀请")).toBeInTheDocument();
   });
 
-  it("shows a secure storage warning in the authenticated overview", async () => {
+  it("hides the secure storage warning in the authenticated overview", async () => {
     setCodeGoAuthState({
       authenticated: true,
       serverAddress: "https://shu26.cfd",
@@ -580,10 +595,14 @@ describe("CodeGoDashboard", () => {
       ).toBeInTheDocument(),
     );
 
-    expect(screen.getByText("Secure storage unavailable")).toBeInTheDocument();
     expect(
-      screen.getByText(/temporarily keep the desktop session in local settings/i),
-    ).toBeInTheDocument();
+      screen.queryByText("Secure storage unavailable"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        /temporarily keep the desktop session in local settings/i,
+      ),
+    ).not.toBeInTheDocument();
   });
 
   it("copies the ensured desktop token and refreshes the summary", async () => {
@@ -610,7 +629,9 @@ describe("CodeGoDashboard", () => {
       ).toBeInTheDocument(),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Copy full token" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /Copy full token|复制完整令牌/ }),
+    );
 
     await waitFor(() =>
       expect(screen.getByText("Copy full desktop token")).toBeInTheDocument(),
@@ -653,7 +674,9 @@ describe("CodeGoDashboard", () => {
       ).toBeInTheDocument(),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Disconnect" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /Disconnect|断开连接/ }),
+    );
 
     await waitFor(() =>
       expect(
@@ -710,9 +733,13 @@ describe("CodeGoDashboard", () => {
         screen.getByRole("heading", { name: "Demo User" }),
       ).toBeInTheDocument(),
     );
-    fireEvent.click(screen.getByRole("button", { name: /Devices/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Devices|设备/ }));
     await waitFor(() =>
-      expect(screen.getByText("Authorized devices")).toBeInTheDocument(),
+      expect(
+        screen.getByRole("heading", {
+          name: /Authorized devices|已授权设备/,
+        }),
+      ).toBeInTheDocument(),
     );
 
     const deviceLabel = await screen.findByText("MacBook Pro");
@@ -721,15 +748,19 @@ describe("CodeGoDashboard", () => {
 
     fireEvent.click(
       within(deviceRow as HTMLElement).getByRole("button", {
-        name: "Revoke access",
+        name: /Revoke access|撤销访问/,
       }),
     );
 
     await waitFor(() =>
-      expect(screen.getByText("Revoke device access")).toBeInTheDocument(),
+      expect(
+        screen.getByText(/Revoke device access|撤销设备访问/),
+      ).toBeInTheDocument(),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Revoke access" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /Revoke access|撤销访问/ }),
+    );
 
     await waitFor(() =>
       expect(screen.queryByText("MacBook Pro")).not.toBeInTheDocument(),
@@ -744,6 +775,49 @@ describe("CodeGoDashboard", () => {
         closeButton: true,
       },
     );
+  });
+
+  it("keeps the desktop connected when the device list endpoint rejects the auxiliary request", async () => {
+    setCodeGoAuthState({
+      authenticated: true,
+      serverAddress: "https://shu26.cfd",
+      accessToken: "desktop-access-token",
+      userId: 7,
+      deviceId: 11,
+      lastUsername: "demo-user",
+    });
+    server.use(
+      http.post("http://tauri.local/codego_list_authorized_devices", () =>
+        HttpResponse.json("Unauthorized, invalid access token", {
+          status: 401,
+        }),
+      ),
+    );
+
+    renderDashboard();
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { name: "Demo User" }),
+      ).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Devices|设备/ }));
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", {
+          name: /Authorized devices|已授权设备/,
+        }),
+      ).toBeInTheDocument(),
+    );
+    expect(
+      screen.queryByRole("button", {
+        name: /Authorize in browser|浏览器.*授权/,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Demo User" }),
+    ).toBeInTheDocument();
   });
 
   it("keeps revoked devices visible without counting them as active or allowing another revoke", async () => {
@@ -787,16 +861,20 @@ describe("CodeGoDashboard", () => {
         screen.getByRole("heading", { name: "Demo User" }),
       ).toBeInTheDocument(),
     );
-    fireEvent.click(screen.getByRole("button", { name: /Devices/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Devices|设备/ }));
     await waitFor(() =>
-      expect(screen.getByText("Authorized devices")).toBeInTheDocument(),
+      expect(
+        screen.getByRole("heading", {
+          name: /Authorized devices|已授权设备/,
+        }),
+      ).toBeInTheDocument(),
     );
 
     await screen.findByText("MacBook Pro");
     await waitFor(() =>
       expect(screen.getByText(/1 active/i)).toBeInTheDocument(),
     );
-    expect(screen.getAllByText("Revoked").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Revoked|已撤销/).length).toBeGreaterThan(0);
 
     const revokedRow = screen
       .getByText("MacBook Pro")
@@ -804,11 +882,11 @@ describe("CodeGoDashboard", () => {
     expect(revokedRow).not.toBeNull();
 
     const revokeButton = within(revokedRow as HTMLElement).getByRole("button", {
-      name: "Revoke access",
+      name: /Revoke access|撤销访问/,
     });
     expect(revokeButton).toBeDisabled();
     expect(
-      within(revokedRow as HTMLElement).getByText("Access: revoked"),
+      within(revokedRow as HTMLElement).getByText("Access: 已撤销"),
     ).toBeInTheDocument();
   });
 
@@ -842,18 +920,22 @@ describe("CodeGoDashboard", () => {
         screen.getByRole("heading", { name: "Demo User" }),
       ).toBeInTheDocument(),
     );
-    fireEvent.click(screen.getByRole("button", { name: /Devices/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Devices|设备/ }));
     await waitFor(() =>
-      expect(screen.getByText("Authorized devices")).toBeInTheDocument(),
+      expect(
+        screen.getByRole("heading", {
+          name: /Authorized devices|已授权设备/,
+        }),
+      ).toBeInTheDocument(),
     );
 
-    const currentDeviceAccess = await screen.findByText("Access: active");
+    const currentDeviceAccess = await screen.findByText("Access: 生效中");
     const currentDeviceRow = currentDeviceAccess.closest("div.rounded-lg");
     expect(currentDeviceRow).not.toBeNull();
 
     fireEvent.click(
       within(currentDeviceRow as HTMLElement).getByRole("button", {
-        name: "Revoke current",
+        name: /Revoke current|撤销当前设备/,
       }),
     );
 
@@ -861,7 +943,9 @@ describe("CodeGoDashboard", () => {
 
     const dialog = screen.getByRole("dialog");
     fireEvent.click(
-      within(dialog).getByRole("button", { name: "Revoke current device" }),
+      within(dialog).getByRole("button", {
+        name: /Revoke current device|撤销当前设备/,
+      }),
     );
 
     await waitFor(() =>

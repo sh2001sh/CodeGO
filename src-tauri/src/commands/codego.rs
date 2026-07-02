@@ -21,6 +21,7 @@ use crate::opencode_config::{
 };
 use crate::provider::Provider;
 use crate::secure_store::{clear_codego_auth, load_codego_auth, save_codego_auth};
+use crate::services::model_fetch::FetchedModel;
 use crate::services::provider::provider_exists_in_live_config;
 use crate::services::ProviderService;
 use crate::settings::{
@@ -43,6 +44,7 @@ const DEFAULT_SERVER_ADDRESS: &str = "https://shu26.cfd";
 const USER_AGENT: &str = "CodeGoDesktop/0.1";
 const CODEGO_APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 const CODEGO_DESKTOP_TOKEN_DEVICE_NAME: &str = "Desktop";
+const CODEGO_AUTH_EXPIRED_MESSAGE: &str = "Code Go 授权已失效，请重新授权。";
 const CODEGO_SUPPORTED_TOOLS: [&str; 6] = [
     "codex", "claude", "gemini", "opencode", "openclaw", "hermes",
 ];
@@ -290,6 +292,14 @@ pub struct CodeGoEnsureTokenRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct CodeGoFetchModelsForTokenRequest {
+    pub tool: String,
+    pub endpoint: String,
+    pub api_key: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CodeGoUsageLogsQuery {
     pub p: Option<u32>,
     pub page: Option<u32>,
@@ -375,25 +385,61 @@ pub(crate) fn load_auth_state() -> CodeGoAuthState {
             None
         }
     };
-    let effective_access_token = if let Some(token) = access_token {
-        Some(token)
-    } else if let Some(legacy_token) = legacy_token {
+    let effective_access_token = if let Some(legacy_token) = legacy_token {
         if !secure_storage_operational {
             Some(legacy_token)
-        } else if let Err(error) = save_codego_auth(&legacy_token) {
-            log::warn!("迁移旧版 Code Go token 到安全存储失败: {error}");
-            secure_storage_operational = false;
-            Some(legacy_token)
-        } else {
-            let mut migrated_settings = settings.clone();
-            migrated_settings.codego_access_token = None;
-            if let Err(error) = update_settings(migrated_settings) {
-                log::warn!("迁移后清理旧版 Code Go token 失败: {error}");
+        } else if let Some(secure_token) = access_token {
+            if secure_token != legacy_token {
+                let mut migrated_settings = settings.clone();
+                migrated_settings.codego_access_token = None;
+                if let Err(error) = update_settings(migrated_settings) {
+                    log::warn!("清理过期 Code Go 回退 token 失败: {error}");
+                }
+            } else {
+                let mut migrated_settings = settings.clone();
+                migrated_settings.codego_access_token = None;
+                if let Err(error) = update_settings(migrated_settings) {
+                    log::warn!("迁移后清理旧版 Code Go token 失败: {error}");
+                }
             }
-            Some(legacy_token)
+            Some(secure_token)
+        } else {
+            if let Err(error) = save_codego_auth(&legacy_token) {
+                log::warn!("迁移旧版 Code Go token 到安全存储失败: {error}");
+                secure_storage_operational = false;
+                Some(legacy_token)
+            } else {
+                match load_codego_auth() {
+                    Ok(Some(saved_token)) if saved_token == legacy_token => {
+                        let mut migrated_settings = settings.clone();
+                        migrated_settings.codego_access_token = None;
+                        if let Err(error) = update_settings(migrated_settings) {
+                            log::warn!("迁移后清理旧版 Code Go token 失败: {error}");
+                        }
+                        Some(legacy_token)
+                    }
+                    Ok(Some(_)) => {
+                        log::warn!("Code Go 安全凭据迁移后读回结果与写入值不一致，将继续使用本地回退 token");
+                        secure_storage_operational = false;
+                        Some(legacy_token)
+                    }
+                    Ok(None) => {
+                        log::warn!("Code Go 安全凭据迁移后无法立即读回，将继续使用本地回退 token");
+                        secure_storage_operational = false;
+                        Some(legacy_token)
+                    }
+                    Err(error) => {
+                        log::warn!(
+                            "Code Go 安全凭据迁移后校验失败，将继续使用本地回退 token: {error}"
+                        );
+                        secure_storage_operational = false;
+                        Some(legacy_token)
+                    }
+                }
+            }
         }
     } else {
-        None
+        access_token
     };
     let (secure_storage_status, secure_storage_message) =
         resolve_codego_secure_storage_notice(secure_storage_operational);
@@ -469,6 +515,21 @@ fn persist_auth_state(
         log::warn!("保存 Code Go 安全凭据失败，将退回本地设置存储: {error}");
         return Ok(());
     }
+    match load_codego_auth() {
+        Ok(Some(saved_token)) if saved_token == access_token => {}
+        Ok(Some(_)) => {
+            log::warn!("Code Go 安全凭据读回结果与写入值不一致，将保留本地回退 token");
+            return Ok(());
+        }
+        Ok(None) => {
+            log::warn!("Code Go 安全凭据保存后无法立即读回，将保留本地回退 token");
+            return Ok(());
+        }
+        Err(error) => {
+            log::warn!("Code Go 安全凭据保存后校验失败，将保留本地回退 token: {error}");
+            return Ok(());
+        }
+    }
     let mut sanitized_settings = get_settings();
     sanitized_settings.codego_access_token = None;
     if let Err(error) = update_settings(sanitized_settings) {
@@ -525,10 +586,10 @@ fn apply_auth_headers(headers: &mut HeaderMap, state: &CodeGoAuthState) -> Resul
     let token = state
         .access_token
         .as_deref()
-        .ok_or_else(|| "Code Go is not authenticated".to_string())?;
+        .ok_or_else(|| "Code Go 尚未授权，请先完成桌面授权。".to_string())?;
     let user_id = state
         .user_id
-        .ok_or_else(|| "Code Go user id is missing".to_string())?;
+        .ok_or_else(|| "Code Go 授权信息不完整，请重新授权。".to_string())?;
 
     headers.insert(
         AUTHORIZATION,
@@ -561,6 +622,19 @@ pub(crate) fn build_authed_client(state: &CodeGoAuthState) -> Result<(Client, St
 pub(crate) async fn parse_response<T: for<'de> Deserialize<'de>>(
     response: reqwest::Response,
 ) -> Result<T, String> {
+    parse_response_with_auth_policy(response, true).await
+}
+
+pub(crate) async fn parse_response_without_auth_clear<T: for<'de> Deserialize<'de>>(
+    response: reqwest::Response,
+) -> Result<T, String> {
+    parse_response_with_auth_policy(response, false).await
+}
+
+async fn parse_response_with_auth_policy<T: for<'de> Deserialize<'de>>(
+    response: reqwest::Response,
+    clear_auth_on_invalid_token: bool,
+) -> Result<T, String> {
     let status = response.status();
     let text = response
         .text()
@@ -568,22 +642,30 @@ pub(crate) async fn parse_response<T: for<'de> Deserialize<'de>>(
         .map_err(|e| format!("failed to read response: {e}"))?;
 
     if !status.is_success() {
-        return Err(format!("Code Go request failed ({status}): {text}"));
+        return Err(handle_codego_http_error(
+            status,
+            &text,
+            clear_auth_on_invalid_token,
+        ));
     }
 
-    let envelope: ApiEnvelope<T> =
-        serde_json::from_str(&text).map_err(|e| format!("failed to decode response: {e}"))?;
-    if !envelope.success {
-        return Err(if envelope.message.trim().is_empty() {
-            "Code Go request failed".to_string()
-        } else {
-            envelope.message
-        });
-    }
-    Ok(envelope.data)
+    decode_codego_payload_with_auth_policy(&text, clear_auth_on_invalid_token)
 }
 
 pub(crate) async fn parse_empty_response(response: reqwest::Response) -> Result<(), String> {
+    parse_empty_response_with_auth_policy(response, true).await
+}
+
+pub(crate) async fn parse_empty_response_without_auth_clear(
+    response: reqwest::Response,
+) -> Result<(), String> {
+    parse_empty_response_with_auth_policy(response, false).await
+}
+
+async fn parse_empty_response_with_auth_policy(
+    response: reqwest::Response,
+    clear_auth_on_invalid_token: bool,
+) -> Result<(), String> {
     let status = response.status();
     let text = response
         .text()
@@ -591,19 +673,235 @@ pub(crate) async fn parse_empty_response(response: reqwest::Response) -> Result<
         .map_err(|e| format!("failed to read response: {e}"))?;
 
     if !status.is_success() {
-        return Err(format!("Code Go request failed ({status}): {text}"));
+        return Err(handle_codego_http_error(
+            status,
+            &text,
+            clear_auth_on_invalid_token,
+        ));
     }
 
     let envelope: ApiEmptyEnvelope =
         serde_json::from_str(&text).map_err(|e| format!("failed to decode response: {e}"))?;
     if !envelope.success {
-        return Err(if envelope.message.trim().is_empty() {
-            "Code Go request failed".to_string()
-        } else {
-            envelope.message
-        });
+        return Err(handle_codego_api_failure_message(
+            &envelope.message,
+            clear_auth_on_invalid_token,
+        ));
     }
     Ok(())
+}
+
+fn handle_codego_http_error(
+    status: reqwest::StatusCode,
+    text: &str,
+    clear_auth_on_invalid_token: bool,
+) -> String {
+    if clear_auth_on_invalid_token
+        && status == reqwest::StatusCode::UNAUTHORIZED
+        && is_codego_invalid_token_response(text)
+    {
+        clear_auth_state_after_invalid_token()
+    } else if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
+        let body = text.trim();
+        if body.is_empty() {
+            "Code Go 请求过于频繁，请稍后再试。".to_string()
+        } else {
+            format!("Code Go 请求过于频繁，请稍后再试。({body})")
+        }
+    } else {
+        format!("Code Go request failed ({status}): {text}")
+    }
+}
+
+fn clear_auth_state_after_invalid_token() -> String {
+    if let Err(error) = clear_auth_state() {
+        log::warn!("Code Go 授权失效后清理本地状态失败: {error}");
+    }
+    CODEGO_AUTH_EXPIRED_MESSAGE.to_string()
+}
+
+fn handle_codego_api_failure_message(message: &str, clear_auth_on_invalid_token: bool) -> String {
+    let message = message.trim();
+    if clear_auth_on_invalid_token && is_codego_invalid_token_response(message) {
+        return clear_auth_state_after_invalid_token();
+    }
+    if message.is_empty() {
+        "Code Go request failed".to_string()
+    } else {
+        message.to_string()
+    }
+}
+
+fn is_codego_invalid_token_response(text: &str) -> bool {
+    let normalized = text.trim().to_ascii_lowercase();
+    normalized.contains("invalid access token")
+        || normalized.contains("unauthorized")
+        || normalized.contains("invalid token")
+}
+
+#[cfg(test)]
+fn decode_codego_payload<T: for<'de> Deserialize<'de>>(text: &str) -> Result<T, String> {
+    decode_codego_payload_with_auth_policy(text, true)
+}
+
+fn decode_codego_payload_with_auth_policy<T: for<'de> Deserialize<'de>>(
+    text: &str,
+    clear_auth_on_invalid_token: bool,
+) -> Result<T, String> {
+    let value: Value =
+        serde_json::from_str(text).map_err(|e| format!("failed to decode response: {e}"))?;
+
+    if let Ok(envelope) = serde_json::from_value::<ApiEnvelope<Value>>(value.clone()) {
+        if !envelope.success {
+            return Err(handle_codego_api_failure_message(
+                &envelope.message,
+                clear_auth_on_invalid_token,
+            ));
+        }
+        return serde_json::from_value(envelope.data)
+            .map_err(|e| format!("failed to decode response: {e}"));
+    }
+
+    if let Some(success) = value.get("success").and_then(Value::as_bool) {
+        let message = value
+            .get("message")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .trim()
+            .to_string();
+        if !success {
+            return Err(handle_codego_api_failure_message(
+                &message,
+                clear_auth_on_invalid_token,
+            ));
+        }
+
+        if let Ok(decoded) = serde_json::from_value::<T>(value.clone()) {
+            return Ok(decoded);
+        }
+
+        for key in ["data", "items", "list", "result", "records"] {
+            if let Some(nested) = value.get(key) {
+                if let Ok(decoded) = serde_json::from_value::<T>(nested.clone()) {
+                    return Ok(decoded);
+                }
+            }
+        }
+
+        if let Some(object) = value.as_object() {
+            let stripped = object
+                .iter()
+                .filter(|(key, _)| {
+                    !matches!(
+                        key.as_str(),
+                        "success" | "message" | "msg" | "code" | "status"
+                    )
+                })
+                .map(|(key, nested)| (key.clone(), nested.clone()))
+                .collect::<serde_json::Map<String, Value>>();
+            if let Ok(decoded) = serde_json::from_value::<T>(Value::Object(stripped)) {
+                return Ok(decoded);
+            }
+        }
+    }
+
+    serde_json::from_value(value).map_err(|e| format!("failed to decode response: {e}"))
+}
+
+fn is_blank_json_string(value: Option<&Value>) -> bool {
+    value
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .unwrap_or_default()
+        .is_empty()
+}
+
+fn first_non_empty_json_string<'a>(value: &'a Value, paths: &[&str]) -> Option<&'a str> {
+    paths
+        .iter()
+        .filter_map(|path| value.pointer(path).and_then(Value::as_str).map(str::trim))
+        .find(|value| !value.is_empty())
+}
+
+fn group_name_from_group_payload(value: &Value) -> Option<String> {
+    if let Some(group) = first_non_empty_json_string(
+        value,
+        &[
+            "/current_group",
+            "/currentGroup",
+            "/default_group",
+            "/defaultGroup",
+            "/group",
+            "/group_name",
+            "/groupName",
+            "/name",
+        ],
+    ) {
+        return Some(group.to_string());
+    }
+
+    for key in ["groups", "items", "list", "records", "data"] {
+        let Some(entries) = value.get(key).and_then(Value::as_array) else {
+            continue;
+        };
+
+        let preferred = entries.iter().find(|entry| {
+            entry
+                .get("default")
+                .or_else(|| entry.get("is_default"))
+                .or_else(|| entry.get("isDefault"))
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+                || entry
+                    .get("current")
+                    .or_else(|| entry.get("is_current"))
+                    .or_else(|| entry.get("isCurrent"))
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false)
+        });
+        let entry = preferred.or_else(|| entries.first());
+        if let Some(entry) = entry {
+            if let Some(group) = first_non_empty_json_string(
+                entry,
+                &["/name", "/group", "/group_name", "/groupName", "/id"],
+            ) {
+                return Some(group.to_string());
+            }
+        }
+    }
+
+    if let Some(entries) = value.as_array() {
+        for entry in entries {
+            if let Some(group) = first_non_empty_json_string(
+                entry,
+                &["/name", "/group", "/group_name", "/groupName", "/id"],
+            ) {
+                return Some(group.to_string());
+            }
+        }
+    }
+
+    None
+}
+
+fn merge_group_status_into_summary(summary: &mut Value, group_payload: &Value) {
+    if let Some(summary_object) = summary.as_object_mut() {
+        let website = summary_object
+            .entry("website")
+            .or_insert_with(|| Value::Object(serde_json::Map::new()));
+        if let Some(website_object) = website.as_object_mut() {
+            website_object.insert("group_status".to_string(), group_payload.clone());
+        }
+    }
+
+    if is_blank_json_string(summary.pointer("/account/group")) {
+        let Some(group) = group_name_from_group_payload(group_payload) else {
+            return;
+        };
+        if let Some(account) = summary.get_mut("account").and_then(Value::as_object_mut) {
+            account.insert("group".to_string(), Value::String(group));
+        }
+    }
 }
 
 fn desktop_device_name(input: Option<&str>) -> String {
@@ -746,14 +1044,30 @@ fn apply_account_summary_side_effects_with_sink(
 
 async fn fetch_account_summary(auth: &CodeGoAuthState) -> Result<Value, String> {
     let (client, server_address) = build_authed_client(auth)?;
-    parse_response(
+    let mut summary: Value = parse_response(
         client
             .get(build_url(&server_address, "/api/desktop/account/summary"))
             .send()
             .await
             .map_err(|e| format!("summary request failed: {e}"))?,
     )
+    .await?;
+
+    let (group_client, group_server_address) = build_authed_client(auth)?;
+    match parse_response_without_auth_clear::<Value>(
+        group_client
+            .get(build_url(&group_server_address, "/api/desktop/groups"))
+            .send()
+            .await
+            .map_err(|e| format!("group status request failed: {e}"))?,
+    )
     .await
+    {
+        Ok(group_payload) => merge_group_status_into_summary(&mut summary, &group_payload),
+        Err(error) => log::warn!("读取 Code Go 分组状态失败，将保留摘要中的分组信息: {error}"),
+    }
+
+    Ok(summary)
 }
 
 async fn revoke_authorized_device_remote(
@@ -765,7 +1079,7 @@ async fn revoke_authorized_device_remote(
         client
             .delete(build_url(
                 &server_address,
-                &format!("/api/desktop/devices/{device_id}"),
+                &format!("/api/desktop/authorized-devices/{device_id}"),
             ))
             .send()
             .await
@@ -827,11 +1141,76 @@ pub(crate) fn codego_summary_refresh_interval() -> Duration {
 }
 
 fn page_query_value(query: &CodeGoPageQuery) -> u32 {
-    query.p.or(query.page).unwrap_or(0)
+    query.p.or(query.page).unwrap_or(1).max(1)
 }
 
 fn page_query_size(query: &CodeGoPageQuery) -> u32 {
     query.size.or(query.page_size).unwrap_or(20)
+}
+
+fn normalize_codego_token_page(payload: Value, query: &CodeGoPageQuery) -> Value {
+    let Some(object) = payload.as_object() else {
+        return payload;
+    };
+
+    if object.contains_key("items") && object.contains_key("total") {
+        return payload;
+    }
+
+    let items = object
+        .get("items")
+        .or_else(|| object.get("list"))
+        .or_else(|| object.get("records"))
+        .cloned()
+        .unwrap_or_else(|| Value::Array(Vec::new()));
+    let total = object
+        .get("total")
+        .or_else(|| object.get("count"))
+        .or_else(|| object.get("total_count"))
+        .cloned()
+        .unwrap_or_else(|| Value::from(items.as_array().map(|list| list.len()).unwrap_or(0)));
+
+    json!({
+        "p": page_query_value(query),
+        "size": page_query_size(query),
+        "total": total,
+        "items": items,
+    })
+}
+
+fn normalize_codego_token_key(payload: Value) -> Value {
+    if payload.get("key").is_some() {
+        return payload;
+    }
+
+    if let Some(value) = payload
+        .get("full_key")
+        .or_else(|| payload.get("token_key"))
+        .or_else(|| payload.get("api_key"))
+        .cloned()
+    {
+        return json!({ "key": value });
+    }
+
+    payload
+}
+
+fn current_device_fallback(auth: &CodeGoAuthState) -> Vec<CodeGoAuthorizedDevice> {
+    auth.device_id
+        .map(|device_id| {
+            vec![CodeGoAuthorizedDevice {
+                id: device_id,
+                device_name: "当前桌面".to_string(),
+                platform: current_platform_label().to_string(),
+                app_version: CODEGO_APP_VERSION.to_string(),
+                status: "active".to_string(),
+                created_at: 0,
+                last_used_at: 0,
+                expires_at: 0,
+                revoked_at: 0,
+            }]
+        })
+        .unwrap_or_default()
 }
 
 fn page_value(query: &CodeGoUsageLogsQuery) -> u32 {
@@ -1533,37 +1912,44 @@ struct CodeGoModelProbe {
     headers: HeaderMap,
 }
 
-fn build_model_probe(
+fn build_versioned_models_url(endpoint: &str, version_path: &str) -> String {
+    let trimmed = endpoint.trim().trim_end_matches('/');
+    if trimmed.ends_with(version_path) {
+        format!("{trimmed}/models")
+    } else {
+        build_url(trimmed, &format!("{version_path}/models"))
+    }
+}
+
+fn build_model_probe_from_credential(
     tool: &str,
     endpoint: &str,
-    value: &Value,
+    credential: &str,
 ) -> Result<Option<CodeGoModelProbe>, String> {
     let endpoint = endpoint.trim();
-    if endpoint.is_empty() {
+    let credential = credential.trim();
+    if endpoint.is_empty() || credential.is_empty() {
         return Ok(None);
     }
-    let Some(credential) = extract_live_credential(tool, value) else {
-        return Ok(None);
-    };
 
     let mut headers = HeaderMap::new();
     let url = match tool {
         "claude" => {
             headers.insert(
                 "x-api-key",
-                HeaderValue::from_str(&credential)
+                HeaderValue::from_str(credential)
                     .map_err(|e| format!("invalid Claude auth header: {e}"))?,
             );
             headers.insert("anthropic-version", HeaderValue::from_static("2023-06-01"));
-            build_url(endpoint, "/v1/models")
+            build_versioned_models_url(endpoint, "/v1")
         }
         "gemini" => {
             headers.insert(
                 "x-goog-api-key",
-                HeaderValue::from_str(&credential)
+                HeaderValue::from_str(credential)
                     .map_err(|e| format!("invalid Gemini auth header: {e}"))?,
             );
-            build_url(endpoint, "/v1beta/models")
+            build_versioned_models_url(endpoint, "/v1beta")
         }
         "codex" | "opencode" | "openclaw" | "hermes" => {
             headers.insert(
@@ -1577,6 +1963,89 @@ fn build_model_probe(
     };
 
     Ok(Some(CodeGoModelProbe { url, headers }))
+}
+
+fn build_model_probe(
+    tool: &str,
+    endpoint: &str,
+    value: &Value,
+) -> Result<Option<CodeGoModelProbe>, String> {
+    let Some(credential) = extract_live_credential(tool, value) else {
+        return Ok(None);
+    };
+    build_model_probe_from_credential(tool, endpoint, &credential)
+}
+
+fn normalize_gemini_model_id(value: &str) -> String {
+    value
+        .trim()
+        .strip_prefix("models/")
+        .unwrap_or(value.trim())
+        .to_string()
+}
+
+fn parse_probe_models(tool: &str, payload: &Value) -> Vec<FetchedModel> {
+    let raw_models: Vec<FetchedModel> = match tool {
+        "gemini" => payload
+            .get("models")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(|entry| {
+                let id = entry
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .map(normalize_gemini_model_id)
+                    .filter(|value| !value.is_empty())
+                    .or_else(|| {
+                        entry
+                            .get("displayName")
+                            .and_then(Value::as_str)
+                            .map(str::trim)
+                            .filter(|value| !value.is_empty())
+                            .map(str::to_string)
+                    })?;
+                Some(FetchedModel {
+                    id,
+                    owned_by: entry
+                        .get("publisher")
+                        .and_then(Value::as_str)
+                        .map(str::to_string),
+                })
+            })
+            .collect(),
+        _ => payload
+            .get("data")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(|entry| {
+                let id = entry
+                    .get("id")
+                    .and_then(Value::as_str)
+                    .or_else(|| entry.get("name").and_then(Value::as_str))
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+                    .map(str::to_string)?;
+                Some(FetchedModel {
+                    id,
+                    owned_by: entry
+                        .get("owned_by")
+                        .and_then(Value::as_str)
+                        .map(str::to_string),
+                })
+            })
+            .collect(),
+    };
+
+    let mut unique = HashMap::<String, FetchedModel>::new();
+    for model in raw_models {
+        unique.entry(model.id.clone()).or_insert(model);
+    }
+
+    let mut models = unique.into_values().collect::<Vec<_>>();
+    models.sort_by(|left, right| left.id.cmp(&right.id));
+    models
 }
 
 fn probe_response_matches_tool(tool: &str, payload: &Value) -> bool {
@@ -1863,7 +2332,7 @@ async fn ensure_desktop_token(auth: &CodeGoAuthState) -> Result<(String, String)
     let payload = json!({
         "device_name": CODEGO_DESKTOP_TOKEN_DEVICE_NAME,
     });
-    let value: Value = parse_response(
+    let value: Value = parse_response_without_auth_clear(
         client
             .post(build_url(&server_address, "/api/desktop/tokens/ensure"))
             .json(&payload)
@@ -1877,7 +2346,7 @@ async fn ensure_desktop_token(auth: &CodeGoAuthState) -> Result<(String, String)
 
 async fn fetch_config_template(auth: &CodeGoAuthState, tool: &str) -> Result<Value, String> {
     let (client, server_address) = build_authed_client(auth)?;
-    parse_response(
+    parse_response_without_auth_clear(
         client
             .get(build_url(&server_address, "/api/desktop/config/template"))
             .query(&[("tool", tool)])
@@ -1893,7 +2362,7 @@ async fn fetch_token_config(
     token_id: i64,
 ) -> Result<CodeGoTokenConfigResponse, String> {
     let (client, server_address) = build_authed_client(auth)?;
-    parse_response(
+    parse_response_without_auth_clear(
         client
             .get(build_url(
                 &server_address,
@@ -2302,14 +2771,21 @@ pub async fn codego_get_account_summary(app: tauri::AppHandle) -> Result<Value, 
 pub async fn codego_list_authorized_devices() -> Result<Vec<CodeGoAuthorizedDevice>, String> {
     let auth = load_auth_state();
     let (client, server_address) = build_authed_client(&auth)?;
-    parse_response(
+    match parse_response_without_auth_clear(
         client
-            .get(build_url(&server_address, "/api/desktop/devices"))
+            .get(build_url(&server_address, "/api/desktop/authorized-devices"))
             .send()
             .await
             .map_err(|e| format!("authorized devices request failed: {e}"))?,
     )
     .await
+    {
+        Ok(devices) => Ok(devices),
+        Err(error) => {
+            log::warn!("读取 Code Go 授权设备失败，将显示当前桌面设备: {error}");
+            Ok(current_device_fallback(&auth))
+        }
+    }
 }
 
 #[tauri::command]
@@ -2362,13 +2838,16 @@ mod tests {
         apply_provider_for_codego_tool, build_model_probe, build_provider_from_codego,
         build_provider_from_token_payload, capture_live_snapshot, codego_backup_path,
         codego_balance_usd_from_summary, codego_get_tool_config_preview, codego_provider_id,
-        codego_tray_snapshot, detect_tool_conflict_reason, ensure_tool_config_safe_to_write,
-        extract_live_endpoint, has_live_credential, load_auth_state, load_tool_backup,
+        codego_tray_snapshot, decode_codego_payload, detect_tool_conflict_reason,
+        ensure_tool_config_safe_to_write, extract_live_endpoint, has_live_credential,
+        load_auth_state, load_tool_backup, merge_group_status_into_summary,
+        normalize_codego_token_key, normalize_codego_token_page, page_query_value,
         persist_auth_state, probe_response_matches_tool, resolve_codego_secure_storage_notice,
         restore_live_snapshot, save_tool_backup, should_send_low_balance_notification,
         summary_topup_url, CodeGoAuthSessionPollResponse, CodeGoAuthSessionStartResponse,
-        CodeGoSavedToolBackup, CodeGoSecureStorageStatus, CodeGoSummarySideEffectSink,
-        CodeGoTokenToolConfigPayload, BASE64_STANDARD,
+        CodeGoAuthorizedDevice, CodeGoPageQuery, CodeGoSavedToolBackup, CodeGoSecureStorageStatus,
+        CodeGoSummarySideEffectSink, CodeGoTokenToolConfigPayload, BASE64_STANDARD,
+        CODEGO_AUTH_EXPIRED_MESSAGE,
     };
     use crate::app_config::AppType;
     use crate::codex_config::get_codex_config_path;
@@ -2381,7 +2860,7 @@ mod tests {
     use crate::store::AppState;
     use base64::Engine;
     use reqwest::header::AUTHORIZATION;
-    use serde_json::json;
+    use serde_json::{json, Value};
     use serial_test::serial;
     use std::fs;
     use std::sync::{Arc, Mutex, OnceLock};
@@ -2535,6 +3014,30 @@ mod tests {
 
     #[test]
     #[serial]
+    fn load_auth_state_prefers_secure_token_when_plaintext_fallback_is_stale() {
+        let _guard = settings_test_guard();
+        let _env = TempSettingsEnv::new();
+        let mut settings = AppSettings::default();
+        settings.codego_server_address = Some("https://shu26.cfd".to_string());
+        settings.codego_user_id = Some(7);
+        update_settings(settings).expect("persist codego settings");
+        crate::settings::set_test_codego_access_token(Some("stale-token".to_string()))
+            .expect("seed stale fallback token");
+        crate::secure_store::set_test_codego_auth_token(Some("fresh-token".to_string()));
+
+        let auth = load_auth_state();
+
+        assert_eq!(auth.access_token.as_deref(), Some("fresh-token"));
+        assert!(auth.authenticated);
+        assert_eq!(get_settings().codego_access_token, None);
+        assert_eq!(
+            crate::secure_store::load_codego_auth().expect("load secure token"),
+            Some("fresh-token".to_string())
+        );
+    }
+
+    #[test]
+    #[serial]
     fn persist_auth_state_falls_back_to_plaintext_when_secure_store_save_fails() {
         let _guard = settings_test_guard();
         let _env = TempSettingsEnv::new();
@@ -2573,6 +3076,149 @@ mod tests {
             CodeGoSecureStorageStatus::Unavailable
         );
         assert_eq!(auth.access_token.as_deref(), Some("fallback-token"));
+    }
+
+    #[test]
+    #[serial]
+    fn persist_auth_state_keeps_plaintext_when_secure_store_readback_is_empty() {
+        let _guard = settings_test_guard();
+        let _env = TempSettingsEnv::new();
+        crate::secure_store::set_test_codego_auth_token(None);
+        crate::secure_store::set_test_codego_auth_save_persists_token(false);
+
+        persist_auth_state(
+            "https://shu26.cfd".to_string(),
+            "fallback-token".to_string(),
+            9,
+            12,
+            "demo-user".to_string(),
+        )
+        .expect("persist auth state with secure-store readback fallback");
+
+        let settings = get_settings();
+        assert_eq!(
+            settings.codego_access_token.as_deref(),
+            Some("fallback-token")
+        );
+
+        let auth = load_auth_state();
+        assert!(auth.authenticated);
+        assert_eq!(auth.access_token.as_deref(), Some("fallback-token"));
+    }
+
+    #[test]
+    fn decode_codego_payload_accepts_success_object_without_data_wrapper() {
+        let payload = r#"{
+            "success": true,
+            "message": "ok",
+            "key": "cg_token_1_full"
+        }"#;
+
+        let decoded: Value = decode_codego_payload(payload).expect("decode direct success payload");
+        assert_eq!(decoded["key"], "cg_token_1_full");
+    }
+
+    #[test]
+    fn decode_codego_payload_accepts_success_list_wrapper() {
+        let payload = r#"{
+            "success": true,
+            "message": "ok",
+            "list": [{
+                "id": 1,
+                "deviceName": "codego desktop",
+                "platform": "windows",
+                "appVersion": "4.0.0",
+                "status": "active",
+                "createdAt": 1,
+                "lastUsedAt": 2,
+                "expiresAt": 3,
+                "revokedAt": 0
+            }]
+        }"#;
+
+        let decoded: Vec<CodeGoAuthorizedDevice> =
+            decode_codego_payload(payload).expect("decode wrapped device list");
+        assert_eq!(decoded.len(), 1);
+        assert_eq!(decoded[0].device_name, "codego desktop");
+    }
+
+    #[test]
+    fn decode_codego_payload_maps_invalid_token_failure_to_reauth_message() {
+        let payload = r#"{
+            "success": false,
+            "message": "Unauthorized, invalid access token"
+        }"#;
+
+        let error = decode_codego_payload::<Value>(payload)
+            .expect_err("invalid token response should fail");
+
+        assert_eq!(error, CODEGO_AUTH_EXPIRED_MESSAGE);
+    }
+
+    #[test]
+    fn normalize_codego_token_page_accepts_list_and_count_fields() {
+        let payload = json!({
+            "list": [{
+                "id": 1,
+                "name": "desktop token",
+                "key": "cg_desktop_xxxx"
+            }],
+            "count": 7
+        });
+        let query = CodeGoPageQuery {
+            p: Some(2),
+            page: None,
+            size: Some(10),
+            page_size: None,
+        };
+
+        let normalized = normalize_codego_token_page(payload, &query);
+
+        assert_eq!(normalized["p"], 2);
+        assert_eq!(normalized["size"], 10);
+        assert_eq!(normalized["total"], 7);
+        assert_eq!(normalized["items"][0]["name"], "desktop token");
+    }
+
+    #[test]
+    fn normalize_codego_token_key_accepts_full_key_alias() {
+        let normalized = normalize_codego_token_key(json!({
+            "full_key": "cg_desktop_full_key"
+        }));
+
+        assert_eq!(normalized["key"], "cg_desktop_full_key");
+    }
+
+    #[test]
+    fn page_query_value_uses_one_based_pages_for_website_tokens() {
+        let query = CodeGoPageQuery {
+            p: Some(0),
+            page: None,
+            size: Some(10),
+            page_size: None,
+        };
+
+        assert_eq!(page_query_value(&query), 1);
+    }
+
+    #[test]
+    fn merge_group_status_into_summary_fills_missing_group() {
+        let mut summary = json!({
+            "account": {
+                "username": "demo",
+                "group": ""
+            }
+        });
+        let groups = json!({
+            "groups": [
+                { "name": "default" },
+                { "name": "vip", "is_default": true }
+            ]
+        });
+
+        merge_group_status_into_summary(&mut summary, &groups);
+
+        assert_eq!(summary["account"]["group"], "vip");
     }
 
     #[test]
@@ -4450,9 +5096,9 @@ pub async fn codego_get_tokens(query: Option<CodeGoPageQuery>) -> Result<Value, 
         page_size: None,
     });
 
-    parse_response(
+    let payload: Value = parse_response_without_auth_clear(
         client
-            .get(build_url(&server_address, "/api/token/"))
+            .get(build_url(&server_address, "/api/desktop/tokens"))
             .query(&[
                 ("p", page_query_value(&query).to_string()),
                 ("size", page_query_size(&query).to_string()),
@@ -4461,21 +5107,28 @@ pub async fn codego_get_tokens(query: Option<CodeGoPageQuery>) -> Result<Value, 
             .await
             .map_err(|e| format!("token list request failed: {e}"))?,
     )
-    .await
+    .await?;
+
+    Ok(normalize_codego_token_page(payload, &query))
 }
 
 #[tauri::command]
 pub async fn codego_get_token_key(id: i64) -> Result<Value, String> {
     let auth = load_auth_state();
     let (client, server_address) = build_authed_client(&auth)?;
-    parse_response(
+    let payload: Value = parse_response_without_auth_clear(
         client
-            .post(build_url(&server_address, &format!("/api/token/{id}/key")))
+            .post(build_url(
+                &server_address,
+                &format!("/api/desktop/tokens/{id}/key"),
+            ))
             .send()
             .await
             .map_err(|e| format!("token key request failed: {e}"))?,
     )
-    .await
+    .await?;
+
+    Ok(normalize_codego_token_key(payload))
 }
 
 #[tauri::command]
@@ -4495,9 +5148,9 @@ pub async fn codego_create_token(
         "model_limits": request.model_limits,
     });
 
-    parse_empty_response(
+    parse_empty_response_without_auth_clear(
         client
-            .post(build_url(&server_address, "/api/token/"))
+            .post(build_url(&server_address, "/api/desktop/tokens"))
             .json(&payload)
             .send()
             .await
@@ -4533,9 +5186,9 @@ pub async fn codego_update_token(
         "model_limits": request.model_limits,
     });
 
-    let response: Value = parse_response(
+    let response: Value = parse_response_without_auth_clear(
         client
-            .put(build_url(&server_address, "/api/token/"))
+            .put(build_url(&server_address, "/api/desktop/tokens"))
             .json(&payload)
             .send()
             .await
@@ -4554,9 +5207,12 @@ pub async fn codego_update_token(
 pub async fn codego_delete_token(app: tauri::AppHandle, id: i64) -> Result<bool, String> {
     let auth = load_auth_state();
     let (client, server_address) = build_authed_client(&auth)?;
-    parse_empty_response(
+    parse_empty_response_without_auth_clear(
         client
-            .delete(build_url(&server_address, &format!("/api/token/{id}")))
+            .delete(build_url(
+                &server_address,
+                &format!("/api/desktop/tokens/{id}"),
+            ))
             .send()
             .await
             .map_err(|e| format!("delete token request failed: {e}"))?,
@@ -4568,6 +5224,20 @@ pub async fn codego_delete_token(app: tauri::AppHandle, id: i64) -> Result<bool,
         serde_json::json!({ "action": "delete", "id": id }),
     );
     Ok(true)
+}
+
+#[tauri::command]
+pub async fn codego_get_groups() -> Result<Value, String> {
+    let auth = load_auth_state();
+    let (client, server_address) = build_authed_client(&auth)?;
+    parse_response_without_auth_clear(
+        client
+            .get(build_url(&server_address, "/api/desktop/groups"))
+            .send()
+            .await
+            .map_err(|e| format!("group list request failed: {e}"))?,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -4621,7 +5291,7 @@ pub async fn codego_get_usage_logs(query: Option<CodeGoUsageLogsQuery>) -> Resul
         request = request.query(&[("upstream_request_id", value)]);
     }
 
-    parse_response(
+    parse_response_without_auth_clear(
         request
             .send()
             .await
@@ -4642,7 +5312,7 @@ pub async fn codego_ensure_token(
             .unwrap_or_else(|| "Desktop".to_string()),
     });
 
-    parse_response(
+    parse_response_without_auth_clear(
         client
             .post(build_url(&server_address, "/api/desktop/tokens/ensure"))
             .json(&payload)
@@ -4657,7 +5327,7 @@ pub async fn codego_ensure_token(
 pub async fn codego_get_config_template(tool: String) -> Result<Value, String> {
     let auth = load_auth_state();
     let (client, server_address) = build_authed_client(&auth)?;
-    parse_response(
+    parse_response_without_auth_clear(
         client
             .get(build_url(&server_address, "/api/desktop/config/template"))
             .query(&[("tool", tool)])
@@ -4672,7 +5342,7 @@ pub async fn codego_get_config_template(tool: String) -> Result<Value, String> {
 pub async fn codego_get_config_templates() -> Result<Value, String> {
     let auth = load_auth_state();
     let (client, server_address) = build_authed_client(&auth)?;
-    parse_response(
+    parse_response_without_auth_clear(
         client
             .get(build_url(&server_address, "/api/desktop/config/templates"))
             .send()
@@ -4683,10 +5353,56 @@ pub async fn codego_get_config_templates() -> Result<Value, String> {
 }
 
 #[tauri::command]
+pub async fn codego_fetch_models_for_token(
+    request: CodeGoFetchModelsForTokenRequest,
+) -> Result<Vec<FetchedModel>, String> {
+    let tool = request.tool.trim().to_lowercase();
+    if !CODEGO_SUPPORTED_TOOLS.contains(&tool.as_str()) {
+        return Err(format!("unsupported Code Go tool: {}", request.tool));
+    }
+
+    let Some(probe) =
+        build_model_probe_from_credential(&tool, &request.endpoint, &request.api_key)?
+    else {
+        return Err("missing endpoint or API key for model fetch".to_string());
+    };
+
+    let client = build_public_client()?;
+    let response = client
+        .get(&probe.url)
+        .headers(probe.headers)
+        .send()
+        .await
+        .map_err(|e| format!("model fetch request failed: {e}"))?;
+    let status = response.status();
+    let text = response
+        .text()
+        .await
+        .map_err(|e| format!("failed to read model fetch response: {e}"))?;
+
+    if !status.is_success() {
+        let body = text.trim();
+        return Err(if body.is_empty() {
+            format!("model fetch returned {status}")
+        } else {
+            format!("model fetch returned {status}: {body}")
+        });
+    }
+
+    let payload: Value = serde_json::from_str(&text)
+        .map_err(|e| format!("invalid model fetch response JSON: {e}"))?;
+    if !probe_response_matches_tool(&tool, &payload) {
+        return Err("model fetch response did not match the selected tool".to_string());
+    }
+
+    Ok(parse_probe_models(&tool, &payload))
+}
+
+#[tauri::command]
 pub async fn codego_get_service_status() -> Result<Value, String> {
     let auth = load_auth_state();
     let (client, server_address) = build_authed_client(&auth)?;
-    parse_response(
+    parse_response_without_auth_clear(
         client
             .get(build_url(&server_address, "/api/desktop/service/status"))
             .send()

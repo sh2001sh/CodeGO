@@ -10,6 +10,7 @@ import {
   getCodeGoAuthSession,
   getCodeGoSummary,
   getCodeGoAuthorizedDevices,
+  getCodeGoGroups,
   getCodeGoToolConfig,
   getCodeGoTemplate,
   getCodeGoTokens,
@@ -231,6 +232,9 @@ export const handlers = [
     }
     return success({ key: `${token.key}_full` });
   }),
+  http.post(`${TAURI_ENDPOINT}/codego_get_groups`, () =>
+    success(getCodeGoGroups()),
+  ),
   http.post(`${TAURI_ENDPOINT}/codego_create_token`, async ({ request }) => {
     const { request: payload } = await withJson<{
       request: {

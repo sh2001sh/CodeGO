@@ -11,8 +11,16 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useTranslation } from "react-i18next";
+import type { CodeGoGroupItem } from "@/lib/api/codego";
 
 export interface CodeGoTokenFormState {
   id?: number;
@@ -29,6 +37,7 @@ interface CodeGoTokenFormDialogProps {
   open: boolean;
   formState: CodeGoTokenFormState;
   saving: boolean;
+  groupOptions: CodeGoGroupItem[];
   onOpenChange: (open: boolean) => void;
   onChange: (
     updater: (value: CodeGoTokenFormState) => CodeGoTokenFormState,
@@ -41,11 +50,16 @@ export function CodeGoTokenFormDialog({
   open,
   formState,
   saving,
+  groupOptions,
   onOpenChange,
   onChange,
   onSubmit,
 }: CodeGoTokenFormDialogProps) {
   const { t } = useTranslation();
+  const groups =
+    groupOptions.length > 0
+      ? groupOptions
+      : [{ name: "default", desc: "default" }];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -84,14 +98,27 @@ export function CodeGoTokenFormDialog({
             <Label htmlFor="codego-token-group">
               {t("codego.tokens.group", "Group")}
             </Label>
-            <Input
-              id="codego-token-group"
+            <Select
               value={formState.group}
-              onChange={(event) =>
-                onChange((value) => ({ ...value, group: event.target.value }))
+              onValueChange={(group) =>
+                onChange((value) => ({ ...value, group }))
               }
-              placeholder={t("codego.tokens.groupPlaceholder", "default")}
-            />
+            >
+              <SelectTrigger id="codego-token-group">
+                <SelectValue
+                  placeholder={t("codego.tokens.groupPlaceholder", "default")}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {groups.map((group) => (
+                  <SelectItem key={group.name} value={group.name}>
+                    {group.desc && group.desc !== group.name
+                      ? `${group.name} · ${group.desc}`
+                      : group.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label htmlFor="codego-token-expiry">

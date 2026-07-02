@@ -151,6 +151,14 @@ interface CodeGoTokenFixture {
   model_limits?: string;
 }
 
+interface CodeGoGroupFixture {
+  name: string;
+  desc?: string;
+  ratio?: number | string;
+  current?: boolean;
+  available_models_count?: number;
+}
+
 interface CodeGoAuthorizedDeviceFixture {
   id: number;
   deviceName: string;
@@ -633,6 +641,22 @@ let codeGoTokens: CodeGoTokenFixture[] = [
     model_limits: "gpt-5.5,claude-sonnet-4",
   },
 ];
+let codeGoGroups: CodeGoGroupFixture[] = [
+  {
+    name: "default",
+    desc: "默认分组",
+    ratio: 1,
+    current: true,
+    available_models_count: 3,
+  },
+  {
+    name: "engineering",
+    desc: "工程分组",
+    ratio: 1,
+    current: false,
+    available_models_count: 2,
+  },
+];
 let codeGoAuthorizedDevices: CodeGoAuthorizedDeviceFixture[] = [
   {
     id: 11,
@@ -958,6 +982,22 @@ export const resetProviderState = () => {
       group: "engineering",
       model_limits_enabled: true,
       model_limits: "gpt-5.5,claude-sonnet-4",
+    },
+  ];
+  codeGoGroups = [
+    {
+      name: "default",
+      desc: "默认分组",
+      ratio: 1,
+      current: true,
+      available_models_count: 3,
+    },
+    {
+      name: "engineering",
+      desc: "工程分组",
+      ratio: 1,
+      current: false,
+      available_models_count: 2,
     },
   ];
   codeGoAuthorizedDevices = [
@@ -1389,6 +1429,11 @@ export const setCodeGoUsageTrends = (
 
 export const getCodeGoTokens = () =>
   deepClone(codeGoTokens) as CodeGoTokenFixture[];
+
+export const getCodeGoGroups = () => ({
+  current: codeGoSummary.account.group || "default",
+  items: deepClone(codeGoGroups) as CodeGoGroupFixture[],
+});
 
 export const setCodeGoTokens = (value: CodeGoTokenFixture[]) => {
   codeGoTokens = deepClone(value) as CodeGoTokenFixture[];

@@ -23,6 +23,7 @@ import { copySensitiveText } from "@/lib/clipboard";
 import {
   useCodeGoCreateTokenMutation,
   useCodeGoDeleteTokenMutation,
+  useCodeGoGroupsQuery,
   useCodeGoTokensQuery,
   useCodeGoUpdateTokenMutation,
 } from "@/lib/query";
@@ -102,7 +103,7 @@ export function CodeGoTokenManager({
   desktopTokenId,
 }: CodeGoTokenManagerProps) {
   const { t } = useTranslation();
-  const [page, setPage] = useState(0);
+  const [page, setPage] = useState(1);
   const [formState, setFormState] =
     useState<CodeGoTokenFormState>(DEFAULT_FORM_STATE);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -116,6 +117,9 @@ export function CodeGoTokenManager({
   const deleteMutation = useCodeGoDeleteTokenMutation();
 
   const tokenPage = tokensQuery.data;
+  const groupsQuery = useCodeGoGroupsQuery(enabled);
+  const groupOptions = groupsQuery.data?.items ?? [];
+  const defaultGroup = groupsQuery.data?.current || groupOptions[0]?.name || "default";
   const totalPages = useMemo(() => {
     if (!tokenPage) return 1;
     return Math.max(
@@ -125,13 +129,14 @@ export function CodeGoTokenManager({
   }, [tokenPage]);
 
   const resetDialog = () => {
-    setFormState(DEFAULT_FORM_STATE);
+    setFormState({ ...DEFAULT_FORM_STATE, group: defaultGroup });
     setDialogOpen(false);
   };
 
   const openCreateDialog = () => {
     setFormState({
       ...DEFAULT_FORM_STATE,
+      group: defaultGroup,
       name: `codego desktop ${tokenPage?.total ? `#${tokenPage.total + 1}` : ""}`.trim(),
     });
     setDialogOpen(true);
@@ -204,8 +209,8 @@ export function CodeGoTokenManager({
         { closeButton: true },
       );
       setDeleteTarget(null);
-      if (page > 0 && tokenPage && tokenPage.items.length === 1) {
-        setPage((value) => Math.max(0, value - 1));
+      if (page > 1 && tokenPage && tokenPage.items.length === 1) {
+        setPage((value) => Math.max(1, value - 1));
       }
     } catch (error) {
       toast.error(
@@ -239,7 +244,27 @@ export function CodeGoTokenManager({
           {tokensQuery.isLoading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              {t("codego.tokens.loading", "Loading tokens")}
+              {t("codego.tokens.loading", "正在加载令牌")}
+            </div>
+          ) : tokensQuery.isError ? (
+            <div className="rounded-lg border border-destructive/35 bg-destructive/5 px-4 py-4 text-sm">
+              <div className="font-medium text-destructive">
+                {t("codego.tokens.loadFailed", "令牌加载失败")}
+              </div>
+              <div className="mt-1 leading-6 text-muted-foreground">
+                {extractErrorMessage(tokensQuery.error) ||
+                  t(
+                    "codego.tokens.loadFailedDescription",
+                    "请确认 Code Go 授权仍然有效后重试。",
+                  )}
+              </div>
+              <Button
+                variant="outline"
+                className="mt-3 h-8"
+                onClick={() => void tokensQuery.refetch()}
+              >
+                {t("common.retry", "重试")}
+              </Button>
             </div>
           ) : tokenPage?.items?.length ? (
             <>
@@ -249,7 +274,9 @@ export function CodeGoTokenManager({
                     <TableHead>{t("codego.tokens.name", "Name")}</TableHead>
                     <TableHead>{t("codego.tokens.status", "Status")}</TableHead>
                     <TableHead>{t("codego.tokens.quota", "Quota")}</TableHead>
-                    <TableHead>{t("codego.tokens.expires", "Expires")}</TableHead>
+                    <TableHead>
+                      {t("codego.tokens.expires", "Expires")}
+                    </TableHead>
                     <TableHead>{t("codego.tokens.key", "Key")}</TableHead>
                     <TableHead className="w-[180px] text-right">
                       {t("common.actions", "Actions")}
@@ -345,37 +372,59 @@ export function CodeGoTokenManager({
               <div className="flex items-center justify-between gap-3">
                 <div className="text-sm text-muted-foreground">
                   {t("codego.tokens.pagination", {
-                    page: page + 1,
+                    page,
                     total: totalPages,
                     count: tokenPage.total,
-                    defaultValue: `Page ${page + 1} of ${totalPages} · ${tokenPage.total} tokens`,
+                    defaultValue: `第 ${page} / ${totalPages} 页 · 共 ${tokenPage.total} 个令牌`,
                   })}
                 </div>
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
                     className="h-8"
-                    disabled={page === 0}
-                    onClick={() => setPage((value) => Math.max(0, value - 1))}
+                    disabled={page <= 1}
+                    onClick={() => setPage((value) => Math.max(1, value - 1))}
                   >
-                    {t("codego.tokens.previous", "Previous")}
+                    {t("codego.tokens.previous", "上一页")}
                   </Button>
                   <Button
                     variant="outline"
                     className="h-8"
-                    disabled={page + 1 >= totalPages}
+                    disabled={page >= totalPages}
                     onClick={() => setPage((value) => value + 1)}
                   >
-                    {t("codego.tokens.next", "Next")}
+                    {t("codego.tokens.next", "下一页")}
                   </Button>
                 </div>
               </div>
             </>
+          ) : tokenPage && tokenPage.total > 0 ? (
+            <div className="rounded-lg border border-amber-500/35 bg-amber-500/10 px-4 py-4 text-sm">
+              <div className="font-medium text-foreground">
+                {t("codego.tokens.partialTitle", {
+                  count: tokenPage.total,
+                  defaultValue: `已检测到 ${tokenPage.total} 个令牌`,
+                })}
+              </div>
+              <div className="mt-1 leading-6 text-muted-foreground">
+                {t(
+                  "codego.tokens.partialDescription",
+                  "当前接口没有返回令牌列表。请点击重试；如果仍然为空，说明网站令牌接口没有向桌面授权开放列表数据。",
+                )}
+              </div>
+              <Button
+                variant="outline"
+                className="mt-3 h-8"
+                onClick={() => void tokensQuery.refetch()}
+              >
+                {t("common.retry", "重试")}
+              </Button>
+            </div>
           ) : (
             <div className="rounded-lg border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
               {t(
                 "codego.tokens.empty",
-                "No tokens yet. Create a dedicated token for each local tool so you can rotate or revoke them independently.",
+                "暂无令牌。创建专用 API 密钥后，可分别轮换或撤销每个本地工具的访问权限。",
               )}
             </div>
           )}
@@ -389,6 +438,7 @@ export function CodeGoTokenManager({
         onOpenChange={(open) => {
           if (!open) resetDialog();
         }}
+        groupOptions={groupOptions}
         onChange={setFormState}
         onSubmit={() => void handleSubmit()}
       />
