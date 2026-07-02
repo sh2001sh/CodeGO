@@ -31,12 +31,26 @@ function isDeviceActive(device: CodeGoAuthorizedDevice) {
   );
 }
 
-function deviceAccessLabel(device: CodeGoAuthorizedDevice) {
+function deviceAccessStatus(device: CodeGoAuthorizedDevice) {
   if (device.revokedAt > 0) {
     return "revoked";
   }
   const normalizedStatus = device.status.trim().toLowerCase();
   return normalizedStatus || "active";
+}
+
+function deviceAccessLabel(
+  device: CodeGoAuthorizedDevice,
+  t: ReturnType<typeof useTranslation>["t"],
+) {
+  const status = deviceAccessStatus(device);
+  if (status === "active") {
+    return t("codego.devices.active", "Active");
+  }
+  if (status === "revoked") {
+    return t("codego.devices.revoked", "Revoked");
+  }
+  return status;
 }
 
 function deviceStatusTone(device: CodeGoAuthorizedDevice, isCurrent: boolean) {
@@ -216,7 +230,7 @@ export function CodeGoAuthorizedDevicesCard({
                           </div>
                           <div>
                             {t("codego.devices.access", "Access")}:{" "}
-                            {deviceAccessLabel(device)}
+                            {deviceAccessLabel(device, t)}
                           </div>
                         </div>
                       </div>

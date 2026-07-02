@@ -3074,6 +3074,7 @@
       "loadFailed": "Failed to load device access",
       "empty": "No authorized devices found for this account.",
       "currentDevice": "Current device",
+      "active": "Active",
       "revoked": "Revoked",
       "platform": "Platform",
       "version": "Version",

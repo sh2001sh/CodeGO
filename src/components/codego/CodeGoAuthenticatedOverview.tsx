@@ -22,7 +22,6 @@ import { CodeGoDiagnosticReportCard } from "./CodeGoDiagnosticReportCard";
 import { CodeGoDesktopTokenCard } from "./CodeGoDesktopTokenCard";
 import { CodeGoLogsExplorer } from "./CodeGoLogsExplorer";
 import { CodeGoRecentUsageCard } from "./CodeGoRecentUsageCard";
-import { CodeGoSecureStorageNotice } from "./CodeGoSecureStorageNotice";
 import { CodeGoTokenManager } from "./CodeGoTokenManager";
 import { CodeGoToolConfigPanel } from "./CodeGoToolConfigPanel";
 import { CodeGoUsageTrendCard } from "./CodeGoUsageTrendCard";
@@ -427,12 +426,7 @@ export function CodeGoAuthenticatedOverview({
             </div>
 
             <div className="bg-white/44 p-6 dark:bg-white/[0.015]">
-              <CodeGoSecureStorageNotice
-                status={authState?.secureStorageStatus}
-                message={authState?.secureStorageMessage}
-              />
-
-              <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-2">
                 {summaryMetrics.map(([label, value]) => (
                   <Card key={label} className="codego-panel shadow-none">
                     <CardHeader className="pb-2">

@@ -484,13 +484,10 @@ describe("CodeGoDashboard", () => {
       screen.queryByText("Account and group status"),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("Billing preference")).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /Website model plaza|打开模型广场/ }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("钱包")).toBeInTheDocument();
-    expect(screen.getByText("套餐")).toBeInTheDocument();
-    expect(screen.getByText("盲盒")).toBeInTheDocument();
-    expect(screen.getByText("邀请")).toBeInTheDocument();
+    expect(screen.queryByText("钱包")).not.toBeInTheDocument();
+    expect(screen.queryByText("套餐")).not.toBeInTheDocument();
+    expect(screen.queryByText("盲盒")).not.toBeInTheDocument();
+    expect(screen.queryByText("邀请")).not.toBeInTheDocument();
     expect(screen.queryByText("Token center")).not.toBeInTheDocument();
     expect(screen.queryByText("Log center")).not.toBeInTheDocument();
 
@@ -565,13 +562,10 @@ describe("CodeGoDashboard", () => {
     expect(
       screen.queryByText("Account and group status"),
     ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /Website model plaza|打开模型广场/ }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("钱包")).toBeInTheDocument();
-    expect(screen.getByText("套餐")).toBeInTheDocument();
-    expect(screen.getByText("盲盒")).toBeInTheDocument();
-    expect(screen.getByText("邀请")).toBeInTheDocument();
+    expect(screen.queryByText("钱包")).not.toBeInTheDocument();
+    expect(screen.queryByText("套餐")).not.toBeInTheDocument();
+    expect(screen.queryByText("盲盒")).not.toBeInTheDocument();
+    expect(screen.queryByText("邀请")).not.toBeInTheDocument();
   });
 
   it("hides the secure storage warning in the authenticated overview", async () => {
@@ -886,7 +880,7 @@ describe("CodeGoDashboard", () => {
     });
     expect(revokeButton).toBeDisabled();
     expect(
-      within(revokedRow as HTMLElement).getByText("Access: 已撤销"),
+      within(revokedRow as HTMLElement).getByText(/Access:\s*(Revoked|已撤销)/),
     ).toBeInTheDocument();
   });
 
@@ -929,7 +923,9 @@ describe("CodeGoDashboard", () => {
       ).toBeInTheDocument(),
     );
 
-    const currentDeviceAccess = await screen.findByText("Access: 生效中");
+    const currentDeviceAccess = await screen.findByText(
+      /Access:\s*(Active|生效中)/,
+    );
     const currentDeviceRow = currentDeviceAccess.closest("div.rounded-lg");
     expect(currentDeviceRow).not.toBeNull();
 

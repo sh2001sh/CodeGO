@@ -3072,6 +3072,7 @@
       "loadFailed": "加载设备访问状态失败",
       "empty": "当前账号下没有已授权设备。",
       "currentDevice": "当前设备",
+      "active": "生效中",
       "revoked": "已撤销",
       "platform": "平台",
       "version": "版本",
