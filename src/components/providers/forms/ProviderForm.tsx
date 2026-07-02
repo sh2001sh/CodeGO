@@ -1997,6 +1997,7 @@ function ProviderFormFull({
                   defaultValue:
                     "第三方配置需要手动填写 API Key、请求地址和模型。",
                 })}
+                customPlacement="after"
               />
 
               {isCodeGoManagedPreset && isCodeGoSupportedTool(appId) && (

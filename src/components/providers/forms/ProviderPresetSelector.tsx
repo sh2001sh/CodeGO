@@ -137,6 +137,7 @@ interface ProviderPresetSelectorProps {
   category?: ProviderCategory; // 当前选中的分类
   customLabel?: string;
   customHint?: string;
+  customPlacement?: "before" | "after";
 }
 
 export function ProviderPresetSelector({
@@ -149,6 +150,7 @@ export function ProviderPresetSelector({
   category,
   customLabel,
   customHint,
+  customPlacement = "before",
 }: Readonly<ProviderPresetSelectorProps>) {
   const { t } = useTranslation();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -306,6 +308,27 @@ export function ProviderPresetSelector({
     };
   };
 
+  const customButton = (
+    <button
+      type="button"
+      onClick={() => onPresetChange("custom")}
+      className={`inline-flex items-center justify-start gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors w-full ${
+        selectedPresetId === "custom"
+          ? "bg-primary text-primary-foreground"
+          : "border border-border bg-background text-muted-foreground hover:border-primary/30 hover:bg-primary/5 hover:text-foreground"
+      }`}
+    >
+      {customLabel ? (
+        <Settings2 className="h-4 w-4 flex-shrink-0" aria-hidden />
+      ) : (
+        <span className="inline-block w-4 h-4 flex-shrink-0" aria-hidden />
+      )}
+      <span className="truncate">
+        {customLabel ?? t("providerPreset.custom")}
+      </span>
+    </button>
+  );
+
   return (
     <div ref={searchContainerRef} className="space-y-3">
       <div className="flex items-center justify-between gap-2">
@@ -385,6 +408,8 @@ export function ProviderPresetSelector({
         </div>
       </div>
       <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2">
+        {customPlacement === "before" && customButton}
+
         {visiblePresetEntries.length === 0 && (
           <div className="col-span-full rounded-md border border-dashed border-border-default px-3 py-2 text-xs text-muted-foreground">
             {t("providerPreset.noSearchResults", {
@@ -431,20 +456,7 @@ export function ProviderPresetSelector({
           );
         })}
 
-        <button
-          type="button"
-          onClick={() => onPresetChange("custom")}
-          className={`inline-flex items-center justify-start gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors w-full ${
-            selectedPresetId === "custom"
-              ? "bg-primary text-primary-foreground"
-              : "border border-border bg-background text-muted-foreground hover:border-primary/30 hover:bg-primary/5 hover:text-foreground"
-          }`}
-        >
-          <Settings2 className="h-4 w-4 flex-shrink-0" aria-hidden />
-          <span className="truncate">
-            {customLabel ?? t("providerPreset.custom")}
-          </span>
-        </button>
+        {customPlacement === "after" && customButton}
       </div>
 
       {onUniversalPresetSelect && universalProviderPresets.length > 0 && (
