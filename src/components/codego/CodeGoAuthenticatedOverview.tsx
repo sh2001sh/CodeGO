@@ -1,75 +1,52 @@
 import {
-  Activity,
   CheckCircle2,
-  FileClock,
   Info,
-  KeyRound,
-  Laptop,
   Loader2,
   LogOut,
   RefreshCw,
   ShieldAlert,
-  Wrench,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { CodeGoAccountSummary, CodeGoAuthState } from "@/lib/api/codego";
 import { useTranslation } from "react-i18next";
-import { cn } from "@/lib/utils";
-import { CodeGoAuthorizedDevicesCard } from "./CodeGoAuthorizedDevicesCard";
-import { CodeGoDiagnosticReportCard } from "./CodeGoDiagnosticReportCard";
 import { CodeGoDesktopTokenCard } from "./CodeGoDesktopTokenCard";
-import { CodeGoLogsExplorer } from "./CodeGoLogsExplorer";
 import { CodeGoRecentUsageCard } from "./CodeGoRecentUsageCard";
-import { CodeGoTokenManager } from "./CodeGoTokenManager";
-import { CodeGoToolConfigPanel } from "./CodeGoToolConfigPanel";
 import { CodeGoUsageTrendCard } from "./CodeGoUsageTrendCard";
 import { CodeGoMark } from "./CodeGoMark";
 import { formatDateTime, formatUsd } from "./codegoShared";
 
 interface CodeGoAuthenticatedOverviewProps {
-  activeTab: string;
   summary?: CodeGoAccountSummary;
   authState?: CodeGoAuthState;
-  usageModels: string[];
   isAuthenticated: boolean;
   summaryIsFetching: boolean;
   logoutPending: boolean;
   isEnsuringToken: boolean;
-  onActiveTabChange: (value: string) => void;
   onRefresh: () => void;
-  onOpenProviders: () => void;
   onLogout: () => void;
   onCopyToken: () => void;
   onEnsureToken: () => void;
   onOpenTopUp: () => void;
+  onOpenTokens: () => void;
+  onOpenLogs: () => void;
 }
 
-type ConsoleSection =
-  | "overview"
-  | "tools"
-  | "tokens"
-  | "logs"
-  | "devices"
-  | "diagnostics";
-
 export function CodeGoAuthenticatedOverview({
-  activeTab,
   summary,
   authState,
-  usageModels,
   isAuthenticated,
   summaryIsFetching,
   logoutPending,
   isEnsuringToken,
-  onActiveTabChange,
   onRefresh,
-  onOpenProviders,
   onLogout,
   onCopyToken,
   onEnsureToken,
   onOpenTopUp,
+  onOpenTokens,
+  onOpenLogs,
 }: CodeGoAuthenticatedOverviewProps) {
   const { t } = useTranslation();
   const summaryMetrics = [
@@ -97,77 +74,14 @@ export function CodeGoAuthenticatedOverview({
       authState?.serverAddress || "https://shu26.cfd",
     ],
     [
-      t("codego.overview.highlights.desktopToken", "Desktop token"),
-      summary?.tokens.desktop_token?.name ||
-        t(
-          "codego.overview.highlights.desktopTokenEmpty",
-          "Create or refresh from Tokens",
-        ),
+      t("codego.overview.highlights.accountGroup", "Account group"),
+      summary?.account.group || "default",
     ],
     [
       t("codego.overview.highlights.lastRequest", "Last request"),
       formatDateTime(summary?.usage.last_request_at),
     ],
   ] as const;
-
-  const navItems: Array<{
-    id: ConsoleSection;
-    icon: typeof Activity;
-    label: string;
-    description: string;
-  }> = [
-    {
-      id: "overview",
-      icon: Activity,
-      label: t("codego.console.nav.overview", "Overview"),
-      description: t(
-        "codego.console.nav.overviewDesc",
-        "额度、最近请求和服务状态",
-      ),
-    },
-    {
-      id: "tools",
-      icon: Wrench,
-      label: t("codego.console.nav.tools", "Tool setup"),
-      description: t(
-        "codego.console.nav.toolsDesc",
-        "配置 Codex、Claude Code、Gemini 等工具",
-      ),
-    },
-    {
-      id: "tokens",
-      icon: KeyRound,
-      label: t("codego.console.nav.tokens", "Tokens"),
-      description: t(
-        "codego.console.nav.tokensDesc",
-        "创建、复制和应用桌面令牌",
-      ),
-    },
-    {
-      id: "logs",
-      icon: FileClock,
-      label: t("codego.console.nav.logs", "Logs"),
-      description: t(
-        "codego.console.nav.logsDesc",
-        "按模型、令牌和请求筛选日志",
-      ),
-    },
-    {
-      id: "devices",
-      icon: Laptop,
-      label: t("codego.console.nav.devices", "Devices"),
-      description: t("codego.console.nav.devicesDesc", "查看和撤销已授权设备"),
-    },
-    {
-      id: "diagnostics",
-      icon: ShieldAlert,
-      label: t("codego.console.nav.diagnostics", "Diagnostics"),
-      description: t(
-        "codego.console.nav.diagnosticsDesc",
-        "审阅脱敏崩溃报告并上报",
-      ),
-    },
-  ];
 
   const renderServiceStatus = () => (
     <Card className="codego-panel shadow-none">
@@ -230,115 +144,6 @@ export function CodeGoAuthenticatedOverview({
     </Card>
   );
 
-  const renderModelsCard = () => (
-    <Card className="codego-panel shadow-none">
-      <CardHeader>
-        <CardTitle className="text-base">
-          {t("codego.overview.availableModels", "Available models")}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-wrap gap-2">
-          {usageModels.length > 0 ? (
-            usageModels.map((model) => (
-              <Badge key={model} variant="outline">
-                {model}
-              </Badge>
-            ))
-          ) : (
-            <span className="text-sm text-muted-foreground">
-              {t(
-                "codego.overview.noModelMetadata",
-                "No model metadata available.",
-              )}
-            </span>
-          )}
-        </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <div>
-            <div className="text-xs text-muted-foreground">
-              {t("codego.overview.today", "Today")}
-            </div>
-            <div className="text-sm font-medium">
-              {formatUsd(summary?.usage.today_usd || 0)}
-            </div>
-          </div>
-          <div>
-            <div className="text-xs text-muted-foreground">
-              {t("codego.overview.last7Days", "Last 7 days")}
-            </div>
-            <div className="text-sm font-medium">
-              {formatUsd(summary?.usage.last_7_days_usd || 0)}
-            </div>
-          </div>
-          <div className="sm:col-span-2">
-            <div className="text-xs text-muted-foreground">
-              {t("codego.overview.highlights.lastRequest", "Last request")}
-            </div>
-            <div className="text-sm font-medium">
-              {formatDateTime(summary?.usage.last_request_at)}
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-
-  const renderSection = () => {
-    switch (activeTab as ConsoleSection) {
-      case "tools":
-        return <CodeGoToolConfigPanel enabled={isAuthenticated} />;
-      case "tokens":
-        return (
-          <CodeGoTokenManager
-            enabled={isAuthenticated}
-            desktopTokenId={summary?.tokens.desktop_token?.id}
-          />
-        );
-      case "logs":
-        return <CodeGoLogsExplorer enabled={isAuthenticated} />;
-      case "devices":
-        return (
-          <CodeGoAuthorizedDevicesCard
-            enabled={isAuthenticated}
-            currentDeviceId={authState?.deviceId}
-          />
-        );
-      case "diagnostics":
-        return <CodeGoDiagnosticReportCard enabled={isAuthenticated} />;
-      case "overview":
-      default:
-        return (
-          <div className="space-y-6">
-            <div className="grid gap-6 xl:grid-cols-[1.02fr_0.98fr]">
-              <div className="space-y-6">
-                <CodeGoDesktopTokenCard
-                  summary={summary}
-                  isEnsuringToken={isEnsuringToken}
-                  onCopyToken={onCopyToken}
-                  onEnsureToken={onEnsureToken}
-                  onManageTokens={() => onActiveTabChange("tokens")}
-                  onOpenTopUp={onOpenTopUp}
-                />
-                <CodeGoRecentUsageCard
-                  summary={summary}
-                  onOpenLogs={() => onActiveTabChange("logs")}
-                />
-              </div>
-              <div className="space-y-6">
-                <CodeGoUsageTrendCard enabled={isAuthenticated} />
-                {renderServiceStatus()}
-              </div>
-            </div>
-            <div className="grid gap-6 xl:grid-cols-[0.96fr_1.04fr]">
-              {renderModelsCard()}
-              <CodeGoToolConfigPanel enabled={isAuthenticated} />
-            </div>
-          </div>
-        );
-    }
-  };
-
   return (
     <section className="flex flex-1 flex-col px-6 pb-8">
       <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6">
@@ -346,11 +151,11 @@ export function CodeGoAuthenticatedOverview({
           <div className="grid xl:grid-cols-[1.08fr_0.92fr]">
             <div className="border-b border-white/60 p-6 dark:border-white/10 xl:border-b-0 xl:border-r">
               <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-4">
+                <div className="flex min-w-0 items-start gap-4">
                   <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/70 bg-white/80 dark:border-white/10 dark:bg-white/[0.05]">
                     <CodeGoMark size={40} className="h-10 w-10" />
                   </div>
-                  <div className="space-y-2">
+                  <div className="min-w-0 space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge className="codego-chip-warm">
                         {t("codego.shell.desktopTitle", {
@@ -364,14 +169,16 @@ export function CodeGoAuthenticatedOverview({
                         </Badge>
                       ) : null}
                     </div>
-                    <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+                    <h1 className="truncate text-2xl font-semibold tracking-tight text-foreground">
                       {summary?.account.display_name ||
-                        summary?.account.username}
+                        summary?.account.username ||
+                        authState?.lastUsername ||
+                        t("codego.overview.connectedAccount", "Connected")}
                     </h1>
                     <p className="max-w-xl text-sm leading-6 text-muted-foreground">
                       {t(
-                        "codego.overview.heroDescription",
-                        "Browser-approved desktop access with token rotation, quota checks, and log visibility in one place.",
+                        "codego.overview.heroDescriptionCompact",
+                        "账号额度、桌面令牌、最近用量和服务状态集中在这里。",
                       )}
                     </p>
                   </div>
@@ -385,7 +192,7 @@ export function CodeGoAuthenticatedOverview({
                 {overviewHighlights.map(([label, value]) => (
                   <div key={label} className="codego-metric-card">
                     <div className="text-xs text-muted-foreground">{label}</div>
-                    <div className="mt-2 text-sm font-medium leading-6 text-foreground">
+                    <div className="mt-2 truncate text-sm font-medium leading-6 text-foreground">
                       {value}
                     </div>
                   </div>
@@ -400,14 +207,6 @@ export function CodeGoAuthenticatedOverview({
                 >
                   <RefreshCw className="h-4 w-4" />
                   {t("common.refresh", "Refresh")}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={onOpenProviders}
-                  className="h-9 gap-2"
-                >
-                  <Wrench className="h-4 w-4" />
-                  {t("codego.overview.providers", "Providers")}
                 </Button>
                 <Button
                   variant="outline"
@@ -444,38 +243,22 @@ export function CodeGoAuthenticatedOverview({
           </div>
         </div>
 
-        <div className="grid flex-1 gap-6 xl:grid-cols-[260px_minmax(0,1fr)]">
-          <aside className="codego-shell h-fit p-3">
-            <div className="space-y-1.5">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const active = activeTab === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => onActiveTabChange(item.id)}
-                    className={cn(
-                      "codego-nav-item w-full items-start px-3.5 py-3",
-                      active && "codego-nav-item-active",
-                    )}
-                  >
-                    <Icon className="mt-0.5 h-4 w-4 shrink-0" />
-                    <span className="min-w-0">
-                      <span className="block text-sm font-medium text-foreground">
-                        {item.label}
-                      </span>
-                      <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                        {item.description}
-                      </span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </aside>
-
-          <div className="min-w-0">{renderSection()}</div>
+        <div className="grid flex-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="space-y-6">
+            <CodeGoDesktopTokenCard
+              summary={summary}
+              isEnsuringToken={isEnsuringToken}
+              onCopyToken={onCopyToken}
+              onEnsureToken={onEnsureToken}
+              onManageTokens={onOpenTokens}
+              onOpenTopUp={onOpenTopUp}
+            />
+            <CodeGoRecentUsageCard summary={summary} onOpenLogs={onOpenLogs} />
+          </div>
+          <div className="space-y-6">
+            <CodeGoUsageTrendCard enabled={isAuthenticated} />
+            {renderServiceStatus()}
+          </div>
         </div>
       </div>
     </section>

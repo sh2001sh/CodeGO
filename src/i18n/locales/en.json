@@ -2905,14 +2905,22 @@
   "codego": {
     "shell": {
       "desktopTitle": "CodeGo desktop",
-      "desktopSubtitle": "Account, tokens, diagnostics, and local tool setup.",
-      "providersSubtitle": "Switch providers and keep every CLI workspace aligned.",
+      "desktopSubtitle": "Account quota, desktop tokens, recent usage, and service status.",
+      "providersSubtitle": "Choose an app and maintain its tool API configuration.",
+      "tokensSubtitle": "Create, review, copy, and apply API keys for the current account.",
+      "logsSubtitle": "Filter website request logs by model, token, and request.",
+      "devicesSubtitle": "Review and revoke authorized desktop devices.",
+      "modelsSubtitle": "Review models available to the authorized account.",
+      "groupsSubtitle": "Review website group status and the current account group.",
       "workspaceSubtitle": "Focused operational view for the active workflow.",
       "desktopSurface": "Desktop control surface",
       "desktopReady": "desktop ready",
+      "connectedAs": "Connected · {{name}}",
+      "connected": "Connected",
+      "notConnected": "Not connected",
       "routeActive": "route active",
       "dashboard": "Dashboard",
-      "providers": "Providers",
+      "providers": "API config",
       "workspace": "Workspace",
       "currentToolWorkspace": "Tool workspace",
       "toolWorkspaceHint": "This app has extra configuration panels you can open directly from the sidebar.",
@@ -2920,8 +2928,13 @@
       "controlCenter": "Control center",
       "workspaceView": "Workspace view",
       "nav": {
-        "dashboardDesc": "Auth state, quota, tokens, and device management",
-        "providersDesc": "Switch providers and maintain the active config for each tool",
+        "dashboardDesc": "Account quota, desktop tokens, and service status",
+        "providersDesc": "Choose an app and maintain tool API config",
+        "tokensDesc": "Create, copy, and apply API keys",
+        "logsDesc": "Review website requests and usage details",
+        "devicesDesc": "Review and revoke desktop authorization",
+        "modelsDesc": "Sync available models for this account",
+        "groupsDesc": "Review website groups and current access",
         "settingsDesc": "Language, routing, storage, and device-level settings",
         "promptsDesc": "Manage prompts and local workflow documents",
         "skillsDesc": "Install, import, and sync skill resources",
@@ -2992,8 +3005,10 @@
     },
     "overview": {
       "heroDescription": "Browser-approved desktop access with token rotation, quota checks, and log visibility in one place.",
+      "heroDescriptionCompact": "Account quota, desktop tokens, recent usage, and service status stay here.",
+      "connectedAccount": "Connected",
       "sessionLive": "Session live",
-      "providers": "Providers",
+      "providers": "API config",
       "disconnect": "Disconnect",
       "serviceStatus": "Service status",
       "noServiceNotice": "No active service notice.",
@@ -3014,6 +3029,7 @@
       },
       "highlights": {
         "connectedServer": "Connected server",
+        "accountGroup": "Account group",
         "desktopToken": "Desktop token",
         "desktopTokenEmpty": "Create or refresh from Tokens",
         "lastRequest": "Last request"
@@ -3145,6 +3161,7 @@
       "codegoConfig": "codego config"
     },
     "tokens": {
+      "title": "Tokens",
       "managementTitle": "Token management",
       "managementDescription": "Create scoped keys for each local tool and only reveal the full key on demand.",
       "newToken": "New token",
@@ -3242,6 +3259,27 @@
         "moderation": "Moderation",
         "generic": "Type {{type}}"
       }
+    },
+    "modelPlaza": {
+      "title": "Model plaza",
+      "description": "Sync available models for the authorized account. Model access follows the website account and token configuration.",
+      "openWebsite": "Open website",
+      "openFailed": "Failed to open model plaza",
+      "available": "Available to this account",
+      "empty": "The current API did not return a model list.",
+      "emptyHint": "Refresh and try again, or open the website to view the full model plaza."
+    },
+    "groups": {
+      "title": "Group status",
+      "description": "Sync website group status for token creation, key group changes, and account access checks.",
+      "openWebsite": "Open website",
+      "openFailed": "Failed to open group status",
+      "current": "Current group",
+      "active": "Current",
+      "ratio": "Ratio",
+      "models": "Models",
+      "empty": "The website group API did not return a list yet.",
+      "emptyHint": "The current account group was synced from overview. Open the website group status page if you need the full status."
     }
   }
 }

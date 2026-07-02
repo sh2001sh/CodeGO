@@ -2905,14 +2905,22 @@
   "codego": {
     "shell": {
       "desktopTitle": "CodeGo 桌面控制台",
-      "desktopSubtitle": "账号、令牌、诊断与本地工具配置都集中在这里。",
-      "providersSubtitle": "切换供应商，并让各个 CLI 工作区保持一致。",
+      "desktopSubtitle": "账号额度、桌面令牌、最近用量和服务状态。",
+      "providersSubtitle": "选择应用并维护对应工具的 API 配置。",
+      "tokensSubtitle": "创建、查看、复制和应用当前账号的 API 密钥。",
+      "logsSubtitle": "按模型、令牌和请求筛选网站调用日志。",
+      "devicesSubtitle": "查看和撤销已授权的桌面设备。",
+      "modelsSubtitle": "查看当前授权账号可用的模型列表。",
+      "groupsSubtitle": "查看网站分组状态和当前账号分组。",
       "workspaceSubtitle": "围绕当前工作流的专注操作视图。",
       "desktopSurface": "桌面控制面板",
       "desktopReady": "桌面已就绪",
+      "connectedAs": "已连接 · {{name}}",
+      "connected": "已连接",
+      "notConnected": "未连接",
       "routeActive": "路由已接管",
       "dashboard": "控制台",
-      "providers": "供应商",
+      "providers": "API 配置",
       "workspace": "工作区",
       "currentToolWorkspace": "工具专属工作区",
       "toolWorkspaceHint": "当前应用带有额外配置面板，可在左侧导航中直接进入。",
@@ -2920,8 +2928,13 @@
       "controlCenter": "控制中心",
       "workspaceView": "工作区视图",
       "nav": {
-        "dashboardDesc": "认证状态、额度、令牌与设备管理",
-        "providersDesc": "切换供应商并维护各个工具的当前配置",
+        "dashboardDesc": "账号额度、桌面令牌和服务状态",
+        "providersDesc": "选择应用并维护工具 API 配置",
+        "tokensDesc": "创建、复制和应用 API 密钥",
+        "logsDesc": "查看网站请求和用量明细",
+        "devicesDesc": "查看和撤销桌面授权",
+        "modelsDesc": "同步当前账号可用模型",
+        "groupsDesc": "查看网站分组和当前权限",
         "settingsDesc": "语言、路由、存储与设备级设置",
         "promptsDesc": "管理提示词与本地工作流文档",
         "skillsDesc": "安装、导入并同步技能资源",
@@ -2992,8 +3005,10 @@
     },
     "overview": {
       "heroDescription": "浏览器批准后的桌面访问、令牌轮换、额度检查与日志可见性都集中在这里。",
+      "heroDescriptionCompact": "账号额度、桌面令牌、最近用量和服务状态集中在这里。",
+      "connectedAccount": "已连接",
       "sessionLive": "会话在线",
-      "providers": "供应商",
+      "providers": "API 配置",
       "disconnect": "断开连接",
       "serviceStatus": "服务状态",
       "noServiceNotice": "当前没有服务公告。",
@@ -3014,6 +3029,7 @@
       },
       "highlights": {
         "connectedServer": "已连接服务器",
+        "accountGroup": "账号分组",
         "desktopToken": "桌面令牌",
         "desktopTokenEmpty": "前往“令牌”页创建或刷新",
         "lastRequest": "最后请求"
@@ -3142,6 +3158,7 @@
       "codegoConfig": "codego 配置"
     },
     "tokens": {
+      "title": "令牌",
       "managementTitle": "令牌管理",
       "managementDescription": "为每个本地工具创建独立密钥，只在需要时显示完整密钥。",
       "newToken": "新建令牌",
@@ -3237,6 +3254,27 @@
         "moderation": "审核",
         "generic": "类型 {{type}}"
       }
+    },
+    "modelPlaza": {
+      "title": "模型广场",
+      "description": "根据当前授权账号同步可用模型。模型权限以网站账号和令牌配置为准。",
+      "openWebsite": "打开网站",
+      "openFailed": "打开模型广场失败",
+      "available": "当前账号可用",
+      "empty": "当前接口暂未返回模型列表。",
+      "emptyHint": "可以刷新重试，或打开网站查看完整模型广场。"
+    },
+    "groups": {
+      "title": "分组状态",
+      "description": "同步网站分组状态，用于创建令牌、调整 Key 分组和确认当前账号权限。",
+      "openWebsite": "打开网站",
+      "openFailed": "打开分组状态失败",
+      "current": "当前分组",
+      "active": "当前",
+      "ratio": "倍率",
+      "models": "模型",
+      "empty": "网站分组接口暂未返回列表。",
+      "emptyHint": "当前账号分组已从概览同步；如果需要完整分组状态，请打开网站分组状态页。"
     }
   }
 }

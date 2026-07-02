@@ -539,8 +539,7 @@ fn persist_auth_state(
 }
 
 fn clear_auth_state() -> Result<(), String> {
-    let previous_settings = get_settings();
-    let mut settings = previous_settings.clone();
+    let mut settings = get_settings();
     settings.codego_access_token = None;
     settings.codego_user_id = None;
     settings.codego_device_id = None;
@@ -548,10 +547,7 @@ fn clear_auth_state() -> Result<(), String> {
     settings.codego_last_seen_quota_usd = None;
     update_settings(settings).map_err(|e| e.to_string())?;
     if let Err(error) = clear_codego_auth() {
-        if let Err(rollback_error) = update_settings(previous_settings) {
-            log::warn!("回滚 Code Go 登出设置失败: {rollback_error}");
-        }
-        return Err(error);
+        log::warn!("清理 Code Go 安全凭据失败，本地授权状态已清除: {error}");
     }
     Ok(())
 }
@@ -3107,6 +3103,35 @@ mod tests {
         let auth = load_auth_state();
         assert!(auth.authenticated);
         assert_eq!(auth.access_token.as_deref(), Some("fallback-token"));
+    }
+
+    #[test]
+    #[serial]
+    fn clear_auth_state_keeps_local_logout_when_secure_store_clear_fails() {
+        let _guard = settings_test_guard();
+        let _env = TempSettingsEnv::new();
+        let mut settings = AppSettings::default();
+        settings.codego_server_address = Some("https://shu26.cfd".to_string());
+        settings.codego_user_id = Some(9);
+        settings.codego_device_id = Some(12);
+        settings.codego_last_username = Some("demo-user".to_string());
+        settings.codego_last_seen_quota_usd = Some(12.5);
+        settings.codego_access_token = Some("fallback-token".to_string());
+        update_settings(settings).expect("seed authenticated settings");
+        crate::secure_store::set_test_codego_auth_failures(
+            None,
+            None,
+            Some("secure store clear unavailable".to_string()),
+        );
+
+        super::clear_auth_state().expect("clear local auth state");
+
+        let settings = get_settings();
+        assert_eq!(settings.codego_user_id, None);
+        assert_eq!(settings.codego_device_id, None);
+        assert_eq!(settings.codego_last_username, None);
+        assert_eq!(settings.codego_last_seen_quota_usd, None);
+        assert_eq!(settings.codego_access_token, None);
     }
 
     #[test]

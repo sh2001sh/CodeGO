@@ -212,9 +212,7 @@ describe("DeepLinkImportDialog", () => {
 
     await emitDialogEvent("deeplink-import", request);
 
-    expect(
-      await screen.findByText("codego review prompt"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("codego review prompt")).toBeInTheDocument();
     expect(screen.getByText("Reusable review instruction")).toBeInTheDocument();
     expect(
       screen.getByText(/Review this patch carefully\./),

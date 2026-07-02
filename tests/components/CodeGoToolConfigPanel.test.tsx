@@ -50,9 +50,7 @@ describe("CodeGoToolConfigPanel", () => {
 
     fireEvent.click(screen.getAllByRole("button", { name: "Preview" })[0]);
 
-    expect(
-      await screen.findByText("Codex codego preview"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Codex codego preview")).toBeInTheDocument();
     expect(screen.getByText("Current local config")).toBeInTheDocument();
     expect(screen.getByText("codego config")).toBeInTheDocument();
     expect(screen.getAllByText(/existing-key/).length).toBeGreaterThan(0);

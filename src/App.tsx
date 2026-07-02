@@ -17,11 +17,15 @@ import {
   Wrench,
   History,
   BarChart2,
+  Boxes,
   Download,
+  FileClock,
   FolderArchive,
   Search,
   FolderOpen,
   KeyRound,
+  Laptop,
+  Layers3,
   Shield,
   Cpu,
   LayoutDashboard,
@@ -29,7 +33,11 @@ import {
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { Provider, VisibleApps } from "@/types";
 import type { EnvConflict } from "@/types/env";
-import { useProvidersQuery, useSettingsQuery } from "@/lib/query";
+import {
+  useCodeGoAuthQuery,
+  useProvidersQuery,
+  useSettingsQuery,
+} from "@/lib/query";
 import {
   providersApi,
   settingsApi,
@@ -81,10 +89,15 @@ import { DeepLinkImportDialog } from "@/components/DeepLinkImportDialog";
 import { FirstRunNoticeDialog } from "@/components/FirstRunNoticeDialog";
 import { AgentsPanel } from "@/components/agents/AgentsPanel";
 import { CodeGoDashboard } from "@/components/codego/CodeGoDashboard";
+import { CodeGoAuthorizedDevicesCard } from "@/components/codego/CodeGoAuthorizedDevicesCard";
+import { CodeGoDiagnosticReportCard } from "@/components/codego/CodeGoDiagnosticReportCard";
+import { CodeGoGroupStatusPage } from "@/components/codego/CodeGoGroupStatusPage";
+import { CodeGoLogsExplorer } from "@/components/codego/CodeGoLogsExplorer";
 import { CodeGoMark } from "@/components/codego/CodeGoMark";
+import { CodeGoModelPlazaPage } from "@/components/codego/CodeGoModelPlazaPage";
+import { CodeGoTokenManager } from "@/components/codego/CodeGoTokenManager";
 import { UniversalProviderPanel } from "@/components/universal";
 import { McpIcon } from "@/components/BrandIcons";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SessionManagerPage } from "@/components/sessions/SessionManagerPage";
 import {
@@ -101,6 +114,12 @@ import HermesMemoryPanel from "@/components/hermes/HermesMemoryPanel";
 type View =
   | "codego"
   | "providers"
+  | "codegoTokens"
+  | "codegoLogs"
+  | "codegoDevices"
+  | "codegoDiagnostics"
+  | "codegoModels"
+  | "codegoGroups"
   | "settings"
   | "prompts"
   | "skills"
@@ -158,6 +177,12 @@ const LEGACY_VIEW_STORAGE_KEY = "cc-switch-last-view";
 const VALID_VIEWS: View[] = [
   "codego",
   "providers",
+  "codegoTokens",
+  "codegoLogs",
+  "codegoDevices",
+  "codegoDiagnostics",
+  "codegoModels",
+  "codegoGroups",
   "settings",
   "prompts",
   "skills",
@@ -213,6 +238,13 @@ function App() {
   }, [currentView]);
 
   const { data: settingsData } = useSettingsQuery();
+  const { data: codegoAuthState } = useCodeGoAuthQuery();
+  const isCodeGoAuthenticated = Boolean(codegoAuthState?.authenticated);
+  const codegoDisplayName =
+    codegoAuthState?.lastUsername ||
+    (isCodeGoAuthenticated
+      ? t("codego.shell.connected", { defaultValue: "已连接" })
+      : t("codego.shell.notConnected", { defaultValue: "未连接" }));
   const useAppWindowControls =
     isLinux() && (settingsData?.useAppWindowControls ?? false);
   const dragBarHeight = useAppWindowControls ? 32 : DEFAULT_DRAG_BAR_HEIGHT;
@@ -901,7 +933,14 @@ function App() {
   };
 
   const isPrimaryConsoleView =
-    currentView === "codego" || currentView === "providers";
+    currentView === "codego" ||
+    currentView === "providers" ||
+    currentView === "codegoTokens" ||
+    currentView === "codegoLogs" ||
+    currentView === "codegoDevices" ||
+    currentView === "codegoDiagnostics" ||
+    currentView === "codegoModels" ||
+    currentView === "codegoGroups";
   const currentViewTitle = (() => {
     switch (currentView) {
       case "codego":
@@ -909,7 +948,19 @@ function App() {
           defaultValue: "CodeGo desktop",
         });
       case "providers":
-        return t("apps." + activeApp);
+        return t("codego.shell.providers", { defaultValue: "API 配置" });
+      case "codegoTokens":
+        return t("codego.tokens.title", { defaultValue: "令牌" });
+      case "codegoLogs":
+        return t("codego.logs.title", { defaultValue: "日志" });
+      case "codegoDevices":
+        return t("codego.devices.title", { defaultValue: "设备" });
+      case "codegoDiagnostics":
+        return t("codego.diagnostics.title", { defaultValue: "诊断" });
+      case "codegoModels":
+        return t("codego.modelPlaza.title", { defaultValue: "模型广场" });
+      case "codegoGroups":
+        return t("codego.groups.title", { defaultValue: "分组状态" });
       case "settings":
         return t("settings.title");
       case "prompts":
@@ -948,16 +999,36 @@ function App() {
   const currentViewSubtitle =
     currentView === "codego"
       ? t("codego.shell.desktopSubtitle", {
-          defaultValue: "Account, tokens, diagnostics, and local tool setup.",
+          defaultValue: "账号额度、桌面令牌、最近用量和服务状态。",
         })
       : currentView === "providers"
         ? t("codego.shell.providersSubtitle", {
-            defaultValue:
-              "Switch providers and keep every CLI workspace aligned.",
+            defaultValue: "选择应用并维护对应工具的 API 供应商配置。",
           })
-        : t("codego.shell.workspaceSubtitle", {
-            defaultValue: "Focused operational view for the active workflow.",
-          });
+        : currentView === "codegoTokens"
+          ? t("codego.shell.tokensSubtitle", {
+              defaultValue: "创建、查看、复制和应用当前账号的 API 密钥。",
+            })
+          : currentView === "codegoLogs"
+            ? t("codego.shell.logsSubtitle", {
+                defaultValue: "按模型、令牌和请求筛选网站调用日志。",
+              })
+            : currentView === "codegoDevices"
+              ? t("codego.shell.devicesSubtitle", {
+                  defaultValue: "查看和撤销已授权的桌面设备。",
+                })
+              : currentView === "codegoModels"
+                ? t("codego.shell.modelsSubtitle", {
+                    defaultValue: "查看当前授权账号可用的模型列表。",
+                  })
+                : currentView === "codegoGroups"
+                  ? t("codego.shell.groupsSubtitle", {
+                      defaultValue: "查看网站分组状态和当前账号分组。",
+                    })
+                  : t("codego.shell.workspaceSubtitle", {
+                      defaultValue:
+                        "Focused operational view for the active workflow.",
+                    });
 
   const primaryNavItems: NavItemConfig[] = [
     {
@@ -965,15 +1036,55 @@ function App() {
       icon: LayoutDashboard,
       label: t("codego.shell.dashboard", { defaultValue: "Dashboard" }),
       description: t("codego.shell.nav.dashboardDesc", {
-        defaultValue: "认证状态、额度、令牌和设备管理",
+        defaultValue: "账号额度、桌面令牌和服务状态",
       }),
     },
     {
       view: "providers",
       icon: Wrench,
-      label: t("codego.shell.providers", { defaultValue: "Providers" }),
+      label: t("codego.shell.providers", { defaultValue: "API 配置" }),
       description: t("codego.shell.nav.providersDesc", {
-        defaultValue: "切换供应商并维护各个工具的当前配置",
+        defaultValue: "选择应用并维护工具供应商",
+      }),
+    },
+    {
+      view: "codegoTokens",
+      icon: KeyRound,
+      label: t("codego.tokens.title", { defaultValue: "令牌" }),
+      description: t("codego.shell.nav.tokensDesc", {
+        defaultValue: "创建、复制和应用 API 密钥",
+      }),
+    },
+    {
+      view: "codegoLogs",
+      icon: FileClock,
+      label: t("codego.logs.title", { defaultValue: "日志" }),
+      description: t("codego.shell.nav.logsDesc", {
+        defaultValue: "查看网站请求和用量明细",
+      }),
+    },
+    {
+      view: "codegoDevices",
+      icon: Laptop,
+      label: t("codego.devices.title", { defaultValue: "设备" }),
+      description: t("codego.shell.nav.devicesDesc", {
+        defaultValue: "查看和撤销桌面授权",
+      }),
+    },
+    {
+      view: "codegoModels",
+      icon: Boxes,
+      label: t("codego.modelPlaza.title", { defaultValue: "模型广场" }),
+      description: t("codego.shell.nav.modelsDesc", {
+        defaultValue: "同步当前账号可用模型",
+      }),
+    },
+    {
+      view: "codegoGroups",
+      icon: Layers3,
+      label: t("codego.groups.title", { defaultValue: "分组状态" }),
+      description: t("codego.shell.nav.groupsDesc", {
+        defaultValue: "查看网站分组和当前权限",
       }),
     },
     {
@@ -1103,9 +1214,49 @@ function App() {
                 setSettingsDefaultTab("general");
                 setCurrentView("settings");
               }}
-              onOpenProviders={() => setCurrentView("providers")}
+              onOpenTokens={() => setCurrentView("codegoTokens")}
+              onOpenLogs={() => setCurrentView("codegoLogs")}
             />
           );
+        case "codegoTokens":
+          return (
+            <div className="px-6 pb-8">
+              <div className="mx-auto w-full max-w-7xl">
+                <CodeGoTokenManager enabled={isCodeGoAuthenticated} />
+              </div>
+            </div>
+          );
+        case "codegoLogs":
+          return (
+            <div className="px-6 pb-8">
+              <div className="mx-auto w-full max-w-7xl">
+                <CodeGoLogsExplorer enabled={isCodeGoAuthenticated} />
+              </div>
+            </div>
+          );
+        case "codegoDevices":
+          return (
+            <div className="px-6 pb-8">
+              <div className="mx-auto w-full max-w-7xl">
+                <CodeGoAuthorizedDevicesCard
+                  enabled={isCodeGoAuthenticated}
+                  currentDeviceId={codegoAuthState?.deviceId}
+                />
+              </div>
+            </div>
+          );
+        case "codegoDiagnostics":
+          return (
+            <div className="px-6 pb-8">
+              <div className="mx-auto w-full max-w-7xl">
+                <CodeGoDiagnosticReportCard enabled={isCodeGoAuthenticated} />
+              </div>
+            </div>
+          );
+        case "codegoModels":
+          return <CodeGoModelPlazaPage />;
+        case "codegoGroups":
+          return <CodeGoGroupStatusPage />;
         case "settings":
           return (
             <SettingsPage
@@ -1443,58 +1594,36 @@ function App() {
         <div className="codego-shell flex h-full min-h-0 overflow-hidden">
           <aside
             className={cn(
-              "codego-sidebar-surface w-[324px] shrink-0 px-4 py-4 lg:flex lg:flex-col",
-              currentView === "codego" ? "hidden xl:flex" : "hidden lg:flex",
+              "codego-sidebar-surface hidden w-[286px] shrink-0 overflow-y-auto overflow-x-hidden px-4 py-4 md:flex md:flex-col",
             )}
           >
-            <div className="codego-panel p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/70 bg-white/82 dark:border-white/10 dark:bg-white/[0.05]">
-                  <CodeGoMark size={34} className="h-8 w-8" />
-                </div>
-                <div className="min-w-0">
-                  <a
-                    href="https://shu26.cfd"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="block truncate text-sm font-semibold text-foreground"
-                  >
-                    codego
-                  </a>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    {t("codego.shell.desktopSurface", {
-                      defaultValue: "Desktop control surface",
-                    })}
-                  </div>
-                </div>
+            <div className="flex items-center gap-3 px-1 pb-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/70 bg-white/80 dark:border-white/10 dark:bg-white/[0.05]">
+                <CodeGoMark size={26} className="h-7 w-7" />
               </div>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Badge
-                  className={cn(
-                    "rounded-full border px-2.5 py-1 text-[11px] font-medium",
-                    isProxyRunning && isCurrentAppTakeoverActive
-                      ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                      : "codego-chip-cool",
-                  )}
+              <div className="min-w-0">
+                <a
+                  href="https://shu26.cfd"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block truncate text-sm font-semibold text-foreground"
                 >
-                  {isProxyRunning && isCurrentAppTakeoverActive
-                    ? t("codego.shell.routeActive", {
-                        defaultValue: "route active",
+                  codego
+                </a>
+                <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                  {isCodeGoAuthenticated
+                    ? t("codego.shell.connectedAs", {
+                        name: codegoDisplayName,
+                        defaultValue: "已连接 · {{name}}",
                       })
-                    : t("codego.shell.desktopReady", {
-                        defaultValue: "desktop ready",
+                    : t("codego.shell.notConnected", {
+                        defaultValue: "未连接",
                       })}
-                </Badge>
-                <Badge
-                  variant="outline"
-                  className="rounded-full px-2.5 py-1 text-[11px]"
-                >
-                  {t(`apps.${activeApp}`)}
-                </Badge>
+                </div>
               </div>
             </div>
 
-            <div className="mt-5">
+            <div className="mt-3">
               <div className="codego-subnav-label">
                 {t("codego.shell.controlCenter", {
                   defaultValue: "Control center",
@@ -1534,7 +1663,7 @@ function App() {
               </div>
             </div>
 
-            <div className="mt-6">
+            <div className="mt-5">
               <div className="codego-subnav-label">
                 {t("codego.shell.workspace", {
                   defaultValue: "Workspace",
@@ -1609,22 +1738,6 @@ function App() {
               </div>
             )}
 
-            <div className="mt-6">
-              <div className="codego-subnav-label">
-                {t("codego.shell.activeApp", {
-                  defaultValue: "Active app",
-                })}
-              </div>
-              <div className="mt-2 codego-panel p-3">
-                <AppSwitcher
-                  activeApp={activeApp}
-                  onSwitch={setActiveApp}
-                  visibleApps={visibleApps}
-                  compact={false}
-                />
-              </div>
-            </div>
-
             <div className="mt-auto space-y-3 pt-6">
               {currentView === "providers" && (
                 <Button
@@ -1673,21 +1786,6 @@ function App() {
                   <div className="h-8 w-8" />
                 )}
               </div>
-              {toolWorkspaceItems.length > 0 && (
-                <div className="codego-panel p-4">
-                  <div className="text-sm font-medium text-foreground">
-                    {t("codego.shell.currentToolWorkspace", {
-                      defaultValue: "Tool workspace",
-                    })}
-                  </div>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    {t("codego.shell.toolWorkspaceHint", {
-                      defaultValue:
-                        "当前应用带有额外配置面板，可在左侧导航中直接进入。",
-                    })}
-                  </p>
-                </div>
-              )}
             </div>
           </aside>
 
@@ -1883,7 +1981,7 @@ function App() {
                       )}
                       {currentView === "providers" && (
                         <>
-                          <div className="lg:hidden">
+                          <div className="w-full max-w-[34rem]">
                             <AppSwitcher
                               activeApp={activeApp}
                               onSwitch={setActiveApp}

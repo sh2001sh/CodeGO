@@ -67,7 +67,14 @@ export function AppSwitcher({
   });
 
   return (
-    <div className="inline-flex bg-muted rounded-xl p-1 gap-1">
+    <div
+      className={cn(
+        "grid w-full gap-1 rounded-xl bg-muted p-1",
+        compact
+          ? "grid-cols-4"
+          : "grid-cols-[repeat(auto-fit,minmax(7.5rem,1fr))]",
+      )}
+    >
       {appsToShow.map((app) => {
         const badgeConfig = APP_BADGE_ICON[app];
         const BadgeIcon = badgeConfig?.icon;
@@ -78,7 +85,7 @@ export function AppSwitcher({
             type="button"
             onClick={() => handleSwitch(app)}
             className={cn(
-              "group inline-flex items-center px-3 h-8 rounded-md text-sm font-medium transition-all duration-200",
+              "group inline-flex h-8 min-w-0 items-center justify-center rounded-md px-2 text-sm font-medium transition-all duration-200",
               isActive
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground hover:bg-background/50",
@@ -117,7 +124,7 @@ export function AppSwitcher({
                 "transition-all duration-200 whitespace-nowrap overflow-hidden",
                 compact
                   ? "max-w-0 opacity-0 ml-0"
-                  : "max-w-[120px] opacity-100 ml-2",
+                  : "min-w-0 max-w-full truncate opacity-100 ml-2",
               )}
             >
               {appDisplayName[app]}

@@ -96,8 +96,8 @@ export function CodeGoDesktopAuthView({
   return (
     <section className="grid gap-5 xl:grid-cols-[1.02fr_0.98fr]">
       <div className="codego-shell overflow-hidden">
-        <div className="grid lg:grid-cols-[1.08fr_0.92fr]">
-          <div className="codego-grid border-b border-white/50 px-6 py-6 dark:border-white/10 lg:border-b-0 lg:border-r">
+        <div className="grid">
+          <div className="codego-grid border-b border-white/50 px-6 py-6 dark:border-white/10">
             <div className="flex items-start gap-4">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/70 bg-white/80 dark:border-white/10 dark:bg-white/[0.06]">
                 <CodeGoMark size={40} className="h-10 w-10" />
@@ -123,7 +123,7 @@ export function CodeGoDesktopAuthView({
               </div>
             </div>
 
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">
+            <div className="mt-6 grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
               {setupSteps.map((item) => (
                 <div key={item.title} className="codego-metric-card">
                   <div className="text-sm font-semibold text-foreground">

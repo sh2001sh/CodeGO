@@ -8,6 +8,7 @@ import {
 } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { CodeGoAuthorizedDevicesCard } from "@/components/codego/CodeGoAuthorizedDevicesCard";
 import { CodeGoDashboard } from "@/components/codego/CodeGoDashboard";
 import { settingsApi } from "@/lib/api/settings";
 import { createTestQueryClient } from "../utils/testQueryClient";
@@ -47,18 +48,35 @@ vi.mock("@/components/codego/CodeGoUsageTrendCard", () => ({
 function renderDashboard() {
   const client = createTestQueryClient();
   const onOpenSettings = vi.fn();
-  const onOpenProviders = vi.fn();
+  const onOpenTokens = vi.fn();
+  const onOpenLogs = vi.fn();
 
   render(
     <QueryClientProvider client={client}>
       <CodeGoDashboard
         onOpenSettings={onOpenSettings}
-        onOpenProviders={onOpenProviders}
+        onOpenTokens={onOpenTokens}
+        onOpenLogs={onOpenLogs}
       />
     </QueryClientProvider>,
   );
 
-  return { client, onOpenProviders, onOpenSettings };
+  return { client, onOpenLogs, onOpenSettings, onOpenTokens };
+}
+
+function renderAuthorizedDevices(currentDeviceId = 11) {
+  const client = createTestQueryClient();
+
+  render(
+    <QueryClientProvider client={client}>
+      <CodeGoAuthorizedDevicesCard
+        enabled={true}
+        currentDeviceId={currentDeviceId}
+      />
+    </QueryClientProvider>,
+  );
+
+  return { client };
 }
 
 describe("CodeGoDashboard", () => {
@@ -278,7 +296,7 @@ describe("CodeGoDashboard", () => {
     );
   });
 
-  it("renders diagnostics in the authenticated dashboard and requires consent before submitting", async () => {
+  it("keeps diagnostics and tool setup out of the overview", async () => {
     setCodeGoAuthState({
       authenticated: true,
       serverAddress: "https://shu26.cfd",
@@ -304,21 +322,6 @@ describe("CodeGoDashboard", () => {
         funding_source_order: ["wallet"],
       },
     });
-    server.use(
-      http.post("http://tauri.local/codego_get_diagnostic_preview", () =>
-        HttpResponse.json({
-          hasReport: true,
-          summary: "Crash report captured",
-          generatedAt: 1719500000,
-          preview: "sanitized payload",
-          redactionsApplied: ["token"],
-        }),
-      ),
-      http.post("http://tauri.local/codego_submit_diagnostic_report", () =>
-        HttpResponse.json({ id: 42 }),
-      ),
-    );
-
     renderDashboard();
 
     await waitFor(() =>
@@ -326,36 +329,10 @@ describe("CodeGoDashboard", () => {
         screen.getByRole("heading", { name: "Demo User" }),
       ).toBeInTheDocument(),
     );
-    fireEvent.click(screen.getByRole("button", { name: /Diagnostics|诊断/ }));
-
-    await waitFor(() =>
-      expect(screen.getByText("Crash report captured")).toBeInTheDocument(),
-    );
-    expect(screen.getByText("1 redactions")).toBeInTheDocument();
-    expect(screen.getByLabelText("Sanitized report preview")).toHaveValue(
-      "sanitized payload",
-    );
-
-    const sendButton = screen.getByRole("button", {
-      name: "Send diagnostic report",
-    });
-    expect(sendButton).toBeDisabled();
-
-    fireEvent.click(
-      screen.getByLabelText(
-        "I reviewed the sanitized report and want to send it",
-      ),
-    );
-    expect(sendButton).not.toBeDisabled();
-
-    fireEvent.click(sendButton);
-
-    await waitFor(() =>
-      expect(toastSuccessMock).toHaveBeenCalledWith(
-        "Diagnostic report #42 submitted",
-        expect.objectContaining({ closeButton: true }),
-      ),
-    );
+    expect(
+      screen.queryByRole("button", { name: /Diagnostics|诊断/ }),
+    ).toBeNull();
+    expect(screen.queryByTestId("codego-tool-config-panel")).toBeNull();
   });
 
   it("surfaces rejected authorization after the poll result comes back", async () => {
@@ -492,22 +469,9 @@ describe("CodeGoDashboard", () => {
     expect(screen.queryByText("Log center")).not.toBeInTheDocument();
 
     expect(screen.getAllByText("Last request").length).toBeGreaterThan(0);
-
-    fireEvent.click(screen.getByRole("button", { name: /Devices|设备/ }));
-
-    await waitFor(() =>
-      expect(
-        screen.getByRole("heading", {
-          name: /Authorized devices|已授权设备/,
-        }),
-      ).toBeInTheDocument(),
-    );
     expect(
-      screen.getByRole("heading", {
-        name: /Authorized devices|已授权设备/,
-      }),
-    ).toBeInTheDocument();
-    expect(screen.getAllByText(/codego desktop/i).length).toBeGreaterThan(0);
+      screen.queryByTestId("codego-tool-config-panel"),
+    ).not.toBeInTheDocument();
   });
 
   it("renders the service maintenance state when the backend marks maintenance", async () => {
@@ -720,14 +684,8 @@ describe("CodeGoDashboard", () => {
       },
     ]);
 
-    renderDashboard();
+    renderAuthorizedDevices();
 
-    await waitFor(() =>
-      expect(
-        screen.getByRole("heading", { name: "Demo User" }),
-      ).toBeInTheDocument(),
-    );
-    fireEvent.click(screen.getByRole("button", { name: /Devices|设备/ }));
     await waitFor(() =>
       expect(
         screen.getByRole("heading", {
@@ -761,7 +719,9 @@ describe("CodeGoDashboard", () => {
     );
 
     expect(
-      screen.getByRole("heading", { name: "Demo User" }),
+      screen.getByRole("heading", {
+        name: /Authorized devices|已授权设备/,
+      }),
     ).toBeInTheDocument();
     expect(toastSuccessMock).toHaveBeenCalledWith(
       "MacBook Pro access revoked",
@@ -788,14 +748,7 @@ describe("CodeGoDashboard", () => {
       ),
     );
 
-    renderDashboard();
-
-    await waitFor(() =>
-      expect(
-        screen.getByRole("heading", { name: "Demo User" }),
-      ).toBeInTheDocument(),
-    );
-    fireEvent.click(screen.getByRole("button", { name: /Devices|设备/ }));
+    renderAuthorizedDevices();
 
     await waitFor(() =>
       expect(
@@ -809,9 +762,6 @@ describe("CodeGoDashboard", () => {
         name: /Authorize in browser|浏览器.*授权/,
       }),
     ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "Demo User" }),
-    ).toBeInTheDocument();
   });
 
   it("keeps revoked devices visible without counting them as active or allowing another revoke", async () => {
@@ -848,14 +798,8 @@ describe("CodeGoDashboard", () => {
       },
     ]);
 
-    renderDashboard();
+    renderAuthorizedDevices();
 
-    await waitFor(() =>
-      expect(
-        screen.getByRole("heading", { name: "Demo User" }),
-      ).toBeInTheDocument(),
-    );
-    fireEvent.click(screen.getByRole("button", { name: /Devices|设备/ }));
     await waitFor(() =>
       expect(
         screen.getByRole("heading", {
@@ -884,7 +828,7 @@ describe("CodeGoDashboard", () => {
     ).toBeInTheDocument();
   });
 
-  it("revokes the current device and returns to the authorization screen", async () => {
+  it("revokes the current device and refreshes the device list", async () => {
     setCodeGoAuthState({
       authenticated: true,
       serverAddress: "https://shu26.cfd",
@@ -907,14 +851,8 @@ describe("CodeGoDashboard", () => {
       },
     ]);
 
-    renderDashboard();
+    renderAuthorizedDevices();
 
-    await waitFor(() =>
-      expect(
-        screen.getByRole("heading", { name: "Demo User" }),
-      ).toBeInTheDocument(),
-    );
-    fireEvent.click(screen.getByRole("button", { name: /Devices|设备/ }));
     await waitFor(() =>
       expect(
         screen.getByRole("heading", {
@@ -945,11 +883,7 @@ describe("CodeGoDashboard", () => {
     );
 
     await waitFor(() =>
-      expect(
-        screen.getByRole("heading", {
-          name: "Approve this desktop from the website, then keep control here.",
-        }),
-      ).toBeInTheDocument(),
+      expect(screen.queryByText("codego desktop")).not.toBeInTheDocument(),
     );
 
     expect(toastSuccessMock).toHaveBeenCalledWith(

@@ -293,22 +293,39 @@ export const useCodeGoPollAuthSessionMutation = () => {
 
 export const useCodeGoLogoutMutation = () => {
   const queryClient = useQueryClient();
+  const clearCodeGoSessionCache = () => {
+    queryClient.setQueryData<CodeGoAuthState | undefined>(
+      codegoKeys.auth(),
+      (current) => ({
+        ...current,
+        authenticated: false,
+        accessToken: undefined,
+        userId: undefined,
+        deviceId: undefined,
+      }),
+    );
+    queryClient.removeQueries({ queryKey: codegoKeys.summary() });
+    queryClient.removeQueries({ queryKey: codegoKeys.devices() });
+    queryClient.removeQueries({ queryKey: codegoKeys.groups() });
+    queryClient.removeQueries({
+      queryKey: [...codegoKeys.all, "trends"],
+    });
+    queryClient.removeQueries({
+      queryKey: [...codegoKeys.all, "tokens"],
+    });
+    queryClient.removeQueries({
+      queryKey: [...codegoKeys.all, "logs"],
+    });
+  };
+
   return useMutation({
     mutationFn: () => codegoApi.logout(),
+    onMutate: () => {
+      clearCodeGoSessionCache();
+    },
     onSuccess: async () => {
+      clearCodeGoSessionCache();
       await queryClient.invalidateQueries({ queryKey: codegoKeys.auth() });
-      await queryClient.removeQueries({ queryKey: codegoKeys.summary() });
-      await queryClient.removeQueries({ queryKey: codegoKeys.devices() });
-      await queryClient.removeQueries({ queryKey: codegoKeys.groups() });
-      await queryClient.removeQueries({
-        queryKey: [...codegoKeys.all, "trends"],
-      });
-      await queryClient.removeQueries({
-        queryKey: [...codegoKeys.all, "tokens"],
-      });
-      await queryClient.removeQueries({
-        queryKey: [...codegoKeys.all, "logs"],
-      });
     },
   });
 };

@@ -384,10 +384,14 @@ describe("App integration with MSW", () => {
       ).toBeInTheDocument(),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Authorize in browser" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Authorize in browser" }),
+    );
 
     await waitFor(() => {
-      expect(screen.getByText("Enter this code in your browser")).toBeInTheDocument();
+      expect(
+        screen.getByText("Enter this code in your browser"),
+      ).toBeInTheDocument();
       expect(screen.getByText("ABCD1234")).toBeInTheDocument();
     });
 
@@ -400,12 +404,14 @@ describe("App integration with MSW", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Tool configuration")).toBeInTheDocument();
+      expect(
+        screen.getByRole("heading", { name: "Desktop token" }),
+      ).toBeInTheDocument();
       expect(screen.getByText("Usage trends")).toBeInTheDocument();
       expect(
         screen.getByText("Rolling usage across the last 7 days."),
       ).toBeInTheDocument();
-      expect(screen.getAllByText("Config detected").length).toBeGreaterThan(0);
+      expect(screen.queryByText("Tool configuration")).not.toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("button", { name: "30d" }));
@@ -415,46 +421,9 @@ describe("App integration with MSW", () => {
       ).toBeInTheDocument(),
     );
 
-    fireEvent.click(screen.getAllByRole("button", { name: "Preview" })[0]!);
-    await waitFor(() =>
-      expect(screen.getByText(/codego preview/)).toBeInTheDocument(),
+    fireEvent.click(
+      screen.getByRole("button", { name: /^(Providers|API 配置)(\s|$)/ }),
     );
-    await waitFor(() => {
-      expect(screen.getByText("Current local config")).toBeInTheDocument();
-      expect(screen.getByText("codego config")).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Close" }));
-
-    fireEvent.click(screen.getAllByRole("button", { name: "Apply" })[0]!);
-    await waitFor(() =>
-      expect(toastSuccessMock).toHaveBeenCalledWith(
-        expect.stringContaining("applied"),
-        expect.anything(),
-      ),
-    );
-
-    fireEvent.click(screen.getAllByRole("button", { name: "Test" })[0]!);
-    await waitFor(() =>
-      expect(
-        toastSuccessMock.mock.calls.some(
-          ([message]) =>
-            typeof message === "string" &&
-            message.includes("configured for the current codego endpoint"),
-        ),
-      ).toBe(true),
-    );
-
-    fireEvent.click(screen.getAllByRole("button", { name: "Restore" })[0]!);
-    await waitFor(() =>
-      expect(toastSuccessMock).toHaveBeenCalledWith(
-        expect.stringContaining("config restored"),
-        expect.objectContaining({
-          closeButton: true,
-        }),
-      ),
-    );
-
-    fireEvent.click(screen.getAllByRole("button", { name: "Providers" })[0]);
 
     await waitFor(() =>
       expect(screen.getByTestId("provider-list").textContent).toContain(
@@ -476,17 +445,21 @@ describe("App integration with MSW", () => {
     renderApp(App);
 
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /Tokens/ })).toBeInTheDocument(),
+      expect(
+        screen.getByRole("button", { name: /^(Tokens|令牌)(\s|$)/ }),
+      ).toBeInTheDocument(),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /Tokens/ }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /^(Tokens|令牌)(\s|$)/ }),
+    );
 
     await waitFor(() =>
       expect(screen.getByText("Token management")).toBeInTheDocument(),
     );
 
     await waitFor(() =>
-    expect(screen.getByText("codego codex workstation")).toBeInTheDocument(),
+      expect(screen.getByText("codego codex workstation")).toBeInTheDocument(),
     );
 
     fireEvent.click(screen.getByRole("button", { name: "New token" }));
@@ -505,9 +478,7 @@ describe("App integration with MSW", () => {
       true,
     );
 
-    fireEvent.click(
-      screen.getAllByRole("button", { name: /Copy key/ })[0]!,
-    );
+    fireEvent.click(screen.getAllByRole("button", { name: /Copy key/ })[0]!);
     await waitFor(() =>
       expect(screen.getByTestId("confirm-dialog")).toBeInTheDocument(),
     );
@@ -516,7 +487,7 @@ describe("App integration with MSW", () => {
       expect(navigator.clipboard.writeText).toHaveBeenCalled(),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /Logs/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^(Logs|日志)(\s|$)/ }));
 
     await waitFor(() =>
       expect(screen.getByText("Usage logs")).toBeInTheDocument(),
@@ -579,7 +550,9 @@ describe("App integration with MSW", () => {
       ),
     );
 
-    await waitFor(() => expect(screen.getByText("1 total")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText("1 total")).toBeInTheDocument(),
+    );
     expect(screen.getByText("cg_desktop_xxxx")).toBeInTheDocument();
   });
 });

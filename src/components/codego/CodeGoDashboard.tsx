@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -20,12 +20,14 @@ import { CodeGoMark } from "./CodeGoMark";
 
 interface CodeGoDashboardProps {
   onOpenSettings: () => void;
-  onOpenProviders: () => void;
+  onOpenTokens: () => void;
+  onOpenLogs: () => void;
 }
 
 export function CodeGoDashboard({
   onOpenSettings,
-  onOpenProviders,
+  onOpenTokens,
+  onOpenLogs,
 }: CodeGoDashboardProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -48,7 +50,6 @@ export function CodeGoDashboard({
     authQuery.data?.serverAddress || "https://shu26.cfd",
   );
   const [deviceName, setDeviceName] = useState("codego desktop");
-  const [activeTab, setActiveTab] = useState("overview");
   const [isEnsuringToken, setIsEnsuringToken] = useState(false);
   const [authSession, setAuthSession] = useState<{
     sessionId: string;
@@ -96,11 +97,6 @@ export function CodeGoDashboard({
       stopAuthPolling();
     };
   }, []);
-
-  const usageModels = useMemo(
-    () => summary?.usage.available_models?.slice(0, 6) ?? [],
-    [summary?.usage.available_models],
-  );
 
   const handleOpenAuthorizationUrl = async (url: string) => {
     try {
@@ -334,17 +330,15 @@ export function CodeGoDashboard({
     <div className="flex flex-1 px-6 pb-8">
       <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-5">
         <CodeGoAuthenticatedOverview
-          activeTab={activeTab}
           summary={summary}
           authState={authQuery.data}
-          usageModels={usageModels}
           isAuthenticated={isAuthenticated}
           summaryIsFetching={summaryQuery.isFetching}
           logoutPending={logoutMutation.isPending}
           isEnsuringToken={isEnsuringToken}
-          onActiveTabChange={setActiveTab}
           onRefresh={() => void summaryQuery.refetch()}
-          onOpenProviders={onOpenProviders}
+          onOpenTokens={onOpenTokens}
+          onOpenLogs={onOpenLogs}
           onLogout={() => void handleLogout()}
           onCopyToken={() => void handleCopyToken()}
           onEnsureToken={() => void ensureDesktopToken()}
