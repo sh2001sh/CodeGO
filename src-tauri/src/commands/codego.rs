@@ -60,7 +60,13 @@ fn codego_provider_id(tool: &str) -> String {
 
 fn normalize_codego_api_key(raw: &str) -> String {
     let key = raw.trim();
-    if key.is_empty() || key.starts_with(CODEGO_API_KEY_PREFIX) {
+    if key.is_empty() {
+        return key.to_string();
+    }
+    if key.starts_with("sk-sk-") {
+        return key.trim_start_matches("sk-").to_string();
+    }
+    if key.starts_with(CODEGO_API_KEY_PREFIX) {
         return key.to_string();
     }
     format!("{CODEGO_API_KEY_PREFIX}{key}")
@@ -2342,6 +2348,35 @@ fn ensure_token_request_value(value: Value) -> Result<(String, String), String> 
         .unwrap_or("Code Go Desktop - Default")
         .to_string();
     Ok((normalize_codego_api_key(&full_key), token_name))
+}
+
+async fn decode_codego_response_value(response: reqwest::Response) -> Result<Value, String> {
+    let status = response.status();
+    let text = response
+        .text()
+        .await
+        .map_err(|e| format!("failed to read response: {e}"))?;
+
+    if !status.is_success() {
+        return Err(handle_codego_http_error(status, &text, false));
+    }
+
+    let value: Value =
+        serde_json::from_str(&text).map_err(|e| format!("failed to decode response: {e}"))?;
+
+    if let Some(success) = value.get("success").and_then(Value::as_bool) {
+        let message = value
+            .get("message")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .trim()
+            .to_string();
+        if !success {
+            return Err(handle_codego_api_failure_message(&message, false));
+        }
+    }
+
+    Ok(value)
 }
 
 async fn ensure_desktop_token(auth: &CodeGoAuthState) -> Result<(String, String), String> {
@@ -5396,7 +5431,7 @@ pub async fn codego_get_groups() -> Result<Value, String> {
 pub async fn codego_get_group_status() -> Result<Value, String> {
     let auth = load_auth_state();
     let (client, server_address) = build_authed_client(&auth)?;
-    parse_response_without_auth_clear(
+    decode_codego_response_value(
         client
             .get(build_url(&server_address, "/api/desktop/group-status"))
             .send()
@@ -5410,7 +5445,7 @@ pub async fn codego_get_group_status() -> Result<Value, String> {
 pub async fn codego_get_pricing() -> Result<Value, String> {
     let auth = load_auth_state();
     let (client, server_address) = build_authed_client(&auth)?;
-    parse_response_without_auth_clear(
+    decode_codego_response_value(
         client
             .get(build_url(&server_address, "/api/desktop/pricing"))
             .send()

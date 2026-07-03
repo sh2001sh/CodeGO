@@ -251,6 +251,15 @@ export interface CodeGoPricingModel {
   pricing_version?: string;
 }
 
+export interface CodeGoPricingData {
+  success?: boolean;
+  message?: string;
+  data?: CodeGoPricingModel[];
+  group_ratio?: Record<string, number>;
+  usable_group?: Record<string, unknown>;
+  pricing_version?: string;
+}
+
 export type CodeGoGroupAvailabilityStatus =
   | "healthy"
   | "slow"
@@ -460,7 +469,7 @@ export const codegoApi = {
     return invoke("codego_get_group_status");
   },
 
-  async getPricing(): Promise<CodeGoPricingModel[]> {
+  async getPricing(): Promise<CodeGoPricingData> {
     return invoke("codego_get_pricing");
   },
 

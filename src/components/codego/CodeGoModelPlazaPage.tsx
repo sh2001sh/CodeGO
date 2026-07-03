@@ -24,15 +24,14 @@ import { cn } from "@/lib/utils";
 import { extractErrorMessage } from "@/utils/errorUtils";
 import type { CodeGoPricingModel } from "@/lib/api/codego";
 
-function formatFee(item: CodeGoPricingModel) {
-  if (item.quota_type === 1) {
-    return `固定价 ${formatMoney(item.model_price)}`;
-  }
-  return `倍率 x${formatRatio(item.model_ratio)}`;
+function formatRatio(value: number) {
+  if (!Number.isFinite(value)) return "--";
+  return value >= 10 ? value.toFixed(0) : value.toFixed(2);
 }
 
 function formatDetail(item: CodeGoPricingModel) {
   const parts: string[] = [];
+  parts.push(item.quota_type === 1 ? "按次计费" : "Token 计费");
   if (item.quota_type !== 1) {
     parts.push(`补全 x${formatRatio(item.completion_ratio)}`);
   }
@@ -45,26 +44,10 @@ function formatDetail(item: CodeGoPricingModel) {
   return parts.join(" · ");
 }
 
-function formatMoney(value: number) {
-  if (!Number.isFinite(value)) return "--";
-  return value >= 1000 ? value.toFixed(0) : value.toFixed(2);
-}
-
-function formatRatio(value: number) {
-  if (!Number.isFinite(value)) return "--";
-  return value >= 10 ? value.toFixed(0) : value.toFixed(2);
-}
-
 function normalizeGroups(groups: string[]) {
   return [...new Set(groups.map((group) => group.trim()).filter(Boolean))].sort(
     (left, right) => left.localeCompare(right, "zh-CN"),
   );
-}
-
-function feeTone(item: CodeGoPricingModel) {
-  return item.quota_type === 1
-    ? "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-200"
-    : "border-blue-500/25 bg-blue-500/10 text-blue-700 dark:text-blue-200";
 }
 
 export function CodeGoModelPlazaPage() {
@@ -82,13 +65,13 @@ export function CodeGoModelPlazaPage() {
 
   const models = useMemo(
     () =>
-      [...(pricingQuery.data ?? [])].sort((left, right) => {
+      [...(pricingQuery.data?.data ?? [])].sort((left, right) => {
         const leftGroups = left.enable_groups?.length ?? 0;
         const rightGroups = right.enable_groups?.length ?? 0;
         if (leftGroups !== rightGroups) return rightGroups - leftGroups;
         return left.model_name.localeCompare(right.model_name, "en");
       }),
-    [pricingQuery.data],
+    [pricingQuery.data?.data],
   );
 
   const groupCount = useMemo(() => {
@@ -188,9 +171,8 @@ export function CodeGoModelPlazaPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[34%]">模型</TableHead>
-                      <TableHead className="w-[34%]">分组</TableHead>
-                      <TableHead className="w-[18%]">费用</TableHead>
+                      <TableHead className="w-[40%]">模型</TableHead>
+                      <TableHead className="w-[35%]">分组</TableHead>
                       <TableHead>说明</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -230,11 +212,6 @@ export function CodeGoModelPlazaPage() {
                               )}
                             </div>
                           </TableCell>
-                          <TableCell className="align-top">
-                            <Badge variant="outline" className={feeTone(item)}>
-                              {formatFee(item)}
-                            </Badge>
-                          </TableCell>
                           <TableCell className="align-top text-sm text-muted-foreground">
                             {formatDetail(item) || "—"}
                           </TableCell>
@@ -266,7 +243,7 @@ export function CodeGoModelPlazaPage() {
             {summaryQuery.data?.account.group ? (
               <div>
                 <Badge variant="outline">
-                  {t("codego.groups.current", "当前分组")}:{" "}
+                  {t("codego.groups.current", "当前分组")}: {" "}
                   {summaryQuery.data.account.group}
                 </Badge>
               </div>
