@@ -24,7 +24,6 @@ import {
   Search,
   FolderOpen,
   KeyRound,
-  Laptop,
   Layers3,
   Shield,
   Cpu,
@@ -89,7 +88,6 @@ import { DeepLinkImportDialog } from "@/components/DeepLinkImportDialog";
 import { FirstRunNoticeDialog } from "@/components/FirstRunNoticeDialog";
 import { AgentsPanel } from "@/components/agents/AgentsPanel";
 import { CodeGoDashboard } from "@/components/codego/CodeGoDashboard";
-import { CodeGoAuthorizedDevicesCard } from "@/components/codego/CodeGoAuthorizedDevicesCard";
 import { CodeGoDiagnosticReportCard } from "@/components/codego/CodeGoDiagnosticReportCard";
 import { CodeGoGroupStatusPage } from "@/components/codego/CodeGoGroupStatusPage";
 import { CodeGoLogsExplorer } from "@/components/codego/CodeGoLogsExplorer";
@@ -116,7 +114,6 @@ type View =
   | "providers"
   | "codegoTokens"
   | "codegoLogs"
-  | "codegoDevices"
   | "codegoDiagnostics"
   | "codegoModels"
   | "codegoGroups"
@@ -179,7 +176,6 @@ const VALID_VIEWS: View[] = [
   "providers",
   "codegoTokens",
   "codegoLogs",
-  "codegoDevices",
   "codegoDiagnostics",
   "codegoModels",
   "codegoGroups",
@@ -937,7 +933,6 @@ function App() {
     currentView === "providers" ||
     currentView === "codegoTokens" ||
     currentView === "codegoLogs" ||
-    currentView === "codegoDevices" ||
     currentView === "codegoDiagnostics" ||
     currentView === "codegoModels" ||
     currentView === "codegoGroups";
@@ -953,8 +948,6 @@ function App() {
         return t("codego.tokens.title", { defaultValue: "令牌" });
       case "codegoLogs":
         return t("codego.logs.title", { defaultValue: "日志" });
-      case "codegoDevices":
-        return t("codego.devices.title", { defaultValue: "设备" });
       case "codegoDiagnostics":
         return t("codego.diagnostics.title", { defaultValue: "诊断" });
       case "codegoModels":
@@ -1013,10 +1006,6 @@ function App() {
             ? t("codego.shell.logsSubtitle", {
                 defaultValue: "按模型、令牌和请求筛选网站调用日志。",
               })
-            : currentView === "codegoDevices"
-              ? t("codego.shell.devicesSubtitle", {
-                  defaultValue: "查看和撤销已授权的桌面设备。",
-                })
               : currentView === "codegoModels"
                 ? t("codego.shell.modelsSubtitle", {
                     defaultValue: "查看当前授权账号可用的模型列表。",
@@ -1060,14 +1049,6 @@ function App() {
       label: t("codego.logs.title", { defaultValue: "日志" }),
       description: t("codego.shell.nav.logsDesc", {
         defaultValue: "查看网站请求和用量明细",
-      }),
-    },
-    {
-      view: "codegoDevices",
-      icon: Laptop,
-      label: t("codego.devices.title", { defaultValue: "设备" }),
-      description: t("codego.shell.nav.devicesDesc", {
-        defaultValue: "查看和撤销桌面授权",
       }),
     },
     {
@@ -1230,17 +1211,6 @@ function App() {
             <div className="px-6 pb-8">
               <div className="mx-auto w-full max-w-7xl">
                 <CodeGoLogsExplorer enabled={isCodeGoAuthenticated} />
-              </div>
-            </div>
-          );
-        case "codegoDevices":
-          return (
-            <div className="px-6 pb-8">
-              <div className="mx-auto w-full max-w-7xl">
-                <CodeGoAuthorizedDevicesCard
-                  enabled={isCodeGoAuthenticated}
-                  currentDeviceId={codegoAuthState?.deviceId}
-                />
               </div>
             </div>
           );
