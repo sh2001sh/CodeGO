@@ -83,3 +83,18 @@ pub async fn delete_sessions(
         .await
         .map_err(|e| format!("Failed to delete sessions: {e}"))
 }
+
+#[tauri::command]
+pub async fn export_qualified_sessions(
+    outputDir: String,
+) -> Result<session_manager::export::ExportQualifiedSessionsSummary, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        session_manager::export::export_qualified_sessions(
+            session_manager::export::ExportQualifiedSessionsRequest {
+                output_dir: outputDir,
+            },
+        )
+    })
+    .await
+    .map_err(|e| format!("Failed to export qualified sessions: {e}"))?
+}
