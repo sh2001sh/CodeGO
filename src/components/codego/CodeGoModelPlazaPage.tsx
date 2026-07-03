@@ -1,34 +1,122 @@
 import { Boxes, ExternalLink, RefreshCw } from "lucide-react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import { settingsApi } from "@/lib/api";
-import { useCodeGoAuthQuery, useCodeGoSummaryQuery } from "@/lib/query";
+import {
+  useCodeGoAuthQuery,
+  useCodeGoPricingQuery,
+  useCodeGoSummaryQuery,
+} from "@/lib/query";
 import { useSettingsQuery } from "@/lib/query/queries";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import { extractErrorMessage } from "@/utils/errorUtils";
+import type { CodeGoPricingModel } from "@/lib/api/codego";
+
+function formatFee(item: CodeGoPricingModel) {
+  if (item.quota_type === 1) {
+    return `固定价 ${formatMoney(item.model_price)}`;
+  }
+  return `倍率 x${formatRatio(item.model_ratio)}`;
+}
+
+function formatDetail(item: CodeGoPricingModel) {
+  const parts: string[] = [];
+  if (item.quota_type !== 1) {
+    parts.push(`补全 x${formatRatio(item.completion_ratio)}`);
+  }
+  if (item.cache_ratio != null) {
+    parts.push(`缓存 x${formatRatio(item.cache_ratio)}`);
+  }
+  if (item.create_cache_ratio != null) {
+    parts.push(`写入 x${formatRatio(item.create_cache_ratio)}`);
+  }
+  return parts.join(" · ");
+}
+
+function formatMoney(value: number) {
+  if (!Number.isFinite(value)) return "--";
+  return value >= 1000 ? value.toFixed(0) : value.toFixed(2);
+}
+
+function formatRatio(value: number) {
+  if (!Number.isFinite(value)) return "--";
+  return value >= 10 ? value.toFixed(0) : value.toFixed(2);
+}
+
+function normalizeGroups(groups: string[]) {
+  return [...new Set(groups.map((group) => group.trim()).filter(Boolean))].sort(
+    (left, right) => left.localeCompare(right, "zh-CN"),
+  );
+}
+
+function feeTone(item: CodeGoPricingModel) {
+  return item.quota_type === 1
+    ? "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-200"
+    : "border-blue-500/25 bg-blue-500/10 text-blue-700 dark:text-blue-200";
+}
 
 export function CodeGoModelPlazaPage() {
   const { t } = useTranslation();
   const authQuery = useCodeGoAuthQuery();
   const settingsQuery = useSettingsQuery();
+  const enabled = Boolean(authQuery.data?.authenticated);
   const summaryQuery = useCodeGoSummaryQuery(
-    Boolean(authQuery.data?.authenticated),
+    enabled,
     settingsQuery.data?.codegoAutoRefreshEnabled ?? true,
   );
-  const models = summaryQuery.data?.usage.available_models ?? [];
+  const pricingQuery = useCodeGoPricingQuery(enabled);
   const serverAddress = authQuery.data?.serverAddress || "https://shu26.cfd";
+  const currentGroup = summaryQuery.data?.account.group || "default";
+
+  const models = useMemo(
+    () =>
+      [...(pricingQuery.data ?? [])].sort((left, right) => {
+        const leftGroups = left.enable_groups?.length ?? 0;
+        const rightGroups = right.enable_groups?.length ?? 0;
+        if (leftGroups !== rightGroups) return rightGroups - leftGroups;
+        return left.model_name.localeCompare(right.model_name, "en");
+      }),
+    [pricingQuery.data],
+  );
+
+  const groupCount = useMemo(() => {
+    const groups = new Set<string>();
+    for (const item of models) {
+      for (const group of item.enable_groups ?? []) {
+        if (group && group !== "auto" && group !== "all") {
+          groups.add(group);
+        }
+      }
+    }
+    return groups.size;
+  }, [models]);
 
   const handleOpenWebsite = async () => {
     try {
-      await settingsApi.openExternal(`${serverAddress}/models`);
+      await settingsApi.openExternal(`${serverAddress}/pricing`);
     } catch (error) {
       toast.error(
         extractErrorMessage(error) ||
           t("codego.modelPlaza.openFailed", "Failed to open model plaza"),
       );
     }
+  };
+
+  const handleRefresh = () => {
+    void pricingQuery.refetch();
+    void summaryQuery.refetch();
   };
 
   return (
@@ -44,7 +132,7 @@ export function CodeGoModelPlazaPage() {
               <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
                 {t(
                   "codego.modelPlaza.description",
-                  "根据当前授权账号同步可用模型。模型权限以网站账号和令牌配置为准。",
+                  "根据当前授权账号同步可用模型、分组和计费信息。",
                 )}
               </p>
             </div>
@@ -52,9 +140,14 @@ export function CodeGoModelPlazaPage() {
               <Button
                 variant="outline"
                 className="h-9 gap-2"
-                onClick={() => void summaryQuery.refetch()}
+                onClick={handleRefresh}
               >
-                <RefreshCw className="h-4 w-4" />
+                <RefreshCw
+                  className={cn(
+                    "h-4 w-4",
+                    pricingQuery.isFetching && "animate-spin",
+                  )}
+                />
                 {t("common.refresh", "Refresh")}
               </Button>
               <Button
@@ -67,24 +160,94 @@ export function CodeGoModelPlazaPage() {
               </Button>
             </div>
           </CardHeader>
-          <CardContent>
-            {models.length > 0 ? (
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {models.map((model) => (
-                  <div key={model} className="codego-panel px-4 py-3">
-                    <div className="truncate text-sm font-medium text-foreground">
-                      {model}
-                    </div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      {t("codego.modelPlaza.available", "当前账号可用")}
-                    </div>
+          <CardContent className="space-y-5">
+            <div className="grid gap-3 sm:grid-cols-3">
+              {[
+                ["当前分组", currentGroup],
+                ["模型", String(models.length)],
+                ["分组", String(groupCount)],
+              ].map(([label, value]) => (
+                <div key={label} className="codego-metric-card">
+                  <div className="text-xs text-muted-foreground">{label}</div>
+                  <div className="mt-2 text-lg font-semibold tabular-nums text-foreground">
+                    {value}
                   </div>
-                ))}
+                </div>
+              ))}
+            </div>
+
+            {pricingQuery.isError ? (
+              <div className="rounded-lg border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                {extractErrorMessage(pricingQuery.error) ||
+                  t("codego.modelPlaza.loadFailed", "模型广场加载失败")}
+              </div>
+            ) : null}
+
+            {models.length > 0 ? (
+              <div className="overflow-hidden rounded-lg border border-border bg-background/80">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[34%]">模型</TableHead>
+                      <TableHead className="w-[34%]">分组</TableHead>
+                      <TableHead className="w-[18%]">费用</TableHead>
+                      <TableHead>说明</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {models.map((item) => {
+                      const groups = normalizeGroups(item.enable_groups ?? []);
+                      return (
+                        <TableRow key={item.model_name}>
+                          <TableCell className="align-top">
+                            <div className="space-y-1">
+                              <div className="break-all font-mono text-sm font-medium text-foreground">
+                                {item.model_name}
+                              </div>
+                              {item.description ? (
+                                <div className="text-xs text-muted-foreground">
+                                  {item.description}
+                                </div>
+                              ) : null}
+                            </div>
+                          </TableCell>
+                          <TableCell className="align-top">
+                            <div className="flex flex-wrap gap-1.5">
+                              {groups.length > 0 ? (
+                                groups.map((group) => (
+                                  <Badge
+                                    key={`${item.model_name}-${group}`}
+                                    variant="outline"
+                                    className="border-border bg-muted/40 text-muted-foreground"
+                                  >
+                                    {group === "all" ? "全部" : group}
+                                  </Badge>
+                                ))
+                              ) : (
+                                <span className="text-sm text-muted-foreground">
+                                  未配置
+                                </span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="align-top">
+                            <Badge variant="outline" className={feeTone(item)}>
+                              {formatFee(item)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="align-top text-sm text-muted-foreground">
+                            {formatDetail(item) || "—"}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
               </div>
             ) : (
-              <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-4 py-8 text-center">
+              <div className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-8 text-center">
                 <div className="text-sm font-medium text-foreground">
-                  {summaryQuery.isFetching
+                  {pricingQuery.isFetching
                     ? t("common.loading", "Loading...")
                     : t(
                         "codego.modelPlaza.empty",
@@ -94,13 +257,14 @@ export function CodeGoModelPlazaPage() {
                 <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
                   {t(
                     "codego.modelPlaza.emptyHint",
-                    "可以刷新重试，或打开网站查看完整模型广场。",
+                    "请刷新重试，或打开网站查看完整模型广场。",
                   )}
                 </p>
               </div>
             )}
+
             {summaryQuery.data?.account.group ? (
-              <div className="mt-4">
+              <div>
                 <Badge variant="outline">
                   {t("codego.groups.current", "当前分组")}:{" "}
                   {summaryQuery.data.account.group}

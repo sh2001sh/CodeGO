@@ -229,6 +229,28 @@ export interface CodeGoGroupsResponse {
   items: CodeGoGroupItem[];
 }
 
+export interface CodeGoPricingModel {
+  model_name: string;
+  description?: string;
+  icon?: string;
+  tags?: string;
+  vendor_id?: number;
+  quota_type: number;
+  model_ratio: number;
+  model_price: number;
+  completion_ratio: number;
+  cache_ratio?: number | null;
+  create_cache_ratio?: number | null;
+  image_ratio?: number | null;
+  audio_ratio?: number | null;
+  audio_completion_ratio?: number | null;
+  enable_groups: string[];
+  supported_endpoint_types: string[];
+  billing_mode?: string;
+  billing_expr?: string;
+  pricing_version?: string;
+}
+
 export type CodeGoGroupAvailabilityStatus =
   | "healthy"
   | "slow"
@@ -263,6 +285,13 @@ export interface CodeGoGroupStatusResponse {
   success?: boolean;
   message?: string;
   data?: CodeGoGroupStatusItem[];
+}
+
+export interface CodeGoPricingResponse {
+  success?: boolean;
+  message?: string;
+  data?: CodeGoPricingModel[];
+  pricing_version?: string;
 }
 
 export interface CodeGoTokenCreateInput {
@@ -429,6 +458,10 @@ export const codegoApi = {
 
   async getGroupStatus(): Promise<CodeGoGroupStatusResponse> {
     return invoke("codego_get_group_status");
+  },
+
+  async getPricing(): Promise<CodeGoPricingModel[]> {
+    return invoke("codego_get_pricing");
   },
 
   async ensureToken(deviceName?: string): Promise<CodeGoEnsureTokenResult> {

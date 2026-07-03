@@ -27,6 +27,7 @@ export const codegoKeys = {
   trends: (days: number) => [...codegoKeys.all, "trends", days] as const,
   groups: () => [...codegoKeys.all, "groups"] as const,
   groupStatus: () => [...codegoKeys.all, "group-status"] as const,
+  pricing: () => [...codegoKeys.all, "pricing"] as const,
   tokens: (query?: { p?: number; size?: number }) =>
     [...codegoKeys.all, "tokens", query ?? {}] as const,
   logs: (query?: CodeGoUsageLogsQuery) =>
@@ -67,6 +68,7 @@ function markCodeGoAuthExpired(queryClient: QueryClient) {
   queryClient.removeQueries({ queryKey: codegoKeys.devices() });
   queryClient.removeQueries({ queryKey: codegoKeys.groups() });
   queryClient.removeQueries({ queryKey: codegoKeys.groupStatus() });
+  queryClient.removeQueries({ queryKey: codegoKeys.pricing() });
   queryClient.removeQueries({ queryKey: [...codegoKeys.all, "tokens"] });
   queryClient.removeQueries({ queryKey: [...codegoKeys.all, "trends"] });
   queryClient.removeQueries({ queryKey: [...codegoKeys.all, "logs"] });
@@ -161,6 +163,7 @@ export async function syncCodeGoDesktopAuthState(
     }),
     queryClient.invalidateQueries({ queryKey: codegoKeys.groups() }),
     queryClient.invalidateQueries({ queryKey: codegoKeys.groupStatus() }),
+    queryClient.invalidateQueries({ queryKey: codegoKeys.pricing() }),
     queryClient.invalidateQueries({
       queryKey: [...codegoKeys.all, "trends"],
     }),
@@ -190,6 +193,11 @@ export async function syncCodeGoDesktopAuthState(
     queryClient.fetchQuery({
       queryKey: codegoKeys.groupStatus(),
       queryFn: () => withCodeGoAuxiliaryGuard(() => codegoApi.getGroupStatus()),
+      staleTime: 0,
+    }),
+    queryClient.fetchQuery({
+      queryKey: codegoKeys.pricing(),
+      queryFn: () => withCodeGoAuxiliaryGuard(() => codegoApi.getPricing()),
       staleTime: 0,
     }),
   ]);
@@ -259,6 +267,14 @@ export const useCodeGoGroupStatusQuery = (enabled: boolean) => {
   });
 };
 
+export const useCodeGoPricingQuery = (enabled: boolean) => {
+  return useQuery({
+    queryKey: codegoKeys.pricing(),
+    queryFn: () => withCodeGoAuxiliaryGuard(() => codegoApi.getPricing()),
+    enabled,
+  });
+};
+
 export const useCodeGoUsageTrendsQuery = (days: number, enabled: boolean) => {
   return useQuery({
     queryKey: codegoKeys.trends(days),
@@ -300,6 +316,7 @@ export const useCodeGoPollAuthSessionMutation = () => {
       await queryClient.invalidateQueries({
         queryKey: codegoKeys.groupStatus(),
       });
+      await queryClient.invalidateQueries({ queryKey: codegoKeys.pricing() });
       await queryClient.invalidateQueries({
         queryKey: [...codegoKeys.all, "trends"],
       });
@@ -327,6 +344,7 @@ export const useCodeGoLogoutMutation = () => {
     queryClient.removeQueries({ queryKey: codegoKeys.devices() });
     queryClient.removeQueries({ queryKey: codegoKeys.groups() });
     queryClient.removeQueries({ queryKey: codegoKeys.groupStatus() });
+    queryClient.removeQueries({ queryKey: codegoKeys.pricing() });
     queryClient.removeQueries({
       queryKey: [...codegoKeys.all, "trends"],
     });
@@ -358,6 +376,7 @@ export const useCodeGoRevokeAuthorizedDeviceMutation = () => {
       await queryClient.invalidateQueries({ queryKey: codegoKeys.auth() });
       await queryClient.invalidateQueries({ queryKey: codegoKeys.devices() });
       await queryClient.invalidateQueries({ queryKey: codegoKeys.summary() });
+      await queryClient.invalidateQueries({ queryKey: codegoKeys.pricing() });
     },
   });
 };

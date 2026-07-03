@@ -5407,6 +5407,20 @@ pub async fn codego_get_group_status() -> Result<Value, String> {
 }
 
 #[tauri::command]
+pub async fn codego_get_pricing() -> Result<Value, String> {
+    let auth = load_auth_state();
+    let (client, server_address) = build_authed_client(&auth)?;
+    parse_response_without_auth_clear(
+        client
+            .get(build_url(&server_address, "/api/desktop/pricing"))
+            .send()
+            .await
+            .map_err(|e| format!("pricing request failed: {e}"))?,
+    )
+    .await
+}
+
+#[tauri::command]
 pub async fn codego_get_usage_logs(query: Option<CodeGoUsageLogsQuery>) -> Result<Value, String> {
     let auth = load_auth_state();
     let (client, server_address) = build_authed_client(&auth)?;

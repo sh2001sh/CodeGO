@@ -118,33 +118,6 @@ const summarizeGroups = (items: CodeGoGroupStatusItem[]) => {
   };
 };
 
-const buildFallbackGroupStatus = (
-  group: string,
-  models: string[],
-): CodeGoGroupStatusItem[] => {
-  const uniqueModels = Array.from(
-    new Set(models.map((model) => model.trim()).filter(Boolean)),
-  ).sort((left, right) => left.localeCompare(right, "en"));
-  if (uniqueModels.length === 0) return [];
-  return [
-    {
-      group,
-      status: "unknown",
-      request_count: 0,
-      models: uniqueModels.map((model) => ({
-        model,
-        status: "unknown",
-        success_rate: null,
-        sample_window: 0,
-        series_window: 0,
-        bucket_seconds: 3600,
-        request_count: 0,
-        series: [],
-      })),
-    },
-  ];
-};
-
 function ModelStatusCard({ item }: { item: CodeGoGroupModelStatusItem }) {
   const meta = getStatusMeta(item.status);
   const series = item.series ?? [];
@@ -223,22 +196,12 @@ export function CodeGoGroupStatusPage() {
   );
   const serverAddress = authQuery.data?.serverAddress || "https://shu26.cfd";
   const currentGroup = summaryQuery.data?.account.group || "default";
-  const fallbackGroups = useMemo(
-    () =>
-      buildFallbackGroupStatus(
-        currentGroup,
-        summaryQuery.data?.usage.available_models ?? [],
-      ),
-    [currentGroup, summaryQuery.data?.usage.available_models],
-  );
   const groups = useMemo(
     () =>
       sortGroups(
-        groupStatusQuery.data?.data?.length
-          ? groupStatusQuery.data.data
-          : fallbackGroups,
+        groupStatusQuery.data?.data?.length ? groupStatusQuery.data.data : [],
       ),
-    [fallbackGroups, groupStatusQuery.data?.data],
+    [groupStatusQuery.data?.data],
   );
   const summary = useMemo(() => summarizeGroups(groups), [groups]);
 
