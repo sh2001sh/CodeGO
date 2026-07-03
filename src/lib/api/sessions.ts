@@ -12,24 +12,6 @@ export interface DeleteSessionResult extends DeleteSessionOptions {
   error?: string;
 }
 
-export interface ExportQualifiedSessionsSummary {
-  outputDir: string;
-  scanned: number;
-  exported: number;
-  claude: number;
-  nonClaude: number;
-  appended: number;
-  rewritten: number;
-  unchanged: number;
-  failed: number;
-  failedSessions: Array<{
-    providerId: string;
-    sessionId: string;
-    sourcePath?: string;
-    error: string;
-  }>;
-}
-
 export const sessionsApi = {
   async list(): Promise<SessionMeta[]> {
     return await invoke("list_sessions");
@@ -55,12 +37,6 @@ export const sessionsApi = {
     items: DeleteSessionOptions[],
   ): Promise<DeleteSessionResult[]> {
     return await invoke("delete_sessions", { items });
-  },
-
-  async exportQualified(
-    outputDir: string,
-  ): Promise<ExportQualifiedSessionsSummary> {
-    return await invoke("export_qualified_sessions", { outputDir });
   },
 
   async launchTerminal(options: {
