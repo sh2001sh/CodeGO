@@ -350,11 +350,16 @@ pub struct CodeGoPageQuery {
 pub struct CodeGoTokenWriteRequest {
     pub id: Option<i64>,
     pub name: String,
+    #[serde(alias = "expired_time")]
     pub expired_time: i64,
+    #[serde(alias = "remain_quota")]
     pub remain_quota: i64,
+    #[serde(alias = "unlimited_quota")]
     pub unlimited_quota: bool,
     pub group: String,
+    #[serde(alias = "model_limits_enabled")]
     pub model_limits_enabled: bool,
+    #[serde(alias = "model_limits")]
     pub model_limits: String,
 }
 
@@ -2943,8 +2948,8 @@ mod tests {
         should_send_low_balance_notification, summary_topup_url, CodeGoAuthSessionPollResponse,
         CodeGoAuthSessionStartResponse, CodeGoAuthorizedDevice, CodeGoPageQuery,
         CodeGoSavedToolBackup, CodeGoSecureStorageStatus, CodeGoSummarySideEffectSink,
-        CodeGoTokenConfigResponse, CodeGoTokenToolConfigPayload, BASE64_STANDARD,
-        CODEGO_AUTH_EXPIRED_MESSAGE,
+        CodeGoTokenConfigResponse, CodeGoTokenToolConfigPayload, CodeGoTokenWriteRequest,
+        BASE64_STANDARD, CODEGO_AUTH_EXPIRED_MESSAGE,
     };
     use crate::app_config::AppType;
     use crate::codex_config::get_codex_config_path;
@@ -3304,6 +3309,28 @@ mod tests {
         assert_eq!(normalized["size"], 10);
         assert_eq!(normalized["total"], 7);
         assert_eq!(normalized["items"][0]["name"], "desktop token");
+    }
+
+    #[test]
+    fn token_write_request_accepts_desktop_snake_case_payload() {
+        let decoded: CodeGoTokenWriteRequest = serde_json::from_value(json!({
+            "name": "codego desktop",
+            "expired_time": -1,
+            "remain_quota": 0,
+            "unlimited_quota": true,
+            "group": "default",
+            "model_limits_enabled": false,
+            "model_limits": ""
+        }))
+        .expect("desktop token payload should decode");
+
+        assert_eq!(decoded.name, "codego desktop");
+        assert_eq!(decoded.expired_time, -1);
+        assert_eq!(decoded.remain_quota, 0);
+        assert!(decoded.unlimited_quota);
+        assert_eq!(decoded.group, "default");
+        assert!(!decoded.model_limits_enabled);
+        assert_eq!(decoded.model_limits, "");
     }
 
     #[test]
