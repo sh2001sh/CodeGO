@@ -24,6 +24,14 @@ async function createFixture() {
   await mkdir(assetsDir, { recursive: true });
 
   const assetContents = new Map([
+    ["CodeGo_3.16.4_arm64.dmg", "macos-arm64-dmg"],
+    ["CodeGo_3.16.4_arm64.zip", "macos-arm64-zip"],
+    ["CodeGo_3.16.4_arm64.app.tar.gz", "macos-arm64-updater"],
+    ["CodeGo_3.16.4_arm64.app.tar.gz.sig", "sig-macos-arm64\n"],
+    ["CodeGo_3.16.4_x64.dmg", "macos-x64-dmg"],
+    ["CodeGo_3.16.4_x64.zip", "macos-x64-zip"],
+    ["CodeGo_3.16.4_x64.app.tar.gz", "macos-x64-updater"],
+    ["CodeGo_3.16.4_x64.app.tar.gz.sig", "sig-macos-x64\n"],
     ["CodeGo_3.16.4_x64_zh-CN.msi", "windows-x64"],
     ["CodeGo_3.16.4_x64_zh-CN.msi.sig", "sig-win-x64\n"],
     ["CodeGo_3.16.4_x64_portable.zip", "portable-x64"],
@@ -54,7 +62,7 @@ async function createFixture() {
     "--published-at",
     "2026-06-28T12:00:00Z",
     "--notes",
-      "CodeGo v3.16.4",
+    "CodeGo v3.16.4",
     "--manifest-out",
     manifestPath,
     "--latest-out",
@@ -89,17 +97,25 @@ describe("build-codego-release-acceptance-template", () => {
 
     assert.equal(template.release.version, "3.16.4");
     assert.equal(template.release.previous_stable_version, "3.16.3");
-    assert.equal(template.platforms.length, 2);
+    assert.equal(template.platforms.length, 4);
     assert.deepEqual(
       template.platforms.map((platform) => platform.id),
-      ["windows-x64", "linux-x64"],
+      ["macos-arm64", "macos-x64", "windows-x64", "linux-x64"],
     );
     assert.equal(
       template.platforms[0].install_artifacts[0].name,
+      "CodeGo_3.16.4_arm64.dmg",
+    );
+    assert.equal(
+      template.platforms[1].install_artifacts[0].name,
+      "CodeGo_3.16.4_x64.dmg",
+    );
+    assert.equal(
+      template.platforms[2].install_artifacts[0].name,
       "CodeGo_3.16.4_x64_zh-CN.msi",
     );
     assert.equal(
-      template.platforms[1].updater_targets
+      template.platforms[3].updater_targets
         .map((target) => target.target)
         .join(","),
       "linux-x86_64",
@@ -116,6 +132,7 @@ describe("build-codego-release-acceptance-template", () => {
     assert.equal(persistedTemplate.release.tag_name, "v3.16.4");
     assert.match(checklist, /CodeGo Release Acceptance Checklist/);
     assert.match(checklist, /verify-codego-release-acceptance-record/);
+    assert.match(checklist, /macOS arm64/);
     assert.match(checklist, /Windows x64/);
   });
 });

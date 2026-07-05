@@ -25,6 +25,14 @@ async function createFixture() {
   await mkdir(assetsDir, { recursive: true });
 
   const assetContents = new Map([
+    ["CodeGo_3.16.4_arm64.dmg", "macos-arm64-dmg"],
+    ["CodeGo_3.16.4_arm64.zip", "macos-arm64-zip"],
+    ["CodeGo_3.16.4_arm64.app.tar.gz", "macos-arm64-updater"],
+    ["CodeGo_3.16.4_arm64.app.tar.gz.sig", "sig-macos-arm64\n"],
+    ["CodeGo_3.16.4_x64.dmg", "macos-x64-dmg"],
+    ["CodeGo_3.16.4_x64.zip", "macos-x64-zip"],
+    ["CodeGo_3.16.4_x64.app.tar.gz", "macos-x64-updater"],
+    ["CodeGo_3.16.4_x64.app.tar.gz.sig", "sig-macos-x64\n"],
     ["CodeGo_3.16.4_x64_zh-CN.msi", "windows-x64"],
     ["CodeGo_3.16.4_x64_zh-CN.msi.sig", "sig-win-x64\n"],
     ["CodeGo_3.16.4_x64_portable.zip", "portable-x64"],
@@ -117,8 +125,8 @@ describe("verify-codego-release-acceptance-record", () => {
       expectedVersion: "3.16.4",
     });
 
-    assert.equal(result.platformCount, 2);
-    assert.equal(result.scenarioCount, 8);
+    assert.equal(result.platformCount, 4);
+    assert.equal(result.scenarioCount, 16);
   });
 
   test("rejects a pending template when executed evidence is required", async () => {
@@ -152,7 +160,7 @@ describe("verify-codego-release-acceptance-record", () => {
       requirePassed: true,
     });
 
-    assert.equal(result.platformCount, 2);
+    assert.equal(result.platformCount, 4);
   });
 
   test("rejects metadata drift in the acceptance record", async () => {

@@ -45,6 +45,26 @@ function detectArch(fileName) {
   return undefined;
 }
 
+function resolveMacTarget(arch) {
+  if (arch === "arm64") {
+    return "darwin-aarch64";
+  }
+  if (arch === "x64") {
+    return "darwin-x86_64";
+  }
+  return "darwin-universal";
+}
+
+function resolveMacUpdaterTargets(arch) {
+  if (arch === "arm64") {
+    return ["darwin-aarch64"];
+  }
+  if (arch === "x64") {
+    return ["darwin-x86_64"];
+  }
+  return ["darwin-aarch64", "darwin-x86_64"];
+}
+
 function classifyAsset(fileName) {
   const normalized = fileName.toLowerCase();
   const arch = detectArch(fileName);
@@ -75,7 +95,7 @@ function classifyAsset(fileName) {
       platform: "macos",
       arch: arch || "universal",
       kind: "installer",
-      tauriTarget: "darwin-universal",
+      tauriTarget: resolveMacTarget(arch),
       updaterTargets: [],
     };
   }
@@ -85,8 +105,8 @@ function classifyAsset(fileName) {
       platform: "macos",
       arch: arch || "universal",
       kind: "updater",
-      tauriTarget: "darwin-universal",
-      updaterTargets: ["darwin-aarch64", "darwin-x86_64"],
+      tauriTarget: resolveMacTarget(arch),
+      updaterTargets: resolveMacUpdaterTargets(arch),
     };
   }
 
@@ -95,7 +115,7 @@ function classifyAsset(fileName) {
       platform: "macos",
       arch: arch || "universal",
       kind: "archive",
-      tauriTarget: "darwin-universal",
+      tauriTarget: resolveMacTarget(arch),
       updaterTargets: [],
     };
   }

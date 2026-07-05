@@ -39,6 +39,24 @@ export const ACCEPTANCE_SCENARIOS = [
 
 const PLATFORM_DEFINITIONS = [
   {
+    id: "macos-arm64",
+    label: "macOS arm64",
+    artifactRules: [
+      { suffix: "_arm64.dmg", role: "installer" },
+      { suffix: "_arm64.zip", role: "archive" },
+    ],
+    updaterTargets: ["darwin-aarch64"],
+  },
+  {
+    id: "macos-x64",
+    label: "macOS x64",
+    artifactRules: [
+      { suffix: "_x64.dmg", role: "installer" },
+      { suffix: "_x64.zip", role: "archive" },
+    ],
+    updaterTargets: ["darwin-x86_64"],
+  },
+  {
     id: "windows-x64",
     label: "Windows x64",
     artifactRules: [

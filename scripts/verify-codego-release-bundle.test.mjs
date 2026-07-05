@@ -23,6 +23,14 @@ async function createFixture() {
   await mkdir(assetsDir, { recursive: true });
 
   const assetContents = new Map([
+    ["CodeGo_3.16.4_arm64.dmg", "macos-arm64-dmg"],
+    ["CodeGo_3.16.4_arm64.zip", "macos-arm64-zip"],
+    ["CodeGo_3.16.4_arm64.app.tar.gz", "macos-arm64-updater"],
+    ["CodeGo_3.16.4_arm64.app.tar.gz.sig", "sig-macos-arm64\n"],
+    ["CodeGo_3.16.4_x64.dmg", "macos-x64-dmg"],
+    ["CodeGo_3.16.4_x64.zip", "macos-x64-zip"],
+    ["CodeGo_3.16.4_x64.app.tar.gz", "macos-x64-updater"],
+    ["CodeGo_3.16.4_x64.app.tar.gz.sig", "sig-macos-x64\n"],
     ["CodeGo_3.16.4_x64_zh-CN.msi", "windows-x64"],
     ["CodeGo_3.16.4_x64_zh-CN.msi.sig", "sig-win-x64\n"],
     ["CodeGo_3.16.4_x64_portable.zip", "portable-x64"],
@@ -87,8 +95,18 @@ describe("verify-codego-release-bundle", () => {
       latestPath,
       bundleOutDir,
       expectedVersion: "3.16.4",
-      requiredPlatformTargets: ["windows-x86_64", "linux-x86_64"],
-      requiredAssetSuffixes: ["_x64_zh-CN.msi", "_x64.appimage"],
+      requiredPlatformTargets: [
+        "darwin-aarch64",
+        "darwin-x86_64",
+        "windows-x86_64",
+        "linux-x86_64",
+      ],
+      requiredAssetSuffixes: [
+        "_arm64.dmg",
+        "_x64.dmg",
+        "_x64_zh-CN.msi",
+        "_x64.appimage",
+      ],
     });
 
     assert.equal(result.release.version, "3.16.4");

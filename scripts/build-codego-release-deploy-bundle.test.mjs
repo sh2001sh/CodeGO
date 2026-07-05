@@ -39,8 +39,13 @@ async function createFixture() {
       "utf8",
     ),
     writeFile(
-      path.join(assetsDir, "CodeGo_3.16.4_universal.dmg"),
-      "dmg",
+      path.join(assetsDir, "CodeGo_3.16.4_arm64.dmg"),
+      "dmg-arm64",
+      "utf8",
+    ),
+    writeFile(
+      path.join(assetsDir, "CodeGo_3.16.4_x64.dmg"),
+      "dmg-x64",
       "utf8",
     ),
     writeFile(
@@ -88,7 +93,8 @@ describe("build-codego-release-deploy-bundle", () => {
       path.join(bundleOut, "static", "downloads", "codego"),
     );
     assert.deepEqual(staticFiles.sort(), [
-      "CodeGo_3.16.4_universal.dmg",
+      "CodeGo_3.16.4_arm64.dmg",
+      "CodeGo_3.16.4_x64.dmg",
       "CodeGo_3.16.4_x64_zh-CN.msi",
       "CodeGo_3.16.4_x64_zh-CN.msi.sig",
       "note.txt",
