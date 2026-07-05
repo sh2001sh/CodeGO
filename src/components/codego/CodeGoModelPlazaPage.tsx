@@ -243,7 +243,7 @@ export function CodeGoModelPlazaPage() {
             {summaryQuery.data?.account.group ? (
               <div>
                 <Badge variant="outline">
-                  {t("codego.groups.current", "当前分组")}: {" "}
+                  {t("codego.groups.current", "当前分组")}:{" "}
                   {summaryQuery.data.account.group}
                 </Badge>
               </div>

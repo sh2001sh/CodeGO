@@ -1006,17 +1006,17 @@ function App() {
             ? t("codego.shell.logsSubtitle", {
                 defaultValue: "按模型、令牌和请求筛选网站调用日志。",
               })
-              : currentView === "codegoModels"
-                ? t("codego.shell.modelsSubtitle", {
-                    defaultValue: "查看当前授权账号可用的模型列表。",
+            : currentView === "codegoModels"
+              ? t("codego.shell.modelsSubtitle", {
+                  defaultValue: "查看当前授权账号可用的模型列表。",
+                })
+              : currentView === "codegoGroups"
+                ? t("codego.shell.groupsSubtitle", {
+                    defaultValue: "查看网站分组状态和当前账号分组。",
                   })
-                : currentView === "codegoGroups"
-                  ? t("codego.shell.groupsSubtitle", {
-                      defaultValue: "查看网站分组状态和当前账号分组。",
-                    })
-                  : t("codego.shell.workspaceSubtitle", {
-                      defaultValue: "当前功能页。",
-                    });
+                : t("codego.shell.workspaceSubtitle", {
+                    defaultValue: "当前功能页。",
+                  });
 
   const primaryNavItems: NavItemConfig[] = [
     {
