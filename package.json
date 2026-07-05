@@ -1,6 +1,6 @@
 {
   "name": "codego",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "All-in-One Assistant for Claude Code, Codex & Gemini CLI",
   "type": "module",
   "scripts": {

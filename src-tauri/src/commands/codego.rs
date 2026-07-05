@@ -39,6 +39,7 @@ use std::path::Path;
 use std::sync::Mutex;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::Emitter;
+use toml_edit::{value as toml_value, DocumentMut};
 
 const DEFAULT_SERVER_ADDRESS: &str = "https://shu26.cfd";
 const USER_AGENT: &str = "CodeGoDesktop/0.1";
@@ -70,6 +71,23 @@ fn normalize_codego_api_key(raw: &str) -> String {
         return key.to_string();
     }
     format!("{CODEGO_API_KEY_PREFIX}{key}")
+}
+
+fn codego_api_key_candidate(raw: &str) -> Option<String> {
+    let key = raw.trim();
+    if key.is_empty() {
+        return None;
+    }
+    let key_without_prefix = key
+        .strip_prefix(CODEGO_API_KEY_PREFIX)
+        .unwrap_or(key)
+        .trim();
+    let lower_key = key_without_prefix.to_ascii_lowercase();
+    if lower_key == "masked" || lower_key == "redacted" || key_without_prefix.contains('*') {
+        return None;
+    }
+
+    Some(normalize_codego_api_key(key))
 }
 
 fn tool_to_app_type(tool: &str) -> Result<AppType, String> {
@@ -2474,14 +2492,7 @@ fn build_provider_from_codego(
         "codex" => Provider::with_id(
             provider_id.clone(),
             "Code Go Codex".to_string(),
-            json!({
-                "auth": {
-                    "OPENAI_API_KEY": full_key,
-                },
-                "config": format!(
-                    "model_provider = \"custom\"\nmodel = \"gpt-5.5\"\nmodel_reasoning_effort = \"high\"\ndisable_response_storage = true\n\n[model_providers.custom]\nname = \"Code Go\"\nbase_url = \"{endpoint}\"\nwire_api = \"responses\"\nrequires_openai_auth = true"
-                ),
-            }),
+            build_codego_codex_settings(endpoint, full_key, None)?,
             server_address,
         ),
         "opencode" => Provider::with_id(
@@ -2555,6 +2566,64 @@ fn build_provider_from_codego(
     Ok(provider)
 }
 
+fn current_codex_config_for_merge() -> Result<Option<String>, String> {
+    let text = crate::codex_config::read_and_validate_codex_config_text()
+        .map_err(|e| format!("failed to read current Codex config: {e}"))?;
+    Ok((!text.trim().is_empty()).then_some(text))
+}
+
+fn build_codego_codex_config_text(
+    endpoint: &str,
+    model: Option<&str>,
+    base_config: Option<&str>,
+) -> Result<String, String> {
+    let endpoint = endpoint.trim();
+    if endpoint.is_empty() {
+        return Err("Code Go Codex config missing endpoint".to_string());
+    }
+    let model = model
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or("gpt-5.5");
+
+    let mut doc = match base_config.map(str::trim).filter(|text| !text.is_empty()) {
+        Some(text) => text
+            .parse::<DocumentMut>()
+            .map_err(|e| format!("failed to merge current Codex config: {e}"))?,
+        None => DocumentMut::new(),
+    };
+
+    doc["model_provider"] = toml_value("custom");
+    doc["model"] = toml_value(model);
+    doc["model_reasoning_effort"] = toml_value("high");
+    doc["disable_response_storage"] = toml_value(true);
+    doc["model_providers"]["custom"]["name"] = toml_value("Code Go");
+    doc["model_providers"]["custom"]["base_url"] = toml_value(endpoint);
+    doc["model_providers"]["custom"]["wire_api"] = toml_value("responses");
+    doc["model_providers"]["custom"]["requires_openai_auth"] = toml_value(true);
+
+    Ok(doc.to_string())
+}
+
+fn build_codego_codex_settings(
+    endpoint: &str,
+    api_key: &str,
+    model: Option<&str>,
+) -> Result<Value, String> {
+    let api_key = api_key.trim();
+    if api_key.is_empty() {
+        return Err("Code Go Codex config missing API key".to_string());
+    }
+    let base_config = current_codex_config_for_merge()?;
+
+    Ok(json!({
+        "auth": {
+            "OPENAI_API_KEY": api_key,
+        },
+        "config": build_codego_codex_config_text(endpoint, model, base_config.as_deref())?,
+    }))
+}
+
 fn decode_token_config_json(payload: &CodeGoTokenToolConfigPayload) -> Result<Value, String> {
     let decoded = BASE64_STANDARD
         .decode(payload.config.as_bytes())
@@ -2569,9 +2638,8 @@ fn build_provider_from_token_payload(
     payload: &CodeGoTokenToolConfigPayload,
 ) -> Result<Provider, String> {
     let mut settings_config = match payload.tool.as_str() {
-        "claude" | "codex" | "opencode" | "openclaw" | "hermes" => {
-            decode_token_config_json(payload)?
-        }
+        "claude" | "opencode" | "openclaw" | "hermes" => decode_token_config_json(payload)?,
+        "codex" => build_codex_settings_from_token_payload(payload)?,
         "gemini" => {
             let decoded = decode_token_config_json(payload)?;
             if decoded.get("env").is_some() {
@@ -2611,11 +2679,74 @@ fn build_provider_from_token_payload(
     Ok(provider)
 }
 
-fn apply_codego_api_key_to_token_settings(tool: &str, settings: &mut Value, api_key: &str) {
-    let full_key = normalize_codego_api_key(api_key);
-    if full_key.is_empty() {
-        return;
+fn build_codex_settings_from_token_payload(
+    payload: &CodeGoTokenToolConfigPayload,
+) -> Result<Value, String> {
+    let mut settings_config = if payload.config.trim().is_empty() {
+        json!({})
+    } else {
+        decode_token_config_json(payload)?
+    };
+
+    let api_key = settings_config
+        .pointer("/auth/OPENAI_API_KEY")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .or_else(|| codego_api_key_candidate(&payload.api_key))
+        .ok_or_else(|| "Code Go Codex token config missing API key".to_string())?;
+
+    let obj = settings_config
+        .as_object_mut()
+        .ok_or_else(|| "Code Go Codex token config must be a JSON object".to_string())?;
+
+    match obj.get_mut("auth").and_then(Value::as_object_mut) {
+        Some(auth) => {
+            let missing_key = auth
+                .get("OPENAI_API_KEY")
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .is_none_or(str::is_empty);
+            if missing_key {
+                auth.insert("OPENAI_API_KEY".to_string(), Value::String(api_key));
+            }
+        }
+        None => {
+            obj.insert(
+                "auth".to_string(),
+                json!({
+                    "OPENAI_API_KEY": api_key,
+                }),
+            );
+        }
     }
+
+    let config_is_empty = obj
+        .get("config")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .is_none_or(str::is_empty);
+
+    if config_is_empty {
+        let base_config = current_codex_config_for_merge()?;
+        obj.insert(
+            "config".to_string(),
+            Value::String(build_codego_codex_config_text(
+                &payload.endpoint,
+                payload.model.as_deref(),
+                base_config.as_deref(),
+            )?),
+        );
+    }
+
+    Ok(settings_config)
+}
+
+fn apply_codego_api_key_to_token_settings(tool: &str, settings: &mut Value, api_key: &str) {
+    let Some(full_key) = codego_api_key_candidate(api_key) else {
+        return;
+    };
     match tool {
         "claude" => {
             if let Some(env) = settings.get_mut("env").and_then(Value::as_object_mut) {
@@ -5083,6 +5214,69 @@ mod tests {
             .expect("load codex backup")
             .expect("codex backup exists");
         assert_eq!(backup.previous_provider_id.as_deref(), Some("custom-codex"));
+        match backup.snapshot {
+            super::CodeGoLiveSnapshot::Codex { auth, config } => {
+                assert_eq!(auth, Some(original_auth));
+                assert_eq!(config.as_deref(), Some(original_config));
+            }
+            other => panic!("unexpected backup snapshot: {other:?}"),
+        }
+    }
+
+    #[test]
+    #[serial]
+    fn codex_apply_provider_from_token_payload_without_config_generates_config_instead_of_clearing_live(
+    ) {
+        let _guard = settings_test_guard();
+        let _env = TempSettingsEnv::new();
+        let state = test_state();
+        let auth_path = crate::codex_config::get_codex_auth_path();
+        let config_path = crate::codex_config::get_codex_config_path();
+        let original_auth = json!({
+            "OPENAI_API_KEY": "sk-codex-original"
+        });
+        let original_config = "model_provider = \"custom\"\n[model_providers.custom]\nbase_url = \"https://original.example/v1\"\n\n[profiles.default]\napproval_policy = \"never\"\n";
+        let payload = CodeGoTokenToolConfigPayload {
+            tool: "codex".to_string(),
+            name: "Code Go Codex".to_string(),
+            homepage: "https://shu26.cfd".to_string(),
+            endpoint: "https://shu26.cfd/v1".to_string(),
+            api_key: "sk-codex-token".to_string(),
+            model: Some("gpt-5.5".to_string()),
+            haiku_model: None,
+            sonnet_model: None,
+            opus_model: None,
+            enabled: true,
+            config: String::new(),
+            config_format: "json".to_string(),
+            icon: None,
+            notes: None,
+        };
+
+        write_test_json(&auth_path, &original_auth);
+        write_test_text(&config_path, original_config);
+
+        let provider = build_provider_from_token_payload(&payload).expect("build token provider");
+        let generated_config = provider
+            .settings_config
+            .get("config")
+            .and_then(Value::as_str)
+            .expect("generated Codex config");
+        assert!(generated_config.contains("https://shu26.cfd/v1"));
+        assert!(generated_config.contains("gpt-5.5"));
+
+        apply_provider_for_codego_tool(None, &state, "codex", provider)
+            .expect("apply token provider");
+
+        let written_config = fs::read_to_string(&config_path).expect("read written config");
+        assert!(!written_config.trim().is_empty());
+        assert!(written_config.contains("https://shu26.cfd/v1"));
+        assert!(written_config.contains("[profiles.default]"));
+        assert!(written_config.contains("approval_policy = \"never\""));
+
+        let backup = load_tool_backup("codex")
+            .expect("load codex backup")
+            .expect("codex backup exists");
         match backup.snapshot {
             super::CodeGoLiveSnapshot::Codex { auth, config } => {
                 assert_eq!(auth, Some(original_auth));
