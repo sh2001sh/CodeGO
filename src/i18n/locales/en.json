@@ -3008,6 +3008,7 @@
       "heroDescriptionCompact": "Account quota, desktop tokens, recent usage, and service status stay here.",
       "connectedAccount": "Connected",
       "sessionLive": "Session live",
+      "openWebsite": "Open official website",
       "providers": "API config",
       "disconnect": "Disconnect",
       "serviceStatus": "Service status",

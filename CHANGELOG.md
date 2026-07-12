@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.12] - 2026-07-12
+
+- Added a direct official-website action to the authenticated desktop console.
+- Kept general, Claude, used, and request quota totals visible in the account overview.
+
 All notable changes to CC Switch will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),

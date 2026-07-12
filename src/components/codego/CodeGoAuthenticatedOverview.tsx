@@ -1,4 +1,4 @@
-import { Loader2, LogOut, RefreshCw } from "lucide-react";
+import { ExternalLink, Loader2, LogOut, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +22,7 @@ interface CodeGoAuthenticatedOverviewProps {
   onCopyToken: () => void;
   onEnsureToken: () => void;
   onOpenTopUp: () => void;
+  onOpenWebsite: () => void;
   onOpenTokens: () => void;
   onOpenLogs: () => void;
 }
@@ -38,6 +39,7 @@ export function CodeGoAuthenticatedOverview({
   onCopyToken,
   onEnsureToken,
   onOpenTopUp,
+  onOpenWebsite,
   onOpenTokens,
   onOpenLogs,
 }: CodeGoAuthenticatedOverviewProps) {
@@ -139,6 +141,14 @@ export function CodeGoAuthenticatedOverview({
                 >
                   <RefreshCw className="h-4 w-4" />
                   {t("common.refresh", "刷新")}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={onOpenWebsite}
+                  className="h-9 gap-2"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  {t("codego.overview.openWebsite", "打开官网")}
                 </Button>
                 <Button
                   variant="outline"

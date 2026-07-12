@@ -343,6 +343,11 @@ export function CodeGoDashboard({
           onCopyToken={() => void handleCopyToken()}
           onEnsureToken={() => void ensureDesktopToken()}
           onOpenTopUp={handleOpenTopUp}
+          onOpenWebsite={() =>
+            void handleOpenAuthorizationUrl(
+              authQuery.data?.serverAddress || "https://shu26.cfd",
+            )
+          }
         />
       </div>
     </div>
