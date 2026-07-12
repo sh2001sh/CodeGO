@@ -1,4 +1,10 @@
-import { ExternalLink, Loader2, LogOut, RefreshCw } from "lucide-react";
+import {
+  ExternalLink,
+  Loader2,
+  LogOut,
+  PackageOpen,
+  RefreshCw,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -77,6 +83,8 @@ export function CodeGoAuthenticatedOverview({
       formatDateTime(summary?.usage.last_request_at),
     ],
   ] as const;
+
+  const subscriptions = summary?.subscriptions ?? [];
 
   return (
     <section className="flex flex-1 flex-col px-6 pb-8">
@@ -184,6 +192,107 @@ export function CodeGoAuthenticatedOverview({
             </div>
           </div>
         </div>
+
+        <section className="codego-shell p-5 shadow-none">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
+                <PackageOpen className="h-4 w-4 text-muted-foreground" />
+                {t("codego.overview.subscriptionsTitle", "当前套餐")}
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {t(
+                  "codego.overview.subscriptionsDescription",
+                  "查看当前生效套餐及其剩余额度。",
+                )}
+              </p>
+            </div>
+            <Badge variant="outline">
+              {t("codego.overview.subscriptionCount", {
+                count: subscriptions.length,
+                defaultValue: `${subscriptions.length} 个生效套餐`,
+              })}
+            </Badge>
+          </div>
+
+          {subscriptions.length > 0 ? (
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+              {subscriptions.map((subscription) => (
+                <div
+                  key={subscription.id}
+                  className="min-w-0 rounded-lg border border-border bg-background/80 p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="truncate text-sm font-semibold text-foreground">
+                        {subscription.plan_title}
+                      </h3>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {t("codego.overview.subscriptionExpires", {
+                          date: formatDateTime(subscription.end_time),
+                          defaultValue: `有效期至 ${formatDateTime(subscription.end_time)}`,
+                        })}
+                      </p>
+                    </div>
+                    <Badge className="codego-chip-warm shrink-0">
+                      {subscription.unlimited
+                        ? t("codego.overview.subscriptionUnlimited", "不限额")
+                        : formatUsd(subscription.remaining_usd)}
+                    </Badge>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                    <div>
+                      <div className="text-xs text-muted-foreground">
+                        {t("codego.overview.subscriptionRemaining", "剩余额度")}
+                      </div>
+                      <div className="mt-1 text-sm font-semibold tabular-nums text-foreground">
+                        {subscription.unlimited
+                          ? t("codego.overview.subscriptionUnlimited", "不限额")
+                          : formatUsd(subscription.remaining_usd)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground">
+                        {t("codego.overview.subscriptionUsed", "已使用")}
+                      </div>
+                      <div className="mt-1 text-sm font-semibold tabular-nums text-foreground">
+                        {formatUsd(subscription.amount_used_usd)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground">
+                        {t("codego.overview.subscriptionTotal", "总额度")}
+                      </div>
+                      <div className="mt-1 text-sm font-semibold tabular-nums text-foreground">
+                        {subscription.unlimited
+                          ? t("codego.overview.subscriptionUnlimited", "不限额")
+                          : formatUsd(subscription.amount_total_usd)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {subscription.period_amount_usd > 0 ? (
+                    <div className="mt-3 border-t border-border/70 pt-3 text-xs text-muted-foreground">
+                      {t("codego.overview.subscriptionPeriod", {
+                        remaining: formatUsd(subscription.period_remaining_usd),
+                        reset: formatDateTime(subscription.next_reset_time),
+                        defaultValue: `本周期剩余 ${formatUsd(subscription.period_remaining_usd)} · 下次重置 ${formatDateTime(subscription.next_reset_time)}`,
+                      })}
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-4 rounded-lg border border-dashed border-border bg-muted/20 px-4 py-5 text-sm text-muted-foreground">
+              {t(
+                "codego.overview.noSubscriptions",
+                "当前没有生效套餐，模型请求将按钱包余额扣费。",
+              )}
+            </div>
+          )}
+        </section>
 
         <div className="grid flex-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="space-y-6">

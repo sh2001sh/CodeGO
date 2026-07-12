@@ -52,6 +52,7 @@ interface CodeGoAccountSummaryFixture {
     billing_preference: string;
     funding_source_order: string[];
   };
+  subscriptions: CodeGoSubscriptionSummaryFixture[];
   tokens: {
     total: number;
     desktop_token: {
@@ -83,6 +84,22 @@ interface CodeGoAccountSummaryFixture {
     tokens_path: string;
     logs_path: string;
   };
+}
+
+interface CodeGoSubscriptionSummaryFixture {
+  id: number;
+  plan_id: number;
+  plan_title: string;
+  amount_total_usd: number;
+  amount_used_usd: number;
+  remaining_usd: number;
+  unlimited: boolean;
+  period_amount_usd: number;
+  period_used_usd: number;
+  period_remaining_usd: number;
+  start_time: number;
+  end_time: number;
+  next_reset_time: number;
 }
 
 interface CodeGoUsageLogItemFixture {
@@ -697,6 +714,23 @@ let codeGoSummary: CodeGoAccountSummaryFixture = {
     billing_preference: "wallet",
     funding_source_order: ["wallet"],
   },
+  subscriptions: [
+    {
+      id: 17,
+      plan_id: 3,
+      plan_title: "Standard 月卡",
+      amount_total_usd: 100,
+      amount_used_usd: 24,
+      remaining_usd: 76,
+      unlimited: false,
+      period_amount_usd: 0,
+      period_used_usd: 0,
+      period_remaining_usd: 0,
+      start_time: 1719400000,
+      end_time: 1721992000,
+      next_reset_time: 0,
+    },
+  ],
   tokens: {
     total: 1,
     desktop_token: {
@@ -1040,6 +1074,23 @@ export const resetProviderState = () => {
       billing_preference: "wallet",
       funding_source_order: ["wallet"],
     },
+    subscriptions: [
+      {
+        id: 17,
+        plan_id: 3,
+        plan_title: "Standard 月卡",
+        amount_total_usd: 100,
+        amount_used_usd: 24,
+        remaining_usd: 76,
+        unlimited: false,
+        period_amount_usd: 0,
+        period_used_usd: 0,
+        period_remaining_usd: 0,
+        start_time: 1719400000,
+        end_time: 1721992000,
+        next_reset_time: 0,
+      },
+    ],
     tokens: {
       total: 1,
       desktop_token: {
@@ -1397,6 +1448,7 @@ export const setCodeGoSummary = (
       ...codeGoSummary.service,
       ...(value.service ?? {}),
     },
+    subscriptions: value.subscriptions ?? codeGoSummary.subscriptions,
     actions: {
       ...codeGoSummary.actions,
       ...(value.actions ?? {}),

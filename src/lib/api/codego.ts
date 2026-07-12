@@ -67,6 +67,7 @@ export interface CodeGoAccountSummary {
     billing_preference: string;
     funding_source_order: string[];
   };
+  subscriptions?: CodeGoSubscriptionSummary[];
   tokens: {
     total: number;
     desktop_token?: {
@@ -101,6 +102,22 @@ export interface CodeGoAccountSummary {
   website?: {
     group_status?: unknown;
   };
+}
+
+export interface CodeGoSubscriptionSummary {
+  id: number;
+  plan_id: number;
+  plan_title: string;
+  amount_total_usd: number;
+  amount_used_usd: number;
+  remaining_usd: number;
+  unlimited: boolean;
+  period_amount_usd: number;
+  period_used_usd: number;
+  period_remaining_usd: number;
+  start_time: number;
+  end_time: number;
+  next_reset_time: number;
 }
 
 export interface CodeGoUsageLogItem {

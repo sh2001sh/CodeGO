@@ -456,13 +456,16 @@ describe("CodeGoDashboard", () => {
     expect(screen.getByText("$40.00")).toBeInTheDocument();
     expect(screen.getByText("$18.75")).toBeInTheDocument();
     expect(screen.getByText("64")).toBeInTheDocument();
+    expect(screen.getByText("当前套餐")).toBeInTheDocument();
+    expect(screen.getByText("Standard 月卡")).toBeInTheDocument();
+    expect(screen.getAllByText("$76.00").length).toBeGreaterThanOrEqual(2);
 
     expect(
       screen.queryByText("Account and group status"),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("Billing preference")).not.toBeInTheDocument();
     expect(screen.queryByText("钱包")).not.toBeInTheDocument();
-    expect(screen.queryByText("套餐")).not.toBeInTheDocument();
+    expect(screen.getByText("当前套餐")).toBeInTheDocument();
     expect(screen.queryByText("盲盒")).not.toBeInTheDocument();
     expect(screen.queryByText("邀请")).not.toBeInTheDocument();
     expect(screen.queryByText("Token center")).not.toBeInTheDocument();
@@ -527,7 +530,7 @@ describe("CodeGoDashboard", () => {
       screen.queryByText("Account and group status"),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("钱包")).not.toBeInTheDocument();
-    expect(screen.queryByText("套餐")).not.toBeInTheDocument();
+    expect(screen.getByText("当前套餐")).toBeInTheDocument();
     expect(screen.queryByText("盲盒")).not.toBeInTheDocument();
     expect(screen.queryByText("邀请")).not.toBeInTheDocument();
   });

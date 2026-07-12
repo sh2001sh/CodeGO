@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.13] - 2026-07-12
+
+- Added active subscription plans to the desktop quota overview, including plan name, remaining quota, usage, total quota, and expiry.
+- Added period quota reset details when a plan uses periodic limits.
+
 ## [1.0.12] - 2026-07-12
 
 - Added a direct official-website action to the authenticated desktop console.
