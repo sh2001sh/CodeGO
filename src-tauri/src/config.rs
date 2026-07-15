@@ -321,24 +321,28 @@ pub fn migrate_legacy_app_data() -> Result<bool, AppError> {
     let home = get_home_dir();
     let destination = home.join(APP_CONFIG_DIR_NAME);
     let mut migrated = false;
-    let mut legacy_dirs = LEGACY_APP_CONFIG_DIR_NAMES
+    let legacy_dirs = LEGACY_APP_CONFIG_DIR_NAMES
         .iter()
         .map(|name| home.join(name))
         .collect::<Vec<_>>();
 
     #[cfg(windows)]
-    if let Ok(home_env) = std::env::var("HOME") {
-        let trimmed = home_env.trim();
-        if !trimmed.is_empty() {
-            let env_home = PathBuf::from(trimmed);
-            for name in LEGACY_APP_CONFIG_DIR_NAMES {
-                let candidate = env_home.join(name);
-                if !legacy_dirs.iter().any(|path| path == &candidate) {
-                    legacy_dirs.push(candidate);
+    let legacy_dirs = {
+        let mut legacy_dirs = legacy_dirs;
+        if let Ok(home_env) = std::env::var("HOME") {
+            let trimmed = home_env.trim();
+            if !trimmed.is_empty() {
+                let env_home = PathBuf::from(trimmed);
+                for name in LEGACY_APP_CONFIG_DIR_NAMES {
+                    let candidate = env_home.join(name);
+                    if !legacy_dirs.iter().any(|path| path == &candidate) {
+                        legacy_dirs.push(candidate);
+                    }
                 }
             }
         }
-    }
+        legacy_dirs
+    };
 
     if destination.is_dir() {
         migrated |= copy_legacy_database(&destination, &destination)?;
