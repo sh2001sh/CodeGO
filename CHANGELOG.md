@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.14] - 2026-07-15
+
+- Move CodeGo application data to `~/.codego` while preserving compatibility with legacy `.cc-switch` and `.ccswitch` directories.
+- Support database schema upgrades through v13 and keep legacy database files available during migration.
+- Align migration-related integration test fixtures with the CodeGo data paths.
+
 ## [1.0.13] - 2026-07-12
 
 - Added active subscription plans to the desktop quota overview, including plan name, remaining quota, usage, total quota, and expiry.
