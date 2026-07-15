@@ -44,7 +44,7 @@ interface CodeGoTokenManagerProps {
 
 const DEFAULT_FORM_STATE: CodeGoTokenFormState = {
   name: "",
-  unlimited_quota: false,
+  unlimited_quota: true,
   remain_quota: "0",
   expired_time: "",
   group: "default",

@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.15] - 2026-07-15
+
+- Default newly created desktop API tokens to unlimited quota while preserving existing token settings during edits.
+
 ## [1.0.14] - 2026-07-15
 
 - Move CodeGo application data to `~/.codego` while preserving compatibility with legacy `.cc-switch` and `.ccswitch` directories.
