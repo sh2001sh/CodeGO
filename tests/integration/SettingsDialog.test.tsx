@@ -155,7 +155,7 @@ describe("SettingsPage integration", () => {
     const appInput = await screen.findByPlaceholderText(
       "settings.browsePlaceholderApp",
     );
-    expect((appInput as HTMLInputElement).value).toBe("/home/mock/.cc-switch");
+    expect((appInput as HTMLInputElement).value).toBe("/home/mock/.codego");
   });
 
   it("updates codego desktop reminder settings from the auth tab", async () => {
@@ -255,15 +255,15 @@ describe("SettingsPage integration", () => {
     const appInput = (await screen.findByPlaceholderText(
       "settings.browsePlaceholderApp",
     )) as HTMLInputElement;
-    expect(appInput.value).toBe("/home/mock/.cc-switch");
+    expect(appInput.value).toBe("/home/mock/.codego");
 
     fireEvent.click(browseButtons[0]);
     await waitFor(() =>
-      expect(appInput.value).toBe("/home/mock/.cc-switch/picked"),
+      expect(appInput.value).toBe("/home/mock/.codego/picked"),
     );
 
     fireEvent.click(resetButtons[0]);
-    await waitFor(() => expect(appInput.value).toBe("/home/mock/.cc-switch"));
+    await waitFor(() => expect(appInput.value).toBe("/home/mock/.codego"));
 
     const claudeInput = (await screen.findByPlaceholderText(
       "settings.browsePlaceholderClaude",

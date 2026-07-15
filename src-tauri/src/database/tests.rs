@@ -184,6 +184,33 @@ fn schema_migration_rejects_future_version() {
 }
 
 #[test]
+fn schema_migration_accepts_v11_database_and_reaches_v13() {
+    let conn = Connection::open_in_memory().expect("open memory db");
+    conn.execute_batch(
+        "CREATE TABLE proxy_request_logs (request_id TEXT PRIMARY KEY);
+         CREATE TABLE usage_daily_rollups (date TEXT PRIMARY KEY);",
+    )
+    .expect("create v11 tables");
+    Database::set_user_version(&conn, 11).expect("set user_version=11");
+
+    Database::apply_schema_migrations_on_conn(&conn).expect("apply v11 -> v13 migrations");
+
+    assert_eq!(
+        Database::get_user_version(&conn).expect("read version after migration"),
+        13
+    );
+    assert!(Database::table_exists(&conn, "profiles").expect("check profiles table"));
+    assert!(
+        Database::has_column(&conn, "proxy_request_logs", "input_token_semantics")
+            .expect("check proxy_request_logs input token semantics column")
+    );
+    assert!(
+        Database::has_column(&conn, "usage_daily_rollups", "input_token_semantics")
+            .expect("check usage_daily_rollups input token semantics column")
+    );
+}
+
+#[test]
 fn schema_migration_adds_missing_columns_for_providers() {
     let conn = Connection::open_in_memory().expect("open memory db");
 

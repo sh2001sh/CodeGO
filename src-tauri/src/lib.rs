@@ -219,7 +219,7 @@ fn macos_tray_icon() -> Option<Image<'static>> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // 设置 panic hook，在应用崩溃时记录日志到 <app_config_dir>/crash.log（默认 ~/.cc-switch/crash.log）
+    // 设置 panic hook，在应用崩溃时记录日志到 <app_config_dir>/crash.log（默认 ~/.codego/crash.log）
     panic_hook::setup_panic_hook();
 
     let mut builder = tauri::Builder::default();
@@ -315,6 +315,26 @@ pub fn run() {
 
             // 预先刷新 Store 覆盖配置，确保后续路径读取正确（日志/数据库等）
             app_store::refresh_app_config_dir_override(app.handle());
+
+            // CodeGo 使用独立的数据目录；首次启动时把旧版目录内容复制过来，
+            // 保留旧目录作为回滚副本，并在后续统一使用 ~/.codego。
+            if let Err(error) = crate::config::migrate_legacy_app_data() {
+                let app_config_dir = crate::config::get_app_config_dir();
+                log::error!("迁移旧版 CodeGo 配置失败: {error}");
+                crate::init_status::set_init_error(crate::init_status::InitErrorPayload {
+                    path: app_config_dir.display().to_string(),
+                    error: format!("迁移旧版配置到 {} 失败：{error}", app_config_dir.display()),
+                    kind: Some("app_data_migration_failed".to_string()),
+                    db_version: None,
+                    supported_version: None,
+                });
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+                return Ok(());
+            }
+
             panic_hook::init_app_config_dir(crate::config::get_app_config_dir());
             #[cfg(target_os = "windows")]
             set_windows_app_user_model_id(app.handle());
@@ -374,7 +394,7 @@ pub fn run() {
 
             // 初始化数据库
             let app_config_dir = crate::config::get_app_config_dir();
-            let db_path = app_config_dir.join("cc-switch.db");
+            let db_path = crate::config::get_database_path();
             let json_path = app_config_dir.join("config.json");
 
             // 检查是否需要从 config.json 迁移到 SQLite
@@ -1986,7 +2006,7 @@ fn show_database_init_error_dialog(
             您的数据尚未丢失，应用不会自动删除数据库文件。\n\
             常见原因包括：数据库版本过新、文件损坏、权限不足、磁盘空间不足等。\n\n\
             建议：\n\
-            1) 先备份整个配置目录（包含 cc-switch.db）\n\
+            1) 先备份整个配置目录（包含 codego.db）\n\
             2) 如果提示“数据库版本过新”，请升级到更新版本\n\
             3) 如果刚升级出现异常，可回退旧版本导出/备份后再升级\n\n\
             点击「重试」重新尝试初始化\n\
@@ -2000,7 +2020,7 @@ fn show_database_init_error_dialog(
             Your data is NOT lost - the app will not delete the database automatically.\n\
             Common causes include: newer database version, corrupted file, permission issues, or low disk space.\n\n\
             Suggestions:\n\
-            1) Back up the entire config directory (including cc-switch.db)\n\
+            1) Back up the entire config directory (including codego.db)\n\
             2) If you see “database version is newer”, please upgrade CC Switch\n\
             3) If this happened right after upgrading, consider rolling back to export/backup then upgrade again\n\n\
             Click 'Retry' to attempt initialization again\n\

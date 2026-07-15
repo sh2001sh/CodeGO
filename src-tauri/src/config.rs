@@ -6,6 +6,12 @@ use std::path::{Component, Path, PathBuf};
 
 use crate::error::AppError;
 
+pub const APP_CONFIG_DIR_NAME: &str = ".codego";
+pub const DATABASE_FILE_NAME: &str = "codego.db";
+
+const LEGACY_APP_CONFIG_DIR_NAMES: &[&str] = &[".cc-switch", ".ccswitch"];
+const DATABASE_FILE_NAMES: &[&str] = &[DATABASE_FILE_NAME, "cc-switch.db", "ccswitch.db"];
+
 /// 获取用户主目录，带回退和日志
 ///
 /// ## Windows 注意事项
@@ -13,7 +19,7 @@ use crate::error::AppError;
 /// - `dirs::home_dir()` 在 Windows 上使用 `SHGetKnownFolderPath(FOLDERID_Profile)`，
 ///   返回的是真实用户目录（类似 `C:\\Users\\Alice`），与 v3.10.2 行为一致。
 /// - 不要直接使用 `HOME` 环境变量：它可能由 Git/Cygwin/MSYS 等第三方工具注入，
-///   且不一定等于用户目录，可能导致 `.cc-switch/cc-switch.db` 路径变化，从而“看起来像数据丢失”。
+///   且不一定等于用户目录，可能导致应用数据路径变化，从而“看起来像数据丢失”。
 ///
 /// ## 测试隔离
 ///
@@ -179,40 +185,170 @@ pub fn get_claude_settings_path() -> PathBuf {
     settings
 }
 
-/// 获取应用配置目录路径 (~/.cc-switch)
+/// 获取 CodeGo 应用配置目录路径 (`~/.codego`)
 pub fn get_app_config_dir() -> PathBuf {
     if let Some(custom) = crate::app_store::get_app_config_dir_override() {
         return custom;
     }
 
-    let default_dir = get_home_dir().join(".cc-switch");
+    get_home_dir().join(APP_CONFIG_DIR_NAME)
+}
 
-    // 兼容 v3.10.3：当用户环境存在 `HOME` 且与真实用户目录不同，
-    // v3.10.3 可能在 `HOME/.cc-switch/` 下创建/使用了数据库。
-    // 这里仅在“默认位置没有数据库”时回退到旧位置，避免再次出现“供应商消失”问题，
-    // 同时也避免新安装因为 `HOME` 被设置而写入非预期路径。
+fn database_path_in(dir: &Path) -> PathBuf {
+    let canonical = dir.join(DATABASE_FILE_NAME);
+    if canonical.exists() {
+        return canonical;
+    }
+
+    DATABASE_FILE_NAMES
+        .iter()
+        .skip(1)
+        .map(|name| dir.join(name))
+        .find(|path| path.exists())
+        .unwrap_or(canonical)
+}
+
+/// 获取当前使用的数据库路径。
+///
+/// 新安装使用 `~/.codego/codego.db`。在自定义目录或迁移尚未完成时，仍可读取
+/// 同目录下的 `cc-switch.db` / `ccswitch.db`，避免旧数据被误判为不存在。
+pub fn get_database_path() -> PathBuf {
+    database_path_in(&get_app_config_dir())
+}
+
+fn is_database_artifact(name: &str) -> bool {
+    DATABASE_FILE_NAMES
+        .iter()
+        .any(|base| name == *base || name == format!("{base}-wal") || name == format!("{base}-shm"))
+}
+
+fn copy_missing_tree(source: &Path, destination: &Path) -> Result<bool, AppError> {
+    fs::create_dir_all(destination).map_err(|e| AppError::io(destination, e))?;
+    let mut copied = false;
+
+    for entry in fs::read_dir(source).map_err(|e| AppError::io(source, e))? {
+        let entry = entry.map_err(|e| AppError::io(source, e))?;
+        let source_path = entry.path();
+        let file_type = entry
+            .file_type()
+            .map_err(|e| AppError::io(&source_path, e))?;
+        let name = entry.file_name();
+        let name_str = name.to_string_lossy();
+        if is_database_artifact(&name_str) {
+            continue;
+        }
+
+        let destination_path = destination.join(&name);
+        if file_type.is_dir() {
+            copied |= copy_missing_tree(&source_path, &destination_path)?;
+        } else if file_type.is_file() && !destination_path.exists() {
+            fs::copy(&source_path, &destination_path).map_err(|e| AppError::IoContext {
+                context: format!(
+                    "复制旧版 CodeGo 配置失败 ({} -> {})",
+                    source_path.display(),
+                    destination_path.display()
+                ),
+                source: e,
+            })?;
+            copied = true;
+        }
+    }
+
+    Ok(copied)
+}
+
+fn copy_legacy_database(source: &Path, destination: &Path) -> Result<bool, AppError> {
+    let destination_db = destination.join(DATABASE_FILE_NAME);
+    if destination_db.exists() {
+        return Ok(false);
+    }
+
+    let source_db = DATABASE_FILE_NAMES
+        .iter()
+        .map(|name| source.join(name))
+        .find(|path| path.exists());
+    let Some(source_db) = source_db else {
+        return Ok(false);
+    };
+
+    fs::copy(&source_db, &destination_db).map_err(|e| AppError::IoContext {
+        context: format!(
+            "复制旧版 CodeGo 数据库失败 ({} -> {})",
+            source_db.display(),
+            destination_db.display()
+        ),
+        source: e,
+    })?;
+
+    for suffix in ["-wal", "-shm"] {
+        let source_sidecar = PathBuf::from(format!("{}{}", source_db.display(), suffix));
+        if source_sidecar.exists() {
+            let destination_sidecar =
+                PathBuf::from(format!("{}{}", destination_db.display(), suffix));
+            fs::copy(&source_sidecar, &destination_sidecar).map_err(|e| AppError::IoContext {
+                context: format!(
+                    "复制旧版 CodeGo 数据库辅助文件失败 ({} -> {})",
+                    source_sidecar.display(),
+                    destination_sidecar.display()
+                ),
+                source: e,
+            })?;
+        }
+    }
+
+    Ok(true)
+}
+
+fn migrate_legacy_directory(source: &Path, destination: &Path) -> Result<bool, AppError> {
+    if !source.is_dir() {
+        return Ok(false);
+    }
+
+    let copied_files = copy_missing_tree(source, destination)?;
+    let copied_database = copy_legacy_database(source, destination)?;
+    Ok(copied_files || copied_database)
+}
+
+/// 将旧版 `~/.cc-switch` 或 `~/.ccswitch` 内容复制到 `~/.codego`。
+///
+/// 迁移只补齐目标目录中不存在的文件，旧目录始终保留，数据库也会改名为
+/// `codego.db`；这样旧客户端的数据仍可作为回滚和人工恢复来源。
+pub fn migrate_legacy_app_data() -> Result<bool, AppError> {
+    if crate::app_store::get_app_config_dir_override().is_some() {
+        return Ok(false);
+    }
+
+    let home = get_home_dir();
+    let destination = home.join(APP_CONFIG_DIR_NAME);
+    let mut migrated = false;
+    let mut legacy_dirs = LEGACY_APP_CONFIG_DIR_NAMES
+        .iter()
+        .map(|name| home.join(name))
+        .collect::<Vec<_>>();
+
     #[cfg(windows)]
-    {
-        let default_db = default_dir.join("cc-switch.db");
-        if !default_db.exists() {
-            if let Ok(home_env) = std::env::var("HOME") {
-                let trimmed = home_env.trim();
-                if !trimmed.is_empty() {
-                    let legacy_dir = PathBuf::from(trimmed).join(".cc-switch");
-                    if legacy_dir.join("cc-switch.db").exists() {
-                        log::info!(
-                            "Detected v3.10.3 legacy database at {}, using it instead of {}",
-                            legacy_dir.display(),
-                            default_dir.display()
-                        );
-                        return legacy_dir;
-                    }
+    if let Ok(home_env) = std::env::var("HOME") {
+        let trimmed = home_env.trim();
+        if !trimmed.is_empty() {
+            let env_home = PathBuf::from(trimmed);
+            for name in LEGACY_APP_CONFIG_DIR_NAMES {
+                let candidate = env_home.join(name);
+                if !legacy_dirs.iter().any(|path| path == &candidate) {
+                    legacy_dirs.push(candidate);
                 }
             }
         }
     }
 
-    default_dir
+    if destination.is_dir() {
+        migrated |= copy_legacy_database(&destination, &destination)?;
+    }
+
+    for source in legacy_dirs {
+        migrated |= migrate_legacy_directory(&source, &destination)?;
+    }
+
+    Ok(migrated)
 }
 
 /// 获取应用配置文件路径
@@ -520,6 +656,46 @@ mod tests {
             serde_json::to_string(&sorted_a).unwrap(),
             serde_json::to_string(&sorted_b).unwrap(),
         );
+    }
+
+    #[test]
+    fn database_path_prefers_codego_and_falls_back_to_legacy_names() {
+        let temp = tempfile::tempdir().unwrap();
+        let legacy = temp.path().join("cc-switch.db");
+        std::fs::write(&legacy, b"legacy").unwrap();
+        assert_eq!(database_path_in(temp.path()), legacy);
+
+        let canonical = temp.path().join(DATABASE_FILE_NAME);
+        std::fs::write(&canonical, b"codego").unwrap();
+        assert_eq!(database_path_in(temp.path()), canonical);
+    }
+
+    #[test]
+    fn legacy_directory_migration_copies_data_without_overwriting_or_deleting() {
+        let temp = tempfile::tempdir().unwrap();
+        let source = temp.path().join(".cc-switch");
+        let destination = temp.path().join(APP_CONFIG_DIR_NAME);
+        std::fs::create_dir_all(&source).unwrap();
+        std::fs::write(source.join("cc-switch.db"), b"legacy database").unwrap();
+        std::fs::write(source.join("cc-switch.db-wal"), b"legacy wal").unwrap();
+        std::fs::write(source.join("settings.json"), b"old settings").unwrap();
+        std::fs::create_dir_all(&destination).unwrap();
+        std::fs::write(destination.join("settings.json"), b"new settings").unwrap();
+
+        assert!(migrate_legacy_directory(&source, &destination).unwrap());
+        assert_eq!(
+            std::fs::read(destination.join(DATABASE_FILE_NAME)).unwrap(),
+            b"legacy database"
+        );
+        assert_eq!(
+            std::fs::read(destination.join("codego.db-wal")).unwrap(),
+            b"legacy wal"
+        );
+        assert_eq!(
+            std::fs::read(destination.join("settings.json")).unwrap(),
+            b"new settings"
+        );
+        assert!(source.join("cc-switch.db").exists());
     }
 }
 

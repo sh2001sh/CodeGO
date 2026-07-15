@@ -284,7 +284,7 @@
     },
     "unifyCodexHistory": {
       "title": "统一 Codex 会话历史",
-      "message": "开启后，官方订阅与第三方将共用同一个会话历史列表。注意：跨供应商继续旧会话时，可能因对方后端无法解密 encrypted_content 推理内容而失败。\n\n可选择同时把现有官方会话历史迁入共享列表（迁移前自动备份到 ~/.cc-switch/backups，关闭开关时可选择恢复）。",
+      "message": "开启后，官方订阅与第三方将共用同一个会话历史列表。注意：跨供应商继续旧会话时，可能因对方后端无法解密 encrypted_content 推理内容而失败。\n\n可选择同时把现有官方会话历史迁入共享列表（迁移前自动备份到 ~/.codego/backups，关闭开关时可选择恢复）。",
       "migrateExisting": "同时迁入现有官方会话历史",
       "confirm": "我已了解，继续开启"
     },
@@ -704,7 +704,7 @@
       "description": "选择 codego 存放 Skills 主副本的目录",
       "ccSwitch": "codego",
       "unified": "~/.agents/skills",
-      "ccSwitchHint": "技能存储在 ~/.cc-switch/skills/，由 codego 统一管理并同步到各应用。",
+      "ccSwitchHint": "技能存储在 ~/.codego/skills/，由 codego 统一管理并同步到各应用。",
       "unifiedHint": "技能存储在 ~/.agents/skills/，遵循 Agent Skills 开放标准。兼容的工具（Claude Code、Codex、Gemini CLI 等）可直接发现此目录中的技能。",
       "confirmTitle": "迁移技能存储",
       "confirmMessage": "将移动 {{count}} 个技能到新位置，是否继续？",
@@ -752,7 +752,7 @@
     "configDirectoryDescription": "在 WSL 等环境使用 Claude Code 或 Codex 的时候，可手动指定为 WSL 里的配置目录，供应商数据与主环境保持一致。",
     "appConfigDir": "codego 配置目录",
     "appConfigDirDescription": "自定义 codego 的配置存储位置（指定到云同步文件夹即可云同步配置）",
-    "browsePlaceholderApp": "例如：C:\\Users\\Administrator\\.cc-switch",
+    "browsePlaceholderApp": "例如：C:\\Users\\Administrator\\.codego",
     "claudeConfigDir": "Claude Code 配置目录",
     "claudeConfigDirDescription": "覆盖 Claude 配置目录 (settings.json)。真正自定义目录会在目录内存放 Claude MCP 的 .claude.json；默认 ~/.claude 目录仍使用 Claude 默认的 ~/.claude.json。",
     "codexConfigDir": "Codex 配置目录",
