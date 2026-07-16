@@ -83,7 +83,7 @@ export function buildClaudeProvider(
         ANTHROPIC_AUTH_TOKEN: fullKey,
       },
     },
-    icon: "newapi",
+    icon: "codego",
     iconColor: "#E37A1F",
   };
 }
@@ -103,7 +103,7 @@ export function buildGeminiProvider(
         GEMINI_MODEL: "gemini-2.5-pro",
       },
     },
-    icon: "newapi",
+    icon: "codego",
     iconColor: "#4285F4",
   };
 }
@@ -131,7 +131,7 @@ base_url = "${template.endpoint}"
 wire_api = "responses"
 requires_openai_auth = true`,
     },
-    icon: "newapi",
+    icon: "codego",
     iconColor: "#0F172A",
   };
 }

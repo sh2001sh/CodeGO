@@ -2550,7 +2550,7 @@ fn build_provider_from_codego(
         _ => return Err(format!("unsupported Code Go tool: {tool}")),
     };
     provider.category = Some("custom".to_string());
-    provider.icon = Some("newapi".to_string());
+    provider.icon = Some("codego".to_string());
     provider.icon_color = Some(
         match tool {
             "claude" => "#E37A1F",
@@ -2659,7 +2659,12 @@ fn build_provider_from_token_payload(
         Some(payload.homepage.clone()).filter(|value| !value.trim().is_empty()),
     );
     provider.category = Some("custom".to_string());
-    provider.icon = payload.icon.clone().or_else(|| Some("newapi".to_string()));
+    provider.icon = payload
+        .icon
+        .clone()
+        .map(|icon| icon.trim().to_lowercase())
+        .filter(|icon| !icon.is_empty() && icon != "newapi")
+        .or_else(|| Some("codego".to_string()));
     provider.icon_color = Some(
         match payload.tool.as_str() {
             "claude" => "#E37A1F",
@@ -3604,7 +3609,7 @@ mod tests {
                     "enabled": true,
                     "config": "e30=",
                     "config_format": "json",
-                    "icon": "newapi",
+                    "icon": "codego",
                     "notes": null
                 }
             }
@@ -4953,7 +4958,8 @@ mod tests {
                 .and_then(serde_json::Value::as_str),
             Some("sk-hermes")
         );
-        assert_eq!(hermes.icon.as_deref(), Some("newapi"));
+        assert_eq!(openclaw.icon.as_deref(), Some("codego"));
+        assert_eq!(hermes.icon.as_deref(), Some("codego"));
     }
 
     #[test]

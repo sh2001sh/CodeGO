@@ -116,6 +116,16 @@ fn test_parse_provider_deeplink_with_codego_apply_action() {
 
     assert_eq!(request.codego_action, Some("applyToolConfig".to_string()));
     assert_eq!(request.token_id, Some(42));
+    assert_eq!(request.icon, Some("codego".to_string()));
+}
+
+#[test]
+fn test_parse_codego_deeplink_replaces_legacy_newapi_icon() {
+    let url = "codego://v1/import?resource=provider&app=codex&name=Code%20Go%20Codex&homepage=https%3A%2F%2Fexample.com&endpoint=https%3A%2F%2Fapi.example.com&icon=newapi&codegoAction=applyToolConfig";
+
+    let request = parse_deeplink_url(url).unwrap();
+
+    assert_eq!(request.icon, Some("codego".to_string()));
 }
 
 #[test]

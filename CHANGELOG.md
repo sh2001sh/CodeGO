@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.16] - 2026-07-16
+
+- Use the CodeGo brand icon for providers created from desktop token and web deep-link apply flows.
+- Normalize legacy CodeGo imports that still identify their provider icon as New API.
+
 ## [1.0.15] - 2026-07-15
 
 - Default newly created desktop API tokens to unlimited quota while preserving existing token settings during edits.

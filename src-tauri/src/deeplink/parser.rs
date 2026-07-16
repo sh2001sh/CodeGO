@@ -120,7 +120,7 @@ fn parse_provider_deeplink(
     let haiku_model = params.get("haikuModel").cloned();
     let sonnet_model = params.get("sonnetModel").cloned();
     let opus_model = params.get("opusModel").cloned();
-    let icon = params
+    let mut icon = params
         .get("icon")
         .map(|v| v.trim().to_lowercase())
         .filter(|v| !v.is_empty());
@@ -130,6 +130,11 @@ fn parse_provider_deeplink(
     let enabled = params.get("enabled").and_then(|v| v.parse::<bool>().ok());
     let codego_action = params.get("codegoAction").cloned();
     let token_id = params.get("tokenId").and_then(|v| v.parse::<i64>().ok());
+    if codego_action.as_deref() == Some("applyToolConfig")
+        && icon.as_deref().is_none_or(|value| value == "newapi")
+    {
+        icon = Some("codego".to_string());
+    }
 
     // Extract usage script fields (v3.9+)
     let usage_enabled = params
