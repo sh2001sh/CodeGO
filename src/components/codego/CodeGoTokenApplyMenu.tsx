@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Loader2, Sparkles } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { CheckCircle2, Loader2, RotateCcw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { codegoApi } from "@/lib/api";
 import type {
@@ -67,6 +67,11 @@ export function CodeGoTokenApplyMenu({ token }: CodeGoTokenApplyMenuProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [applyingTool, setApplyingTool] = useState<ToolType | null>(null);
+  const [restoringTool, setRestoringTool] = useState<ToolType | null>(null);
+  const statusQuery = useQuery({
+    queryKey: ["codego", "tool-config-statuses"],
+    queryFn: () => codegoApi.getToolConfigStatuses(),
+  });
 
   const handleApply = async (tool: ToolType) => {
     setApplyingTool(tool);
@@ -86,6 +91,36 @@ export function CodeGoTokenApplyMenu({ token }: CodeGoTokenApplyMenuProps) {
     }
   };
 
+  const handleRestore = async (tool: ToolType) => {
+    setRestoringTool(tool);
+    try {
+      await codegoApi.restoreToolConfig(tool);
+      await refreshCodeGoQueries(queryClient);
+      toast.success(
+        t("codego.tokens.restoreSuccess", "Original configuration restored"),
+        {
+          closeButton: true,
+        },
+      );
+    } catch (error) {
+      toast.error(
+        extractErrorMessage(error) ||
+          t(
+            "codego.tokens.restoreFailed",
+            "Failed to restore original configuration",
+          ),
+      );
+    } finally {
+      setRestoringTool(null);
+    }
+  };
+
+  const restorableTargets = APPLY_TARGETS.filter((target) =>
+    statusQuery.data?.some(
+      (status) => status.tool === target.tool && status.hasBackup,
+    ),
+  );
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -93,7 +128,7 @@ export function CodeGoTokenApplyMenu({ token }: CodeGoTokenApplyMenuProps) {
           variant="outline"
           size="sm"
           className="h-8 gap-1.5"
-          disabled={Boolean(applyingTool)}
+          disabled={Boolean(applyingTool || restoringTool)}
         >
           {applyingTool ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -118,6 +153,31 @@ export function CodeGoTokenApplyMenu({ token }: CodeGoTokenApplyMenuProps) {
             {label}
           </DropdownMenuItem>
         ))}
+        {restorableTargets.length > 0 && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>
+              {t(
+                "codego.tokens.restoreOriginal",
+                "Restore original configuration",
+              )}
+            </DropdownMenuLabel>
+            {restorableTargets.map(({ tool, label }) => (
+              <DropdownMenuItem
+                key={`restore-${tool}`}
+                disabled={Boolean(applyingTool || restoringTool)}
+                onSelect={() => void handleRestore(tool)}
+              >
+                {restoringTool === tool ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                )}
+                {label}
+              </DropdownMenuItem>
+            ))}
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
