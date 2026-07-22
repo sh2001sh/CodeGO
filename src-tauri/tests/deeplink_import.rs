@@ -1,10 +1,86 @@
 use std::sync::Arc;
 
-use codego_lib::{import_provider_from_deeplink, parse_deeplink_url, AppState, Database};
+use base64::{engine::general_purpose::STANDARD, Engine as _};
+use codego_lib::{
+    import_provider_from_deeplink, parse_deeplink_url, AppState, Database, DeepLinkImportRequest,
+};
 
 #[path = "support.rs"]
 mod support;
 use support::{ensure_test_home, reset_test_fs, test_mutex};
+
+#[test]
+fn website_ccswitch_contract_uses_remote_one_time_config() {
+    let url = "ccswitch://v1/import?resource=provider&app=codex&name=CodeGo&endpoint=https%3A%2F%2Fshu26.cfd%2Fv1&homepage=https%3A%2F%2Fshu26.cfd&enabled=true&icon=codego&configFormat=json&configUrl=https%3A%2F%2Fshu26.cfd%2Fapi%2Fdesktop%2Fimport%2Fconfig%3Fcode%3Dcontract-code%26format%3Dccswitch&model=gpt-5.6-luna";
+    let request = parse_deeplink_url(url).expect("parse website CC Switch link");
+
+    assert_eq!(request.resource, "provider");
+    assert_eq!(request.app.as_deref(), Some("codex"));
+    assert_eq!(request.model.as_deref(), Some("gpt-5.6-luna"));
+    assert_eq!(request.config_format.as_deref(), Some("json"));
+    assert_eq!(
+        request.config_url.as_deref(),
+        Some("https://shu26.cfd/api/desktop/import/config?code=contract-code&format=ccswitch")
+    );
+    assert!(
+        request.config.is_none(),
+        "API key config must not be embedded in the URL"
+    );
+    assert!(request.codego_action.is_none());
+    assert!(request.token_id.is_none());
+}
+
+#[test]
+fn codego_registers_only_its_owned_protocol() {
+    let config: serde_json::Value =
+        serde_json::from_str(include_str!("../tauri.conf.json")).expect("parse tauri config");
+    let schemes = config
+        .pointer("/plugins/deep-link/desktop/schemes")
+        .and_then(|value| value.as_array())
+        .expect("deep-link schemes");
+
+    assert_eq!(schemes, &[serde_json::Value::String("codego".to_string())]);
+}
+
+#[test]
+fn website_codex_config_contract_imports_after_remote_fetch() {
+    let _guard = test_mutex().lock().expect("acquire test mutex");
+    reset_test_fs();
+    let _home = ensure_test_home();
+
+    let config = r#"{"auth":{"OPENAI_API_KEY":"sk-contract"},"config":"model_provider = \"custom\"\nmodel = \"gpt-5.6-luna\"\n\n[model_providers.custom]\nname = \"Code Go\"\nbase_url = \"https://shu26.cfd/v1\"\nwire_api = \"responses\"\nrequires_openai_auth = true\n"}"#;
+    let request = DeepLinkImportRequest {
+        version: "v1".to_string(),
+        resource: "provider".to_string(),
+        app: Some("codex".to_string()),
+        name: Some("CodeGo contract".to_string()),
+        config: Some(STANDARD.encode(config)),
+        config_format: Some("json".to_string()),
+        ..Default::default()
+    };
+
+    let db = Arc::new(Database::memory().expect("create memory db"));
+    let state = AppState::new(db.clone());
+    let provider_id = import_provider_from_deeplink(&state, request)
+        .expect("import new-api Codex config contract");
+    let providers = db.get_all_providers("codex").expect("get providers");
+    let provider = providers.get(&provider_id).expect("provider created");
+
+    assert_eq!(
+        provider
+            .settings_config
+            .pointer("/auth/OPENAI_API_KEY")
+            .and_then(|value| value.as_str()),
+        Some("sk-contract")
+    );
+    let config_text = provider
+        .settings_config
+        .get("config")
+        .and_then(|value| value.as_str())
+        .expect("Codex config text");
+    assert!(config_text.contains("https://shu26.cfd/v1"));
+    assert!(config_text.contains("gpt-5.6-luna"));
+}
 
 #[test]
 fn deeplink_import_claude_provider_persists_to_db() {

@@ -117,7 +117,7 @@ fn redact_url_for_log(url_str: &str) -> String {
     }
 }
 
-/// 统一处理 codego:// 与 ccswitch:// 深链接 URL
+/// Parse CodeGo links and legacy CC Switch links passed directly to the app.
 ///
 /// - 解析 URL
 /// - 向前端发射 `deeplink-import` / `deeplink-error` 事件

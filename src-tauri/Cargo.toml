@@ -1,6 +1,6 @@
 [package]
 name = "codego"
-version = "1.0.17"
+version = "1.0.18"
 description = "All-in-One Assistant for Claude Code, Codex & Gemini CLI"
 authors = ["Jason Young"]
 license = "MIT"
