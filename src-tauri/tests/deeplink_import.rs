@@ -41,6 +41,10 @@ fn codego_registers_only_its_owned_protocol() {
         .expect("deep-link schemes");
 
     assert_eq!(schemes, &[serde_json::Value::String("codego".to_string())]);
+
+    let macos_plist = include_str!("../Info.plist");
+    assert!(macos_plist.contains("<string>codego</string>"));
+    assert!(!macos_plist.contains("<string>ccswitch</string>"));
 }
 
 #[test]

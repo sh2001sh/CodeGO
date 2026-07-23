@@ -9,6 +9,7 @@ mod codex_history_migration;
 mod commands;
 mod config;
 mod database;
+mod deep_link_registration;
 mod deeplink;
 mod error;
 mod gemini_config;
@@ -850,6 +851,21 @@ pub fn run() {
 
             // 注册 deep-link URL 处理器（使用正确的 DeepLinkExt API）
             log::info!("=== Registering deep-link URL handler ===");
+
+            #[cfg(target_os = "windows")]
+            match deep_link_registration::migrate_legacy_ccswitch_registration() {
+                Ok(deep_link_registration::LegacyRegistrationMigration::NotNeeded) => {}
+                Ok(deep_link_registration::LegacyRegistrationMigration::Removed) => {
+                    log::info!("✓ Removed legacy CodeGo ownership of ccswitch://")
+                }
+                Ok(deep_link_registration::LegacyRegistrationMigration::Restored(path)) => {
+                    log::info!(
+                        "✓ Restored ccswitch:// ownership to official CC Switch at {}",
+                        path.display()
+                    )
+                }
+                Err(error) => log::warn!("Failed to remove legacy ccswitch:// registration: {error}"),
+            }
 
             // Linux 和 Windows 调试模式需要显式注册
             #[cfg(any(target_os = "linux", all(debug_assertions, windows)))]
