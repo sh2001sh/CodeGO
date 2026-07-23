@@ -10,21 +10,22 @@ mod support;
 use support::{ensure_test_home, reset_test_fs, test_mutex};
 
 #[test]
-fn website_ccswitch_contract_uses_remote_one_time_config() {
-    let url = "ccswitch://v1/import?resource=provider&app=codex&name=CodeGo&endpoint=https%3A%2F%2Fshu26.cfd%2Fv1&homepage=https%3A%2F%2Fshu26.cfd&enabled=true&icon=codego&configFormat=json&configUrl=https%3A%2F%2Fshu26.cfd%2Fapi%2Fdesktop%2Fimport%2Fconfig%3Fcode%3Dcontract-code%26format%3Dccswitch&model=gpt-5.6-luna";
+fn website_ccswitch_contract_uses_official_direct_parameters() {
+    let url = "ccswitch://v1/import?resource=provider&app=codex&name=CodeGo&endpoint=https%3A%2F%2Fshu26.cfd%2Fv1&homepage=https%3A%2F%2Fshu26.cfd&enabled=true&icon=codego&apiKey=sk-contract&model=gpt-5.6-luna";
     let request = parse_deeplink_url(url).expect("parse website CC Switch link");
 
     assert_eq!(request.resource, "provider");
     assert_eq!(request.app.as_deref(), Some("codex"));
     assert_eq!(request.model.as_deref(), Some("gpt-5.6-luna"));
-    assert_eq!(request.config_format.as_deref(), Some("json"));
-    assert_eq!(
-        request.config_url.as_deref(),
-        Some("https://shu26.cfd/api/desktop/import/config?code=contract-code&format=ccswitch")
-    );
+    assert_eq!(request.endpoint.as_deref(), Some("https://shu26.cfd/v1"));
+    assert_eq!(request.api_key.as_deref(), Some("sk-contract"));
     assert!(
         request.config.is_none(),
         "API key config must not be embedded in the URL"
+    );
+    assert!(
+        request.config_url.is_none(),
+        "official CC Switch does not support remote config URLs"
     );
     assert!(request.codego_action.is_none());
     assert!(request.token_id.is_none());
@@ -43,7 +44,7 @@ fn codego_registers_only_its_owned_protocol() {
 }
 
 #[test]
-fn website_codex_config_contract_imports_after_remote_fetch() {
+fn codego_codex_config_contract_imports_after_config_resolution() {
     let _guard = test_mutex().lock().expect("acquire test mutex");
     reset_test_fs();
     let _home = ensure_test_home();
