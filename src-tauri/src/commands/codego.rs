@@ -3068,6 +3068,7 @@ pub async fn codego_get_usage_trends(days: Option<u32>) -> Result<Value, String>
 }
 
 #[cfg(test)]
+#[allow(clippy::await_holding_lock, clippy::field_reassign_with_default)]
 mod tests {
     use super::{
         apply_account_summary_side_effects, apply_account_summary_side_effects_with_sink,
