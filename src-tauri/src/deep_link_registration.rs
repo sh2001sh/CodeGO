@@ -1,3 +1,4 @@
+#[cfg(any(target_os = "windows", test))]
 fn command_targets_codego(command: &str) -> bool {
     let command = command.trim();
     let executable = if let Some(quoted) = command.strip_prefix('"') {
