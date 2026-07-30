@@ -1,3 +1,4 @@
+use rusqlite::{Connection, OpenFlags};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::fs;
@@ -94,6 +95,132 @@ fn comparable_path_key(path: &Path) -> String {
 
 fn path_eq_lexical(left: &Path, right: &Path) -> bool {
     comparable_path_key(left) == comparable_path_key(right)
+}
+
+fn read_database_user_version(path: &Path) -> Result<i32, AppError> {
+    let conn = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)
+        .map_err(|e| AppError::Database(format!("打开数据库失败: {e}")))?;
+    conn.query_row("PRAGMA user_version;", [], |row| row.get(0))
+        .map_err(|e| AppError::Database(format!("读取 user_version 失败: {e}")))
+}
+
+/// 判断数据库是否可以作为 CodeGo 的旧数据库迁入。
+///
+/// CC Switch 与 CodeGo 共享过历史数据目录，但两者的 Schema 版本可能不同。
+/// 旧版数据库只有在版本不高于当前 CodeGo 支持版本时才可以安全迁移；更高版本
+/// 必须保留在原处，避免旧应用对未知表结构执行写操作。
+fn is_database_supported(path: &Path) -> bool {
+    match read_database_user_version(path) {
+        Ok(version) if version <= crate::database::SCHEMA_VERSION => true,
+        Ok(version) => {
+            log::warn!(
+                "跳过迁移数据库 {}：版本 v{version} 高于 CodeGo 支持的 v{}，保留原文件",
+                path.display(),
+                crate::database::SCHEMA_VERSION
+            );
+            false
+        }
+        Err(error) => {
+            log::warn!(
+                "跳过迁移数据库 {}：无法读取数据库版本：{error}",
+                path.display()
+            );
+            false
+        }
+    }
+}
+
+fn unsupported_database_backup_path(path: &Path, version: i32, index: usize) -> PathBuf {
+    let file_name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or(DATABASE_FILE_NAME);
+    let suffix = if index == 0 {
+        String::new()
+    } else {
+        format!(".{index}")
+    };
+    path.with_file_name(format!("{file_name}.unsupported-v{version}{suffix}"))
+}
+
+fn restore_database_sidecars(moved: &[(PathBuf, PathBuf)]) {
+    for (source, backup) in moved.iter().rev() {
+        if let Err(error) = fs::rename(backup, source) {
+            log::error!(
+                "恢复数据库辅助文件失败 ({} -> {}): {error}",
+                backup.display(),
+                source.display()
+            );
+        }
+    }
+}
+
+/// 将旧版本迁移逻辑遗留的未来版本 CodeGo 数据库移出活动路径。
+///
+/// 这一步只在当前规范数据库 `codego.db` 上执行。数据库及其 WAL/SHM 文件会
+/// 一起改名保留，随后由正常初始化流程创建新的 CodeGo 数据库。
+fn isolate_unsupported_database(dir: &Path) -> Result<bool, AppError> {
+    let db_path = dir.join(DATABASE_FILE_NAME);
+    if !db_path.exists() {
+        return Ok(false);
+    }
+
+    let Ok(version) = read_database_user_version(&db_path) else {
+        return Ok(false);
+    };
+    if version <= crate::database::SCHEMA_VERSION {
+        return Ok(false);
+    }
+
+    let backup_path = (0..)
+        .map(|index| unsupported_database_backup_path(&db_path, version, index))
+        .find(|path| {
+            !path.exists()
+                && !PathBuf::from(format!("{}-wal", path.display())).exists()
+                && !PathBuf::from(format!("{}-shm", path.display())).exists()
+        })
+        .expect("infinite backup path sequence should contain an unused path");
+
+    let mut moved_sidecars = Vec::new();
+    for suffix in ["-wal", "-shm"] {
+        let source = PathBuf::from(format!("{}{}", db_path.display(), suffix));
+        if !source.exists() {
+            continue;
+        }
+
+        let backup = PathBuf::from(format!("{}{}", backup_path.display(), suffix));
+        if let Err(error) = fs::rename(&source, &backup) {
+            restore_database_sidecars(&moved_sidecars);
+            return Err(AppError::IoContext {
+                context: format!(
+                    "隔离不兼容数据库辅助文件失败 ({} -> {})",
+                    source.display(),
+                    backup.display()
+                ),
+                source: error,
+            });
+        }
+        moved_sidecars.push((source, backup));
+    }
+
+    if let Err(error) = fs::rename(&db_path, &backup_path) {
+        restore_database_sidecars(&moved_sidecars);
+        return Err(AppError::IoContext {
+            context: format!(
+                "隔离不兼容数据库失败 ({} -> {})",
+                db_path.display(),
+                backup_path.display()
+            ),
+            source: error,
+        });
+    }
+
+    log::warn!(
+        "检测到 CodeGo 数据库版本 v{version} 高于支持版本 v{}，已保留备份 {}",
+        crate::database::SCHEMA_VERSION,
+        backup_path.display()
+    );
+    Ok(true)
 }
 
 #[cfg(windows)]
@@ -204,14 +331,14 @@ fn database_path_in(dir: &Path) -> PathBuf {
         .iter()
         .skip(1)
         .map(|name| dir.join(name))
-        .find(|path| path.exists())
+        .find(|path| path.exists() && is_database_supported(path))
         .unwrap_or(canonical)
 }
 
 /// 获取当前使用的数据库路径。
 ///
-/// 新安装使用 `~/.codego/codego.db`。在自定义目录或迁移尚未完成时，仍可读取
-/// 同目录下的 `cc-switch.db` / `ccswitch.db`，避免旧数据被误判为不存在。
+/// 新安装使用 `~/.codego/codego.db`。仅当同目录下的旧数据库版本仍受支持时，
+/// 才回退读取 `cc-switch.db` / `ccswitch.db`；更高版本会被忽略并创建独立数据库。
 pub fn get_database_path() -> PathBuf {
     database_path_in(&get_app_config_dir())
 }
@@ -271,6 +398,10 @@ fn copy_legacy_database(source: &Path, destination: &Path) -> Result<bool, AppEr
         return Ok(false);
     };
 
+    if !is_database_supported(&source_db) {
+        return Ok(false);
+    }
+
     fs::copy(&source_db, &destination_db).map_err(|e| AppError::IoContext {
         context: format!(
             "复制旧版 CodeGo 数据库失败 ({} -> {})",
@@ -311,16 +442,17 @@ fn migrate_legacy_directory(source: &Path, destination: &Path) -> Result<bool, A
 
 /// 将旧版 `~/.cc-switch` 或 `~/.ccswitch` 内容复制到 `~/.codego`。
 ///
-/// 迁移只补齐目标目录中不存在的文件，旧目录始终保留，数据库也会改名为
-/// `codego.db`；这样旧客户端的数据仍可作为回滚和人工恢复来源。
+/// 迁移只补齐目标目录中不存在的文件，旧目录始终保留；受支持的旧数据库会
+/// 改名为 `codego.db`，未来版本数据库则保留为独立备份。
 pub fn migrate_legacy_app_data() -> Result<bool, AppError> {
+    let destination = get_app_config_dir();
+    let mut migrated = isolate_unsupported_database(&destination)?;
+
     if crate::app_store::get_app_config_dir_override().is_some() {
-        return Ok(false);
+        return Ok(migrated);
     }
 
     let home = get_home_dir();
-    let destination = home.join(APP_CONFIG_DIR_NAME);
-    let mut migrated = false;
     let legacy_dirs = LEGACY_APP_CONFIG_DIR_NAMES
         .iter()
         .map(|name| home.join(name))
@@ -666,12 +798,61 @@ mod tests {
     fn database_path_prefers_codego_and_falls_back_to_legacy_names() {
         let temp = tempfile::tempdir().unwrap();
         let legacy = temp.path().join("cc-switch.db");
-        std::fs::write(&legacy, b"legacy").unwrap();
+        let conn = Connection::open(&legacy).unwrap();
+        conn.execute_batch("PRAGMA user_version = 13;").unwrap();
+        drop(conn);
         assert_eq!(database_path_in(temp.path()), legacy);
 
         let canonical = temp.path().join(DATABASE_FILE_NAME);
-        std::fs::write(&canonical, b"codego").unwrap();
+        let conn = Connection::open(&canonical).unwrap();
+        conn.execute_batch("PRAGMA user_version = 13;").unwrap();
+        drop(conn);
         assert_eq!(database_path_in(temp.path()), canonical);
+    }
+
+    #[test]
+    fn database_path_ignores_legacy_database_newer_than_supported() {
+        let temp = tempfile::tempdir().unwrap();
+        let legacy = temp.path().join("cc-switch.db");
+        let conn = Connection::open(&legacy).unwrap();
+        conn.execute_batch("PRAGMA user_version = 16;").unwrap();
+        drop(conn);
+
+        assert_eq!(
+            database_path_in(temp.path()),
+            temp.path().join(DATABASE_FILE_NAME)
+        );
+        assert!(legacy.exists());
+    }
+
+    #[test]
+    fn unsupported_codego_database_isolated_with_sidecars() {
+        let temp = tempfile::tempdir().unwrap();
+        let destination = temp.path().join(APP_CONFIG_DIR_NAME);
+        std::fs::create_dir_all(&destination).unwrap();
+        let database = destination.join(DATABASE_FILE_NAME);
+        let conn = Connection::open(&database).unwrap();
+        conn.execute_batch("PRAGMA user_version = 16;").unwrap();
+        drop(conn);
+        std::fs::write(
+            PathBuf::from(format!("{}-wal", database.display())),
+            b"legacy wal",
+        )
+        .unwrap();
+        std::fs::write(
+            PathBuf::from(format!("{}-shm", database.display())),
+            b"legacy shm",
+        )
+        .unwrap();
+
+        assert!(isolate_unsupported_database(&destination).unwrap());
+        let backup = destination.join("codego.db.unsupported-v16");
+        assert!(!database.exists());
+        assert_eq!(read_database_user_version(&backup).unwrap(), 16);
+        assert!(PathBuf::from(format!("{}-wal", backup.display())).exists());
+        assert!(PathBuf::from(format!("{}-shm", backup.display())).exists());
+        assert!(!PathBuf::from(format!("{}-wal", database.display())).exists());
+        assert!(!isolate_unsupported_database(&destination).unwrap());
     }
 
     #[test]
@@ -680,7 +861,10 @@ mod tests {
         let source = temp.path().join(".cc-switch");
         let destination = temp.path().join(APP_CONFIG_DIR_NAME);
         std::fs::create_dir_all(&source).unwrap();
-        std::fs::write(source.join("cc-switch.db"), b"legacy database").unwrap();
+        let legacy_db = source.join("cc-switch.db");
+        let conn = Connection::open(&legacy_db).unwrap();
+        conn.execute_batch("PRAGMA user_version = 13;").unwrap();
+        drop(conn);
         std::fs::write(source.join("cc-switch.db-wal"), b"legacy wal").unwrap();
         std::fs::write(source.join("settings.json"), b"old settings").unwrap();
         std::fs::create_dir_all(&destination).unwrap();
@@ -688,8 +872,8 @@ mod tests {
 
         assert!(migrate_legacy_directory(&source, &destination).unwrap());
         assert_eq!(
-            std::fs::read(destination.join(DATABASE_FILE_NAME)).unwrap(),
-            b"legacy database"
+            read_database_user_version(&destination.join(DATABASE_FILE_NAME)).unwrap(),
+            13
         );
         assert_eq!(
             std::fs::read(destination.join("codego.db-wal")).unwrap(),
@@ -700,6 +884,22 @@ mod tests {
             b"new settings"
         );
         assert!(source.join("cc-switch.db").exists());
+    }
+
+    #[test]
+    fn legacy_directory_migration_skips_database_newer_than_supported() {
+        let temp = tempfile::tempdir().unwrap();
+        let source = temp.path().join(".cc-switch");
+        let destination = temp.path().join(APP_CONFIG_DIR_NAME);
+        std::fs::create_dir_all(&source).unwrap();
+        let legacy_db = source.join("cc-switch.db");
+        let conn = Connection::open(&legacy_db).unwrap();
+        conn.execute_batch("PRAGMA user_version = 16;").unwrap();
+        drop(conn);
+
+        assert!(!migrate_legacy_directory(&source, &destination).unwrap());
+        assert!(!destination.join(DATABASE_FILE_NAME).exists());
+        assert!(legacy_db.exists());
     }
 }
 
